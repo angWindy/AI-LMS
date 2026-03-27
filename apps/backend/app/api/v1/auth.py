@@ -1,7 +1,7 @@
 """
 Authentication API endpoints.
 """
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -68,7 +68,7 @@ async def login(
         )
 
     # Update last login
-    user.last_login_at = datetime.utcnow()
+    user.last_login_at = datetime.now(timezone.utc)
 
     # Create tokens
     access_token = create_access_token(user.id)
@@ -109,7 +109,7 @@ async def refresh_access_token(
             RefreshToken.user_id == user_id,
             RefreshToken.token == request.refresh_token,
             RefreshToken.revoked_at.is_(None),
-            RefreshToken.expires_at > datetime.utcnow(),
+            RefreshToken.expires_at > datetime.now(timezone.utc),
         )
         .first()
     )
@@ -125,7 +125,7 @@ async def refresh_access_token(
     new_refresh_token = create_refresh_token(user_id)
 
     # Revoke old refresh token
-    refresh_token.revoked_at = datetime.utcnow()
+    refresh_token.revoked_at = datetime.now(timezone.utc)
 
     # Store new refresh token
     new_token_record = RefreshToken(user_id=user_id, token=new_refresh_token)
@@ -149,7 +149,7 @@ async def logout(
     db.query(RefreshToken).filter(
         RefreshToken.user_id == current_user.id,
         RefreshToken.revoked_at.is_(None),
-    ).update({"revoked_at": datetime.utcnow()})
+    ).update({"revoked_at": datetime.now(timezone.utc)})
 
     db.commit()
 

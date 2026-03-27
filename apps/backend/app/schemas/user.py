@@ -62,13 +62,13 @@ class UserProfile(UserResponse):
     last_login_at: Optional[datetime] = None
 
 
-class LoginRequest(BaseModel):
+class UserLogin(BaseModel):
     """Login request schema."""
     email: EmailStr
     password: str
 
 
-class PasswordChangeRequest(BaseModel):
+class PasswordChange(BaseModel):
     """Password change request."""
     current_password: str
     new_password: str
@@ -79,3 +79,8 @@ class PasswordChangeRequest(BaseModel):
         if len(v) < 8:
             raise ValueError("Password must be at least 8 characters long")
         return v
+
+
+# Aliases for backward compatibility
+LoginRequest = UserLogin
+PasswordChangeRequest = PasswordChange

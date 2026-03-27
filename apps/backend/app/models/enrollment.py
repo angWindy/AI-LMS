@@ -3,7 +3,7 @@ Enrollment model (user enrolled in a course).
 """
 import enum
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey, Enum, Numeric, UniqueConstraint
@@ -61,7 +61,9 @@ class Enrollment(Base, TimestampMixin):
         default=0.00,
         nullable=False,
     )  # Percentage 0-100
-    enrolled_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
+    enrolled_at: Mapped[datetime] = mapped_column(
+        default=lambda: datetime.now(timezone.utc), nullable=False
+    )
     completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
     last_accessed_at: Mapped[datetime | None] = mapped_column(nullable=True)
 

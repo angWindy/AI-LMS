@@ -1,7 +1,6 @@
-from fastapi import FastAPI
+"""
+Re-export app from app.main for backward compatibility.
+"""
+from app.main import app
 
-app = FastAPI(title="LMS API")
-
-@app.get("/")
-def root():
-    return {"message": "LMS Backend Running"}
+__all__ = ["app"]

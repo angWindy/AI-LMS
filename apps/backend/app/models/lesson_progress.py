@@ -2,7 +2,7 @@
 Lesson progress tracking model.
 """
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy import Boolean, Integer, ForeignKey, UniqueConstraint
@@ -47,7 +47,9 @@ class LessonProgress(Base):
     is_completed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
     last_position: Mapped[int] = mapped_column(Integer, default=0, nullable=False)  # Video position
-    last_accessed_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
+    last_accessed_at: Mapped[datetime] = mapped_column(
+        default=lambda: datetime.now(timezone.utc), nullable=False
+    )
 
     # Relationships
     user = relationship("User")

@@ -3,7 +3,7 @@ Submission model.
 """
 import enum
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
 from sqlalchemy import String, Boolean, Text, Integer, Numeric, Enum, ForeignKey, UniqueConstraint
@@ -62,7 +62,9 @@ class Submission(Base):
     )
     score: Mapped[float | None] = mapped_column(Numeric(5, 2), nullable=True)
     feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
-    submitted_at: Mapped[datetime] = mapped_column(default=datetime.utcnow, nullable=False)
+    submitted_at: Mapped[datetime] = mapped_column(
+        default=lambda: datetime.now(timezone.utc), nullable=False
+    )
     graded_at: Mapped[datetime | None] = mapped_column(nullable=True)
     graded_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
