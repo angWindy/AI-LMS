@@ -40,6 +40,14 @@ start:
 	@echo "Starting services..."
 	docker-compose up -d
 	@echo "✓ Services started"
+	@echo "Waiting for database to be ready..."
+	@for i in 1 2 3 4 5 6 7 8 9 10; do \
+		echo "Checking db (attempt $$i)..."; \
+		docker-compose exec -T db pg_isready -U lms_user -d lms_db >/dev/null 2>&1 && break || sleep 2; \
+	done
+	@echo "Applying migrations..."
+	@docker-compose exec -T backend alembic upgrade head || (echo "Migration failed, please run 'make migrate' manually"; exit 0)
+	@echo "✓ Migrations applied"
 	@echo "Backend API: http://localhost:8000"
 	@echo "API Docs: http://localhost:8000/docs"
 
