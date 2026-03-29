@@ -2,7 +2,27 @@
 
 **Date**: 2026-03-29  
 **Phase**: MVP (Phase 1)  
-**Overall Completion**: ~70%
+**Overall Completion**: ~70% (49/70 core endpoints)  
+**Latest Update**: Lessons, Materials, Assignments, Submissions APIs implemented
+
+## 📊 COMPLETION SUMMARY
+
+| Category | Status | Progress |
+|----------|--------|----------|
+| Infrastructure | ✅ 100% | Docker, DB, Core setup |
+| Authentication | ✅ 100% | JWT, RBAC (7/7 endpoints) |
+| Users Management | ✅ 100% | CRUD, activate, verify (8/8 endpoints) |
+| Courses | ✅ 100% | CRUD, publish, enroll (12/12 endpoints) |
+| Lessons | ✅ 100% | CRUD, publish (8/8 endpoints) **NEW** |
+| Materials | ✅ 100% | Upload, CRUD (3/3 endpoints) **NEW** |
+| Assignments | ✅ 100% | CRUD, publish (6/6 endpoints) **NEW** |
+| Submissions | ✅ 100% | Submit, grade (5/5 endpoints) **NEW** |
+| File Uploads | ✅ 100% | Videos, docs, submissions **NEW** |
+| AI Features | ❌ 0% | TODO (Phase 2) |
+| Notifications | ❌ 0% | TODO (Phase 2) |
+| Analytics | ❌ 0% | TODO (Phase 2) |
+
+---
 
 ## ✅ ĐÃ HOÀN THÀNH
 
@@ -12,13 +32,13 @@
 - PostgreSQL 15 configured
 - SQLAlchemy 2.0 ORM setup
 - Alembic migrations configured
-- 11 database models implemented
+- 12 database models implemented
 - All relationships defined
-- Indexes optimized
+- Automatic migration on startup (make start)
 
 #### Docker Configuration ✅
 - docker-compose.yml complete
-- Backend Dockerfile
+- Backend Dockerfile with libmagic
 - Database container
 - Volumes for persistence
 - Network configuration
@@ -31,23 +51,24 @@
 - Settings with Pydantic
 - Custom exception handlers
 - Dependency injection system
+- Static file serving for uploads (/storage/*)
 
 ### 2. Authentication & Authorization (100%)
 
 #### JWT Authentication ✅
-- User registration
-- Login with email/password
-- Access token generation (30 min expiry)
-- Refresh token generation (7 days expiry)
-- Token refresh mechanism
-- Logout with token revocation
+- User registration (/auth/register)
+- Login with email/password (/auth/login)
+- Access token (30 min), Refresh token (7 days)
+- Token refresh mechanism (/auth/refresh)
+- Logout (/auth/logout)
 - Password hashing (bcrypt)
+- Current user dependency
 
 #### Authorization ✅
 - Role-Based Access Control (RBAC)
 - 3 roles: ADMIN, INSTRUCTOR, LEARNER
-- @require_role decorator
-- get_current_user dependency
+- Permission checks on endpoints
+- Owner verification for resources
 - Permission checking
 
 #### User Profile ✅
@@ -89,94 +110,189 @@
 - POST /users/{id}/deactivate
 - POST /users/{id}/verify
 
-### 4. Course Management (80%)
+### 4. Courses (100%)
 
 #### Course CRUD ✅
 - List courses (public, paginated)
-- Create course (INSTRUCTOR)
+- Create course (INSTRUCTOR+)
 - Get course details
 - Update course (owner only)
 - Delete course (owner only)
 
 #### Course Operations ✅
 - Publish course (DRAFT → PUBLISHED)
-- Get course lessons
-- Course enrollment (LEARNER)
-- Get my enrollments
+- Archive course
+- Enroll in course
+- Get my teaching courses (INSTRUCTOR)
+- Get my enrolled courses (LEARNER)
 
-**Endpoints Implemented**: 9/9
+**Endpoints Implemented**: 12/12
 - GET /courses
 - POST /courses
 - GET /courses/{id}
+- GET /courses/slug/{slug}
 - PUT /courses/{id}
 - DELETE /courses/{id}
 - POST /courses/{id}/publish
+- POST /courses/{id}/archive
 - GET /courses/{id}/lessons
 - POST /courses/{id}/enroll
-- GET /courses/enrollments/me
+- GET /courses/my/teaching
+- GET /courses/my/enrolled
 
-**Missing**:
-- Archive course functionality
-- Course statistics/analytics
-- Bulk operations
+### 5. Lessons & Materials (100%) **NEW**
 
-### 5. Database Models (100%)
+#### Lesson CRUD ✅
+- Create lesson for course
+- Get lesson details
+- Update lesson
+- Delete lesson
+- Reorder lessons
+- Publish lesson
 
-All 11 models implemented:
+#### Materials ✅
+- Add material to lesson (link/video/document)
+- Upload files (auto MIME type detection)
+- List lesson materials
+- Delete material
+
+#### Progress Tracking ✅
+- Update lesson progress (watched time, position)
+- Get lesson progress
+- Track completion status
+
+**Endpoints Implemented**: 11/11
+- POST /lessons?course_id={id}
+- GET /lessons/{id}
+- PUT /lessons/{id}
+- DELETE /lessons/{id}
+- PATCH /lessons/{id}/order
+- POST /lessons/{id}/publish
+- POST /lessons/{id}/materials
+- GET /lessons/{id}/materials
+- DELETE /lessons/materials/{id}
+- POST /lessons/{id}/progress
+- GET /lessons/{id}/progress
+
+### 6. Assignments & Submissions (100%) **NEW**
+
+#### Assignment CRUD ✅
+- Create assignment
+- Get assignment
+- Update assignment
+- Delete assignment
+- Publish assignment
+- List course assignments
+
+#### Submission Workflow ✅
+- Submit assignment (text + file)
+- Get my submission
+- List all submissions (INSTRUCTOR)
+- Grade submission (with late penalty)
+- Get submission details
+
+#### Grading Features ✅
+- Score validation
+- Late penalty calculation
+- Feedback comments
+- Status tracking (submitted/graded/returned)
+
+**Endpoints Implemented**: 11/11
+- POST /assignments?course_id={id}
+- GET /assignments?course_id={id}
+- GET /assignments/{id}
+- PUT /assignments/{id}
+- DELETE /assignments/{id}
+- POST /assignments/{id}/publish
+- POST /assignments/{id}/submit
+- GET /assignments/{id}/my-submission
+- GET /assignments/{id}/submissions
+- POST /submissions/{id}/grade
+- GET /submissions/{id}
+
+### 7. File Upload System (100%) **NEW**
+
+#### File Handler ✅
+- MIME type validation (magic library)
+- File size validation
+- Secure file storage
+- File deletion
+- Directory structure management
+
+#### Supported File Types ✅
+- Videos: MP4, WebM, MOV, AVI, MKV
+- Documents: PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, TXT, CSV
+- Images: JPG, PNG, GIF, WebP, SVG
+
+#### Storage Structure ✅
+- `/storage/videos/` - Uploaded videos
+- `/storage/documents/` - Documents
+- `/storage/materials/{lesson_id}/` - Lesson materials
+- `/storage/submissions/{assignment_id}/{user_id}/` - Student submissions
+- `/storage/thumbnails/` - Course thumbnails
+
+**Features**:
+- Static file serving at `/storage/*`
+- Automatic directory creation
+- Unique filename generation
+- Atomic file operations
+
+### 8. Database Models (100%)
+
+All 12 models implemented with relationships:
 
 1. ✅ **User** - Authentication & profiles
 2. ✅ **Course** - Course information
 3. ✅ **Lesson** - Video lessons
-4. ✅ **Material** - Learning materials
-5. ✅ **Enrollment** - Course enrollments
-6. ✅ **LessonProgress** - Progress tracking
-7. ✅ **Assignment** - Assignments
-8. ✅ **Submission** - Student submissions
-9. ✅ **RefreshToken** - JWT tokens
+4. ✅ **Material** - Learning materials (videos, docs, links)
+5. ✅ **Enrollment** - Course enrollments with status
+6. ✅ **LessonProgress** - Student progress tracking
+7. ✅ **Assignment** - Course assignments
+8. ✅ **Submission** - Student submissions with grading
+9. ✅ **RefreshToken** - JWT token storage
 10. ✅ **AIConversation** - AI chat sessions (prepared)
 11. ✅ **AIMessage** - AI messages (prepared)
 
-### 6. Schemas (100%)
+### 9. Schemas (100%)
 
-Pydantic schemas for validation:
-- ✅ User schemas (create, update, response)
-- ✅ Course schemas (create, update, response)
-- ✅ Lesson schemas (create, update, response)
-- ✅ Assignment schemas (create, update, response)
-- ✅ Common schemas (pagination, tokens)
+Complete Pydantic validation schemas:
+- ✅ User schemas (register, login, update)
+- ✅ Course schemas (create, update, list, detail)
+- ✅ Lesson schemas (create, update, progress)
+- ✅ Material schemas (create, upload)
+- ✅ Assignment schemas (create, update)
+- ✅ Submission schemas (create, grade, list)
+- ✅ Common schemas (pagination, errors, messages)
 
 ---
 
-## 🟡 ĐANG PHÁT TRIỂN / CHƯA HOÀN CHỈNH
+## 🟡 CHƯA HOÀN THÀNH / PHASE 2
 
-### 1. Lesson Management (0% - Model có, API chưa có)
+### 1. AI Features (0%)
+- AI conversation endpoints
+- AI message endpoints
+- Integration with LLM models
+- Estimated: 15-20 endpoints
 
-**Missing Endpoints**:
-- POST /lessons - Create lesson
-- GET /lessons/{id} - Get lesson details
-- PUT /lessons/{id} - Update lesson
-- DELETE /lessons/{id} - Delete lesson
-- POST /lessons/{id}/materials - Add material
-- PUT /lessons/{id}/progress - Update watch progress
+### 2. Advanced Features (0%)
+- Search & filtering (advanced)
+- Notifications system
+- Analytics & reporting
+- Certificate generation
+- Bulk operations
+- Export/Import
 
-**Impact**: Không thể quản lý bài giảng qua API
+### 3. Frontend (0%)
+- React/Next.js UI (scaffold exists)
+- Student dashboard
+- Instructor dashboard
+- Admin panel
 
-### 2. Assignment Management (0% - Model có, API chưa có)
-
-**Missing Endpoints**:
-- POST /assignments - Create assignment
-- GET /assignments/{id} - Get assignment
-- PUT /assignments/{id} - Update assignment
-- DELETE /assignments/{id} - Delete assignment
-- GET /courses/{id}/assignments - List course assignments
-
-**Impact**: Không thể tạo và quản lý bài tập
-
-### 3. Submission System (0% - Model có, API chưa có)
-
-**Missing Endpoints**:
-- POST /submissions - Submit assignment
-- GET /submissions/{id} - Get submission
+### 4. Testing (0%)
+- Unit tests
+- Integration tests
+- API tests (test_backend.sh exists)
+- End-to-end tests
 - PUT /submissions/{id}/grade - Grade submission
 - GET /assignments/{id}/submissions - List submissions
 
@@ -441,40 +557,114 @@ apps/backend/app/repositories/
 
 ---
 
-## 💡 Recommendations
+## 📋 WORK COMPLETED IN THIS SESSION
 
-### Để hoàn thiện MVP (Phase 1):
+### Date: 2026-03-29
+### Session Focus: Complete Basic Course Management & File Upload
 
-**Tuần 1-2**: 
-- [ ] Implement Lesson Management API
-- [ ] Implement File Upload system
-- [ ] Test với video upload
+#### What Was Done:
 
-**Tuần 3-4**:
-- [ ] Implement Progress Tracking
-- [ ] Implement Materials Management
-- [ ] Test end-to-end flow
+1. **File Upload System** ✅
+   - Created `app/utils/file_handler.py` (~380 lines)
+   - MIME type detection with python-magic
+   - File validation (type, size)
+   - Secure file storage with unique names
+   - Support for videos (500MB), documents (50MB), images (10MB)
+   - Static file serving at `/storage/*`
 
-**Tuần 5-6**:
-- [ ] Implement Assignment system
-- [ ] Implement Submission system
-- [ ] Add testing suite
+2. **Lessons API** ✅ (8 endpoints)
+   - POST /lessons?course_id={id} - Create lesson
+   - GET /lessons/{id} - Get lesson with materials
+   - PUT /lessons/{id} - Update lesson
+   - DELETE /lessons/{id} - Delete with cascade
+   - PATCH /lessons/{id}/order - Reorder lessons
+   - POST /lessons/{id}/publish - Publish lesson
+   - POST /lessons/{id}/progress - Track progress
+   - GET /lessons/{id}/progress - Get progress
 
-**Tuần 7-8**:
-- [ ] Refactor to Service Layer
-- [ ] Add Repository Layer
-- [ ] Performance optimization
+3. **Materials API** ✅ (3 endpoints)
+   - POST /lessons/{id}/materials - Create material (with file upload)
+   - GET /lessons/{id}/materials - List materials
+   - DELETE /lessons/materials/{id} - Delete material
 
-### Architecture Improvements:
+4. **Assignments API** ✅ (6 endpoints)
+   - POST /assignments?course_id={id} - Create assignment
+   - GET /assignments?course_id={id} - List assignments
+   - GET /assignments/{id} - Get assignment
+   - PUT /assignments/{id} - Update assignment
+   - DELETE /assignments/{id} - Delete assignment
+   - POST /assignments/{id}/publish - Publish assignment
 
-1. **Extract Service Layer** - Tách business logic
-2. **Add Repository Pattern** - Abstract data access
-3. **Implement Testing** - Ensure quality
-4. **Add Validation** - Better error handling
-5. **Optimize Queries** - N+1 problem, eager loading
+5. **Submissions API** ✅ (5 endpoints)
+   - POST /assignments/{id}/submit - Submit with file upload
+   - GET /assignments/{id}/my-submission - Get my submission
+   - GET /assignments/{id}/submissions - List all (INSTRUCTOR)
+   - POST /submissions/{id}/grade - Grade with late penalty
+   - GET /submissions/{id} - Get submission details
+
+6. **Infrastructure Updates** ✅
+   - Updated Dockerfile (added libmagic)
+   - Updated main.py (added static file mount)
+   - Updated router.py (registered new routers)
+   - Fixed all imports and dependencies
+
+7. **Testing** ✅
+   - Created comprehensive test scripts
+   - Verified all 22 new endpoints working
+   - Tested file upload functionality
+   - Tested grading workflow
+   - Verified enrolled user functionality
+   - All database tables populated correctly
+
+8. **Project Cleanup** ✅
+   - Removed test result logs
+   - Created storage directory structure
+   - Updated .gitignore
+   - Created .gitkeep files for directories
+
+#### Test Results:
+- ✅ Lesson CRUD: Working
+- ✅ Material upload: Working (files saved to /storage/materials/)
+- ✅ Assignment CRUD: Working
+- ✅ Submission workflow: Working
+- ✅ Grading with late penalty: Working
+- ✅ Progress tracking: Working
+- ✅ File storage: Working
+- ✅ Database integrity: All constraints enforced
+
+#### Database Status After Session:
+```
+lessons         | 2
+materials       | 2
+assignments     | 1
+submissions     | 1
+lesson_progress | 1
+enrollments     | 2
+users           | 3
+courses         | 1
+```
 
 ---
 
-**Report Version**: 1.0  
-**Assessment Date**: 2026-03-29  
-**Next Review**: After Priority 1 tasks completion
+## 💡 Next Steps (Phase 2)
+
+### High Priority:
+1. **AI Features** - Chat system for learner support
+2. **Notifications** - Email/in-app notifications
+3. **Frontend** - React/Next.js dashboard
+
+### Medium Priority:
+4. **Advanced Search** - Full-text search, filters
+5. **Analytics** - Progress reports, statistics
+6. **Certificates** - Completion certificates
+
+### Low Priority:
+7. **Bulk Operations** - Import/export
+8. **Integration** - Payment gateway, video transcoding
+9. **Performance** - Caching, optimization
+
+---
+
+**Report Version**: 2.0  
+**Last Updated**: 2026-03-29 17:40 UTC
+**Session Completed**: YES ✅

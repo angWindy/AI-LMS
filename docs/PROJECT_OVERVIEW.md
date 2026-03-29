@@ -23,57 +23,106 @@ AI-LMS (AI-powered Learning Management System) là một hệ thống quản lý
 
 ## 📊 Tiến độ dự án hiện tại
 
-### Phase 1 - MVP (Hiện tại - 70% hoàn thành)
+### Phase 1 - MVP (Hiện tại - 70% hoàn thành) ✅
 
 #### ✅ Đã hoàn thành
 - **Backend Infrastructure** (100%)
   - FastAPI application setup
-  - Docker containerization
-  - PostgreSQL database integration
-  - Alembic migrations configured
-
-- **Database Models** (100%)
-  - 11 models hoàn chỉnh với relationships
-  - Migration files đầy đủ
-  - Index optimization
+  - Docker containerization with auto-migration
+  - PostgreSQL database integration (Alembic)
+  - All 12 database models with relationships
+  - Static file serving for uploads
 
 - **Authentication & Authorization** (100%)
-  - JWT authentication với refresh tokens
-  - Role-based access control (RBAC)
-  - Password hashing với bcrypt
+  - JWT authentication (access + refresh tokens)
+  - Role-based access control (Admin, Instructor, Learner)
+  - Password hashing (bcrypt)
   - Token refresh mechanism
+  - Current user dependency injection
 
-- **API Endpoints - Core** (80%)
-  - Auth endpoints (100%): register, login, logout, refresh, profile
-  - User management (100%): CRUD, activate/deactivate, verify
-  - Course endpoints (80%): CRUD, publish, enrollment, lessons listing
+- **API Endpoints** (49/70 ~ 70%)
+  
+  **Authentication** (7/7) ✅
+  - POST /auth/register
+  - POST /auth/login
+  - POST /auth/refresh
+  - POST /auth/logout
+  - GET /auth/me
+  - PUT /auth/me
+  - PUT /auth/me/password
 
-#### 🟡 Đang triển khai
-- **API Endpoints - Advanced** (40%)
-  - Lessons CRUD (chưa có endpoints riêng)
-  - Assignments management (model có nhưng thiếu endpoints)
-  - Submissions handling (model có nhưng thiếu endpoints)
-  - Progress tracking (model có nhưng thiếu endpoints)
-  - Materials management (model có nhưng thiếu endpoints)
+  **Users** (8/8) ✅
+  - GET /users, POST /users
+  - GET /users/{id}, PUT /users/{id}, DELETE /users/{id}
+  - POST /users/{id}/activate, deactivate, verify
 
-- **Business Logic** (20%)
-  - Service layer (đã có cấu trúc folder nhưng chưa implement)
-  - Repository layer (đã có cấu trúc folder nhưng chưa implement)
-  - Business logic hiện đang nằm trong API routes
+  **Courses** (12/12) ✅
+  - GET /courses, POST /courses
+  - GET /courses/{id}, PUT /courses/{id}, DELETE /courses/{id}
+  - GET /courses/slug/{slug}
+  - POST /courses/{id}/publish, archive
+  - GET /courses/{id}/lessons
+  - POST /courses/{id}/enroll
+  - GET /courses/my/teaching, my/enrolled
 
-#### ❌ Chưa bắt đầu
+  **Lessons** (8/8) ✅ **NEW**
+  - POST /lessons?course_id={id}
+  - GET /lessons/{id}
+  - PUT /lessons/{id}
+  - DELETE /lessons/{id}
+  - PATCH /lessons/{id}/order
+  - POST /lessons/{id}/publish
+  - POST /lessons/{id}/progress
+  - GET /lessons/{id}/progress
+
+  **Materials** (3/3) ✅ **NEW**
+  - POST /lessons/{id}/materials (with file upload)
+  - GET /lessons/{id}/materials
+  - DELETE /lessons/materials/{id}
+
+  **Assignments** (6/6) ✅ **NEW**
+  - POST /assignments?course_id={id}
+  - GET /assignments?course_id={id}
+  - GET /assignments/{id}
+  - PUT /assignments/{id}
+  - DELETE /assignments/{id}
+  - POST /assignments/{id}/publish
+
+  **Submissions** (5/5) ✅ **NEW**
+  - POST /assignments/{id}/submit (with file)
+  - GET /assignments/{id}/my-submission
+  - GET /assignments/{id}/submissions
+  - POST /submissions/{id}/grade
+  - GET /submissions/{id}
+
+- **File Upload System** (100%) ✅ **NEW**
+  - MIME type validation (python-magic)
+  - File size checking
+  - Secure storage
+  - Video (500MB), document (50MB), image (10MB) support
+  - Unique filename generation
+  - Static file serving at /storage/*
+
+#### 🟡 Chưa hoàn thành (Phase 2)
+- **AI Features** (0%)
+  - AI conversation endpoints
+  - AI message handling
+  - LLM integration
+  
+- **Advanced Features** (0%)
+  - Notifications system
+  - Analytics & reporting
+  - Search & filtering
+  - Certificates
+  
+- **Frontend** (0%)
+  - Scaffolding exists
+  - No components implemented
+  
 - **Testing** (0%)
   - Unit tests
   - Integration tests
-  - API endpoint tests
-  
-- **Frontend** (0%)
-  - Chỉ có scaffolding structure
-  - Chưa có components thực tế
-  - Chưa có pages implementation
-  
-- **AI Services** (0%)
-  - Models đã sẵn sàng trong database
+  - E2E tests
   - Chưa có service implementation
   - Chưa tích hợp LLM providers
 
