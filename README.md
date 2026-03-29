@@ -6,7 +6,7 @@ A scalable Learning Management System built with FastAPI, Next.js, and PostgreSQ
 
 ## 🎯 Features
 
-### Phase 1 (Current - MVP)
+### Phase 1 (Current - MVP) ✅ 85% Complete
 - ✅ User Management (Admin, Instructor, Learner roles)
 - ✅ JWT Authentication & Authorization
 - ✅ Course Management (CRUD operations)
@@ -14,20 +14,21 @@ A scalable Learning Management System built with FastAPI, Next.js, and PostgreSQ
 - ✅ Assignment & Submission system
 - ✅ Progress tracking
 - ✅ RESTful API with Swagger docs
+- ✅ **Frontend with Next.js + shadcn/ui**
 
 ### Phase 2 (Planned)
-- Frontend with Next.js + shadcn/ui
-- Video streaming optimization
 - AI Assistant integration (LLM-powered)
+- Video streaming optimization
 - Analytics dashboard
+- Notification system
 
 ## 🏗️ Architecture
 
 ```
 AI-Support-for-Online-Teaching/
 ├── apps/
-│   ├── backend/          # FastAPI Backend
-│   └── frontend/         # Next.js Frontend (planned)
+│   ├── backend/          # FastAPI Backend (Python 3.11)
+│   └── frontend/         # Next.js 14 Frontend ✅
 ├── services/
 │   └── ai/               # AI Service (future)
 ├── docker/               # Docker configs
@@ -41,6 +42,7 @@ AI-Support-for-Online-Teaching/
 
 ### Prerequisites
 - Docker & Docker Compose
+- Node.js 18+ (for frontend)
 - Git
 
 ### 1. Clone and Setup
@@ -68,22 +70,78 @@ SECRET_KEY=your-secret-key-min-32-characters
 CORS_ORIGINS=http://localhost:3000,http://localhost:8000
 ```
 
-### 3. Start Services
+### 3. Start Backend Services
 
 ```bash
 make start
 ```
 
-Services will be available at:
+Backend services will be available at:
 - **Backend API**: http://localhost:8000
 - **API Docs**: http://localhost:8000/docs
 - **Database**: localhost:5432
 
-### 4. Run Migrations
+### 4. Start Frontend (Development)
+
+```bash
+cd apps/frontend
+npm install
+npm run dev
+```
+
+Frontend will be available at:
+- **Frontend**: http://localhost:3000
+
+### 5. Run Migrations
 
 ```bash
 make migration MESSAGE="initial migration"
 make migrate
+```
+
+## 🎨 Frontend
+
+### Tech Stack
+- **Framework**: Next.js 14 (App Router)
+- **UI Library**: shadcn/ui + Tailwind CSS
+- **State**: Zustand (auth) + React Query (server)
+- **Forms**: React Hook Form + Zod
+- **API**: Axios with interceptors
+
+### Pages Available
+| Page | Route | Description |
+|------|-------|-------------|
+| Landing | `/` | Public landing page |
+| Login | `/login` | User authentication |
+| Register | `/register` | New user registration |
+| Dashboard | `/dashboard` | Role-based dashboard |
+| Courses | `/courses` | Browse all courses |
+| Course Detail | `/courses/[slug]` | View course with lessons |
+| Create Course | `/courses/create` | Instructor: create course |
+| My Courses | `/courses/my` | Instructor: manage courses |
+| Enrolled | `/courses/enrolled` | Learner: enrolled courses |
+| Users | `/users` | Admin: user management |
+| Profile | `/profile` | User profile settings |
+
+### Frontend Commands
+
+```bash
+cd apps/frontend
+
+# Development
+npm run dev
+
+# Build
+npm run build
+
+# Start production
+npm start
+
+# Type check
+npm run type-check
+
+# Lint
+npm run lint
 ```
 
 ## 📝 Documentation
@@ -164,8 +222,10 @@ make logs-backend
 | Auth | JWT (python-jose) |
 | Migrations | Alembic |
 | Container | Docker & Docker Compose |
-| Frontend | Next.js 14 (planned) |
-| UI Library | shadcn/ui + Tailwind CSS (planned) |
+| Frontend | Next.js 14 ✅ |
+| UI Library | shadcn/ui + Tailwind CSS ✅ |
+| State Mgmt | Zustand + React Query ✅ |
+| Forms | React Hook Form + Zod ✅ |
 
 ## 📊 Database Schema
 
@@ -297,13 +357,14 @@ For issues, questions, or feature requests:
 - Tag appropriately: `bug`, `feature`, `documentation`, `question`
 
 ### 📊 Project Status
-- **Phase 1 (MVP)**: ~70% Complete
-- **Current Focus**: Completing API endpoints, adding service layer
-- **Next Phase**: Frontend development with Next.js
+- **Phase 1 (MVP)**: ~85% Complete ✅
+- **Backend**: 49 API endpoints implemented
+- **Frontend**: Core pages complete with Next.js 14
+- **Next Phase**: AI integration, analytics
 
-See [Project Overview](./docs/PROJECT_OVERVIEW.md) for detailed progress tracking.
+See [PROGRESS_TRACKING.md](./PROGRESS_TRACKING.md) for detailed progress tracking.
 
 ---
 
 **Built with ❤️ for online education**  
-**Version**: 1.0.0-alpha | **Last Updated**: 2026-03-29
+**Version**: 1.0.0-beta | **Last Updated**: 2026-03-29
