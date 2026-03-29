@@ -1,6 +1,8 @@
-# LMS MVP - Learning Management System
+# AI-LMS - Learning Management System
 
 A scalable Learning Management System built with FastAPI, Next.js, and PostgreSQL, with AI integration capability.
+
+> 📚 **[Read Full Documentation](./docs/README.md)** | [Setup Guide](./docs/SETUP_GUIDE.md) | [API Docs](./docs/API_DOCUMENTATION.md) | [Development Guide](./docs/DEVELOPMENT_GUIDE.md)
 
 ## 🎯 Features
 
@@ -84,13 +86,23 @@ make migration MESSAGE="initial migration"
 make migrate
 ```
 
-## 📝 API Documentation
+## 📝 Documentation
 
-Once the backend is running, visit:
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+### 📚 Complete Documentation
+For detailed documentation, please visit the **[docs/](./docs/)** folder:
 
-### Key Endpoints
+- **[Project Overview](./docs/PROJECT_OVERVIEW.md)** - Tổng quan dự án, tiến độ, roadmap
+- **[Setup Guide](./docs/SETUP_GUIDE.md)** - Hướng dẫn cài đặt chi tiết
+- **[Database Schema](./docs/DATABASE_SCHEMA.md)** - Chi tiết database structure
+- **[API Documentation](./docs/API_DOCUMENTATION.md)** - API reference đầy đủ
+- **[Development Guide](./docs/DEVELOPMENT_GUIDE.md)** - Coding standards & best practices
+
+### 🔌 API Endpoints
+Once the backend is running, interactive API documentation is available at:
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+**Quick API Reference**:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
@@ -99,6 +111,8 @@ Once the backend is running, visit:
 | `/api/v1/auth/me` | GET | Get current user profile |
 | `/api/v1/courses` | GET | List all courses |
 | `/api/v1/courses` | POST | Create course (Instructor) |
+
+> For complete API reference with examples, see **[API_DOCUMENTATION.md](./docs/API_DOCUMENTATION.md)**
 
 ## 🛠️ Development
 
@@ -257,7 +271,7 @@ make logs-backend
 # Reset database (⚠️ destroys data)
 make clean
 make start
-make migration MESSAGE="initial"
+make migratidon MESSAGE="initial"
 make migrate
 ```
 
@@ -269,10 +283,27 @@ BACKEND_PORT=8001
 DB_PORT=5433
 ```
 
-## 📞 Support
+## 📞 Support & Resources
 
-For issues and questions, please open an issue on GitHub.
+### 📖 Documentation
+- **[Complete Documentation](./docs/README.md)** - Start here for all docs
+- **[Setup Guide](./docs/SETUP_GUIDE.md)** - Installation and troubleshooting
+- **[Development Guide](./docs/DEVELOPMENT_GUIDE.md)** - Contributing guidelines
+
+### 🐛 Issues & Questions
+For issues, questions, or feature requests:
+- Check [Setup Guide Troubleshooting](./docs/SETUP_GUIDE.md#troubleshooting)
+- Open a GitHub issue with detailed description
+- Tag appropriately: `bug`, `feature`, `documentation`, `question`
+
+### 📊 Project Status
+- **Phase 1 (MVP)**: ~70% Complete
+- **Current Focus**: Completing API endpoints, adding service layer
+- **Next Phase**: Frontend development with Next.js
+
+See [Project Overview](./docs/PROJECT_OVERVIEW.md) for detailed progress tracking.
 
 ---
 
-**Built with ❤️ for online education**
+**Built with ❤️ for online education**  
+**Version**: 1.0.0-alpha | **Last Updated**: 2026-03-29
