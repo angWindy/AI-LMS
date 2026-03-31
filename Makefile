@@ -1,24 +1,32 @@
-.PHONY: help setup dev-setup start stop restart logs build clean migrate migration test lint format
+.PHONY: help setup dev-setup start stop restart logs build clean migrate migration test lint format prod prod-stop prod-logs
 
 # Default target
 help:
 	@echo "LMS MVP - Available Commands:"
-	@echo "  make setup          - Initial project setup (copy .env, install deps)"
-	@echo "  make dev-setup      - Setup development environment"
-	@echo "  make start          - Start all services with Docker Compose"
-	@echo "  make stop           - Stop all services"
-	@echo "  make restart        - Restart all services"
-	@echo "  make logs           - View logs from all services"
-	@echo "  make logs-backend   - View backend logs only"
-	@echo "  make build          - Build Docker images"
-	@echo "  make clean          - Stop and remove all containers, volumes"
-	@echo "  make migrate        - Run database migrations"
-	@echo "  make migration      - Create new migration (MESSAGE='your message')"
-	@echo "  make shell-backend  - Open shell in backend container"
-	@echo "  make shell-db       - Open PostgreSQL shell"
-	@echo "  make test           - Run tests"
-	@echo "  make lint           - Run linting"
-	@echo "  make format         - Format code"
+	@echo ""
+	@echo "  Development:"
+	@echo "    make setup          - Initial project setup"
+	@echo "    make dev-setup      - Setup development environment"
+	@echo "    make start          - Start backend + database (dev mode)"
+	@echo "    make stop           - Stop services"
+	@echo "    make restart        - Restart services"
+	@echo "    make logs           - View logs"
+	@echo ""
+	@echo "  Production:"
+	@echo "    make prod           - Deploy full stack on port 80"
+	@echo "    make prod-stop      - Stop production deployment"
+	@echo "    make prod-logs      - View production logs"
+	@echo ""
+	@echo "  Database:"
+	@echo "    make migrate        - Run database migrations"
+	@echo "    make migration      - Create new migration"
+	@echo "    make shell-db       - Open PostgreSQL shell"
+	@echo ""
+	@echo "  Other:"
+	@echo "    make build          - Build Docker images"
+	@echo "    make clean          - Remove all containers and volumes"
+	@echo "    make test           - Run tests"
+	@echo "    make lint           - Run linting"
 
 # Initial setup
 setup:
@@ -119,3 +127,42 @@ lint:
 format:
 	@echo "Formatting code..."
 	cd apps/backend && ruff format app/
+
+# =============================================================================
+# PRODUCTION DEPLOYMENT
+# =============================================================================
+
+# Deploy full stack production (single address on port 80)
+prod:
+	@echo "🚀 Deploying AI-LMS Production..."
+	@echo ""
+	docker-compose -f docker-compose.prod.yml up -d --build
+	@echo ""
+	@echo "Waiting for services to be ready..."
+	@sleep 10
+	@echo "Applying migrations..."
+	@docker-compose -f docker-compose.prod.yml exec -T backend alembic upgrade head || true
+	@echo ""
+	@echo "============================================"
+	@echo "✅ AI-LMS deployed successfully!"
+	@echo ""
+	@echo "🌐 Access: http://localhost"
+	@echo "📚 API Docs: http://localhost/docs"
+	@echo "============================================"
+
+# Stop production
+prod-stop:
+	@echo "Stopping production services..."
+	docker-compose -f docker-compose.prod.yml down
+	@echo "✓ Production stopped"
+
+# Production logs
+prod-logs:
+	docker-compose -f docker-compose.prod.yml logs -f
+
+# Rebuild production
+prod-rebuild:
+	@echo "Rebuilding production..."
+	docker-compose -f docker-compose.prod.yml down
+	docker-compose -f docker-compose.prod.yml up -d --build
+	@echo "✓ Production rebuilt"

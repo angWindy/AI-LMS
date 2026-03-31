@@ -2,7 +2,7 @@
 
 A scalable Learning Management System built with FastAPI, Next.js, and PostgreSQL, with AI integration capability.
 
-> 📚 **[Read Full Documentation](./docs/README.md)** | [Setup Guide](./docs/SETUP_GUIDE.md) | [API Docs](./docs/API_DOCUMENTATION.md) | [Development Guide](./docs/DEVELOPMENT_GUIDE.md)
+> 📚 **[Read Full Documentation](./docs/README.md)** | [Setup Guide](./docs/SETUP_GUIDE.md) | [API Docs](./docs/API_DOCUMENTATION.md) | [Deployment Guide](./docs/DEPLOYMENT_GUIDE.md)
 
 ## 🎯 Features
 
@@ -40,12 +40,26 @@ AI-Support-for-Online-Teaching/
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### Option 1: Production Deployment (Recommended)
+
+```bash
+# 1. Setup domain
+sudo ./setup-domain.sh
+
+# 2. Deploy full stack
+make prod
+```
+
+Access at: **http://angwindy-ai-lms**
+
+### Option 2: Development Mode
+
+#### Prerequisites
 - Docker & Docker Compose
 - Node.js 18+ (for frontend)
 - Git
 
-### 1. Clone and Setup
+#### 1. Clone and Setup
 
 ```bash
 git clone <repository-url>
@@ -53,7 +67,7 @@ cd AI-Support-for-Online-Teaching
 make setup
 ```
 
-### 2. Configure Environment
+#### 2. Configure Environment
 
 Edit `.env` file with your settings:
 
@@ -67,10 +81,10 @@ DB_NAME=lms_db
 SECRET_KEY=your-secret-key-min-32-characters
 
 # CORS
-CORS_ORIGINS=http://localhost:3000,http://localhost:8000
+CORS_ORIGINS=http://angwindy-ai-lms,http://localhost:3000,http://localhost:8000
 ```
 
-### 3. Start Backend Services
+#### 3. Start Backend Services
 
 ```bash
 make start
@@ -81,7 +95,7 @@ Backend services will be available at:
 - **API Docs**: http://localhost:8000/docs
 - **Database**: localhost:5432
 
-### 4. Start Frontend (Development)
+#### 4. Start Frontend (Development)
 
 ```bash
 cd apps/frontend
@@ -357,9 +371,9 @@ For issues, questions, or feature requests:
 - Tag appropriately: `bug`, `feature`, `documentation`, `question`
 
 ### 📊 Project Status
-- **Phase 1 (MVP)**: ~85% Complete ✅
+- **Phase 1 (MVP)**: ~95% Complete ✅
 - **Backend**: 49 API endpoints implemented
-- **Frontend**: Core pages complete with Next.js 14
+- **Frontend**: ✅ Complete with Next.js 14 + shadcn/ui
 - **Next Phase**: AI integration, analytics
 
 See [PROGRESS_TRACKING.md](./PROGRESS_TRACKING.md) for detailed progress tracking.
@@ -367,4 +381,4 @@ See [PROGRESS_TRACKING.md](./PROGRESS_TRACKING.md) for detailed progress trackin
 ---
 
 **Built with ❤️ for online education**  
-**Version**: 1.0.0-beta | **Last Updated**: 2026-03-29
+**Version**: 1.0.0-beta | **Last Updated**: 2026-03-31
