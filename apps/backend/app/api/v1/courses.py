@@ -5,11 +5,11 @@ from datetime import datetime, timezone
 from typing import List, Optional
 import uuid
 
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, HTTPException, status, Query, Depends
 from sqlalchemy import func
 from slugify import slugify
 
-from app.core.dependencies import DBSession, CurrentUser, InstructorUser
+from app.core.dependencies import DBSession, CurrentUser, InstructorUser, get_current_user_optional
 from app.core.exceptions import NotFoundException, ForbiddenException
 from app.models.user import User, UserRole
 from app.models.course import Course, CourseStatus
@@ -346,10 +346,17 @@ async def enroll_in_course(
     ).first()
 
     if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Already enrolled in this course"
-        )
+        # If previously dropped, re-activate enrollment
+        if existing.status == EnrollmentStatus.DROPPED:
+            existing.status = EnrollmentStatus.ACTIVE
+            existing.enrolled_at = datetime.now(timezone.utc)
+            db.commit()
+            return Message(message="Successfully re-enrolled in course")
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Already enrolled in this course"
+            )
 
     enrollment = Enrollment(
         user_id=current_user.id,
@@ -362,12 +369,72 @@ async def enroll_in_course(
     return Message(message="Successfully enrolled in course")
 
 
+@router.post("/{course_id}/unenroll", response_model=Message)
+async def unenroll_from_course(
+    course_id: uuid.UUID,
+    db: DBSession,
+    current_user: CurrentUser,
+):
+    """Unenroll current user from a course."""
+    course = db.query(Course).filter(Course.id == course_id).first()
+
+    if not course:
+        raise NotFoundException("Course not found")
+
+    # Check if enrolled
+    enrollment = db.query(Enrollment).filter(
+        Enrollment.user_id == current_user.id,
+        Enrollment.course_id == course_id,
+        Enrollment.status == EnrollmentStatus.ACTIVE,
+    ).first()
+
+    if not enrollment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Not enrolled in this course"
+        )
+
+    # Update status to DROPPED instead of deleting
+    enrollment.status = EnrollmentStatus.DROPPED
+    db.commit()
+
+    return Message(message="Successfully unenrolled from course")
+
+
+@router.get("/{course_id}/enrollment-status")
+async def get_enrollment_status(
+    course_id: uuid.UUID,
+    db: DBSession,
+    current_user: CurrentUser,
+):
+    """Get current user's enrollment status for a course."""
+    enrollment = db.query(Enrollment).filter(
+        Enrollment.user_id == current_user.id,
+        Enrollment.course_id == course_id,
+    ).first()
+
+    if not enrollment:
+        return {"enrolled": False, "status": None}
+
+    return {
+        "enrolled": enrollment.status == EnrollmentStatus.ACTIVE,
+        "status": enrollment.status.value,
+        "enrolled_at": enrollment.enrolled_at,
+        "progress": enrollment.progress,
+    }
+
+
 @router.get("/{course_id}/lessons", response_model=List)
 async def get_course_lessons(
     course_id: uuid.UUID,
     db: DBSession,
+    current_user: Optional[User] = Depends(get_current_user_optional),
 ):
-    """Get all lessons for a course."""
+    """Get all lessons for a course.
+    
+    For instructors/admins: returns all lessons
+    For others: returns only published lessons
+    """
     from app.schemas.lesson import LessonResponse
 
     course = db.query(Course).filter(Course.id == course_id).first()
@@ -375,10 +442,19 @@ async def get_course_lessons(
     if not course:
         raise NotFoundException("Course not found")
 
-    lessons = db.query(Lesson).filter(
-        Lesson.course_id == course_id,
-        Lesson.is_published == True,
-    ).order_by(Lesson.order_index).all()
+    # Check if user is instructor or admin
+    is_owner = current_user and (
+        current_user.role == UserRole.ADMIN or 
+        course.instructor_id == current_user.id
+    )
+    
+    query = db.query(Lesson).filter(Lesson.course_id == course_id)
+    
+    # Only show published lessons for non-owners
+    if not is_owner:
+        query = query.filter(Lesson.is_published == True)
+    
+    lessons = query.order_by(Lesson.order_index).all()
 
     return [LessonResponse.model_validate(lesson) for lesson in lessons]
 

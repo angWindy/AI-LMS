@@ -4,25 +4,35 @@
 
 AI-LMS is a Learning Management System built with:
 - **Backend**: FastAPI + PostgreSQL (Docker)
-- **Frontend**: Next.js (Phase 2)
-- **Features**: Course management, lessons, assignments, file uploads
+- **Frontend**: Next.js 14 + TypeScript + Tailwind CSS
+- **Features**: Course management, lessons, materials, assignments, file uploads
 
-## 🎯 Phase 1 - MVP Status
+## 🎯 Project Status
 
-### ✅ Completed (70%)
+### ✅ Completed (95%)
 
 **Backend Infrastructure**
-- FastAPI API with 49 endpoints
+- FastAPI API with 49+ endpoints
 - PostgreSQL database (12 tables, Alembic migrations)
-- Docker deployment with auto-migrations
+- Docker production deployment with Nginx
 - File upload system (videos, documents, images)
+- Static file serving via Nginx
+
+**Frontend (Next.js)**
+- Authentication: Login, Register, JWT token management
+- Dashboard: Role-based (Admin, Instructor, Student)
+- Course management: Browse, Enroll/Unenroll, Create/Edit
+- Lesson management: Create, Edit, Video playback (YouTube/Vimeo)
+- Materials: Upload/Download for teachers, View for students
+- Progress tracking: Video position saved automatically
+- Responsive UI with shadcn/ui components
 
 **Core Features**
 - Authentication: Register, login, JWT tokens, refresh
 - Authorization: 3 roles (Admin, Instructor, Learner)
 - User Management: CRUD operations
-- Course Management: Full CRUD with enrollment
-- Lessons: CRUD + materials (upload/download)
+- Course Management: Full CRUD with enrollment/unenrollment
+- Lessons: CRUD + materials (upload/download) + video embed
 - Assignments: CRUD + submissions + grading
 - Progress Tracking: Per-lesson and course-wide
 
@@ -35,15 +45,9 @@ AI-LMS is a Learning Management System built with:
 - Assignments (6/6) ✅
 - Submissions (5/5) ✅
 
-### ❌ Not Started
+### 🔄 In Progress
 
-**Frontend**: 0% (Phase 2)
-- React/Next.js dashboard
-- Admin panel
-- Student interface
-- Instructor tools
-
-**AI Features**: 0% (Phase 2)
+**AI Features**: 0% (Phase 3)
 - Chatbot assistant
 - Personalized recommendations
 - Progress analytics
@@ -60,30 +64,46 @@ AI-LMS/
 │   │   │   ├── schemas/  # Pydantic schemas (validation)
 │   │   │   ├── utils/    # Utilities (file handling, auth)
 │   │   │   └── main.py   # FastAPI app entry
+│   │   ├── storage/      # Uploaded files storage
 │   │   └── Dockerfile
-│   └── frontend/         # Next.js frontend (scaffold)
-├── services/             # Microservices (future)
+│   └── frontend/         # Next.js 14 frontend
+│       ├── src/
+│       │   ├── app/      # App Router pages
+│       │   ├── components/ # UI components (shadcn/ui)
+│       │   └── lib/      # API clients, auth, utilities
+│       └── Dockerfile
+├── docker/
+│   └── nginx/            # Nginx reverse proxy config
 ├── docs/                 # Documentation
-├── docker-compose.yml    # Local development setup
+├── docker-compose.yml    # Local development
+├── docker-compose.prod.yml # Production deployment
 └── Makefile             # Development commands
 ```
 
 ## 🚀 Quick Start
 
+### Development
 ```bash
-# Setup
 git clone <repo>
 cd AI-LMS
 cp .env.example .env
-
-# Start (with auto-migrations)
-make start
-
-# Access
-Backend API:  http://localhost:8000
-Swagger UI:   http://localhost:8000/docs
-ReDoc:        http://localhost:8000/redoc
+make start       # Backend + DB only
 ```
+
+### Production (Docker)
+```bash
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### Access
+- Frontend: http://localhost (via Nginx)
+- API: http://localhost/api/v1
+- Swagger: http://localhost/api/docs
+
+### Default Accounts
+- Admin: admin@test.com / 00000000
+- Teacher: teacher@test.com / 00000000
+- Student: student@test.com / 00000000
 
 ## 🗄️ Database
 
@@ -116,7 +136,18 @@ Files stored in `/storage/{type}/` with MIME validation and secure names.
 
 ## 🧪 Testing
 
-Manual tests via Swagger UI:
+### Frontend Testing (Manual)
+1. Login with test accounts (admin/teacher/student)
+2. Browse courses
+3. Enroll/Unenroll from courses
+4. Access lesson details
+5. Watch video (YouTube embed)
+6. Download materials
+7. (Teacher) Upload materials
+8. (Teacher) Create/edit lessons
+
+### Backend Testing
+Via Swagger UI at `/api/docs`:
 - Create users (admin, instructor, student)
 - Enroll in courses
 - Upload lessons and materials
@@ -124,28 +155,37 @@ Manual tests via Swagger UI:
 - Grade submissions
 - Track progress
 
-See `test_backend.sh` in root for examples.
+## 📋 Next Steps (Phase 3)
 
-## 📋 Next Steps (Phase 2)
-
-1. Frontend dashboard (React/Next.js)
-2. Admin panel (user management)
-3. Student & instructor interfaces
-4. AI chatbot integration
-5. Analytics dashboard
-6. Performance optimization
-7. Unit tests
+1. Admin panel (full user management)
+2. AI chatbot integration
+3. Assignment submission UI
+4. Progress analytics dashboard
+5. Performance optimization
+6. Unit tests
 
 ## 📞 Key Technologies
 
-- **Python 3.11** + FastAPI 0.109
-- **PostgreSQL 15** with SQLAlchemy ORM
-- **Docker** for containerization
-- **JWT** for authentication
-- **Alembic** for migrations
-- **python-magic** for MIME detection
+**Backend**
+- Python 3.11 + FastAPI 0.109
+- PostgreSQL 15 with SQLAlchemy ORM
+- Alembic for migrations
+- JWT for authentication
+- python-magic for MIME detection
+
+**Frontend**
+- Next.js 14 (App Router)
+- TypeScript
+- Tailwind CSS + shadcn/ui
+- Zustand for state management
+- Axios for API calls
+
+**Infrastructure**
+- Docker + Docker Compose
+- Nginx reverse proxy
+- PostgreSQL 15
 
 ---
 
-**Status**: MVP Phase 1 - 70% Complete  
-**Last Updated**: 2026-03-29
+**Status**: Phase 2 Complete (95%)  
+**Last Updated**: 2026-03-31

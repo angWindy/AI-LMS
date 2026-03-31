@@ -19,6 +19,8 @@ class LessonCreate(LessonBase):
     """Lesson creation schema."""
     order_index: Optional[int] = None
     is_preview: bool = False
+    video_url: Optional[str] = None
+    video_duration: Optional[int] = None
 
 
 class LessonUpdate(BaseModel):
@@ -28,6 +30,9 @@ class LessonUpdate(BaseModel):
     content: Optional[str] = None
     is_preview: Optional[bool] = None
     is_published: Optional[bool] = None
+    video_url: Optional[str] = None
+    video_duration: Optional[int] = None
+    thumbnail_url: Optional[str] = None
 
 
 class LessonOrderUpdate(BaseModel):

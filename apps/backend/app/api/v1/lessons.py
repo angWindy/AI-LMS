@@ -84,6 +84,8 @@ async def create_lesson(
         content=lesson_data.content,
         order_index=lesson_data.order_index or next_order,
         is_preview=lesson_data.is_preview,
+        video_url=lesson_data.video_url,
+        video_duration=lesson_data.video_duration,
     )
     
     db.add(lesson)

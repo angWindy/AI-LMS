@@ -113,7 +113,7 @@ npm run dev
 
 ## 🏭 Triển khai Production
 
-### Option 1: Docker Compose (Đơn giản)
+### Option 1: Docker Compose với Nginx (Khuyến nghị)
 
 #### 1. Chuẩn bị Server
 
@@ -125,15 +125,15 @@ sudo apt update && sudo apt upgrade -y
 curl -fsSL https://get.docker.com -o get-docker.sh
 sudo sh get-docker.sh
 
-# Cài đặt Docker Compose
-sudo apt install docker-compose-plugin
+# Thêm user vào docker group
+sudo usermod -aG docker $USER
+newgrp docker
 
-# Cài đặt Node.js (cho frontend build)
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install -y nodejs
+# Cài đặt Docker Compose (nếu chưa có)
+sudo apt install docker-compose-plugin
 ```
 
-#### 2. Deploy Application
+#### 2. Clone và Cấu hình
 
 ```bash
 # Clone repo
@@ -143,81 +143,111 @@ cd AI-LMS
 # Cấu hình production environment
 cp .env.example .env
 nano .env
-# Đặt các giá trị production (strong passwords, etc.)
-
-# Build và start services
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
-
-# Build frontend
-cd apps/frontend
-npm install
-npm run build
-npm start  # hoặc sử dụng PM2
 ```
 
-#### 3. Cấu hình Nginx Reverse Proxy
+**Cấu hình `.env` cho Production:**
+```env
+# Database
+DB_USER=lms_user
+DB_PASSWORD=YOUR_STRONG_PASSWORD_HERE
+DB_NAME=lms_db
+DB_PORT=5432
 
-```nginx
-# /etc/nginx/sites-available/ai-lms
-server {
-    listen 80;
-    server_name your-domain.com;
-    
-    # Redirect to HTTPS
-    return 301 https://$server_name$request_uri;
-}
+# Backend
+BACKEND_PORT=8000
+SECRET_KEY=your-very-long-random-secret-key-at-least-32-chars
 
-server {
-    listen 443 ssl http2;
-    server_name your-domain.com;
-    
-    # SSL Configuration
-    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
-    
-    # Frontend
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-    }
-    
-    # Backend API
-    location /api {
-        proxy_pass http://localhost:8000;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-    
-    # API Documentation
-    location /docs {
-        proxy_pass http://localhost:8000/docs;
-    }
-    
-    location /redoc {
-        proxy_pass http://localhost:8000/redoc;
-    }
-}
+# Production mode
+CORS_ORIGINS=http://localhost,https://your-domain.com
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+REFRESH_TOKEN_EXPIRE_DAYS=7
 ```
+
+#### 3. Build và Start (Tự động)
 
 ```bash
-# Enable site
-sudo ln -s /etc/nginx/sites-available/ai-lms /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
+# Build tất cả images và start services
+docker compose -f docker-compose.prod.yml up -d --build
+
+# Kiểm tra services
+docker compose -f docker-compose.prod.yml ps
+
+# Xem logs
+docker compose -f docker-compose.prod.yml logs -f
 ```
 
-#### 4. SSL với Let's Encrypt
+**Services sẽ bao gồm:**
+- `lms_nginx`: Reverse proxy (port 80)
+- `lms_frontend`: Next.js app (port 3000 internal)
+- `lms_backend`: FastAPI (port 8000 internal)
+- `lms_db`: PostgreSQL (port 5432 internal)
+
+#### 4. Tạo tài khoản mặc định
 
 ```bash
-sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d your-domain.com
+# Chạy script tạo users mặc định
+docker compose -f docker-compose.prod.yml exec backend python -c "
+from app.db.session import SessionLocal
+from app.models.user import User
+from app.utils.auth import get_password_hash
+
+db = SessionLocal()
+
+# Tạo Admin
+admin = User(
+    email='admin@test.com',
+    full_name='Admin',
+    hashed_password=get_password_hash('00000000'),
+    role='admin',
+    is_active=True
+)
+
+# Tạo Teacher
+teacher = User(
+    email='teacher@test.com',
+    full_name='Teacher',
+    hashed_password=get_password_hash('00000000'),
+    role='instructor',
+    is_active=True
+)
+
+# Tạo Student
+student = User(
+    email='student@test.com',
+    full_name='Student',
+    hashed_password=get_password_hash('00000000'),
+    role='learner',
+    is_active=True
+)
+
+for user in [admin, teacher, student]:
+    existing = db.query(User).filter(User.email == user.email).first()
+    if not existing:
+        db.add(user)
+        print(f'Created: {user.email}')
+
+db.commit()
+print('Done!')
+"
+```
+
+#### 5. Truy cập ứng dụng
+
+- **Frontend**: http://localhost (hoặc http://your-domain.com)
+- **Backend API**: http://localhost/api/v1
+- **API Docs**: http://localhost/api/docs
+
+#### 6. (Optional) Cấu hình HTTPS với Certbot
+
+```bash
+# Cài đặt certbot
+sudo apt install certbot
+
+# Tạo certificate
+sudo certbot certonly --standalone -d your-domain.com
+
+# Cập nhật nginx config để dùng SSL
+# Chỉnh sửa docker/nginx/nginx.conf
 ```
 
 ---
@@ -230,24 +260,31 @@ Tham khảo thư mục `k8s/` (nếu có) hoặc liên hệ team DevOps.
 
 ## 🔧 Các lệnh hữu ích
 
-### Docker Commands
+### Docker Commands (Production)
 ```bash
 # Xem logs
-docker-compose logs -f backend
-docker-compose logs -f db
+docker compose -f docker-compose.prod.yml logs -f frontend
+docker compose -f docker-compose.prod.yml logs -f backend
+docker compose -f docker-compose.prod.yml logs -f nginx
+docker compose -f docker-compose.prod.yml logs -f db
 
 # Restart services
-docker-compose restart backend
+docker compose -f docker-compose.prod.yml restart frontend
+docker compose -f docker-compose.prod.yml restart backend
 
-# Rebuild container
-docker-compose up -d --build backend
+# Rebuild container (sau khi thay đổi code)
+docker compose -f docker-compose.prod.yml up -d --build frontend
+docker compose -f docker-compose.prod.yml up -d --build backend
 
 # Truy cập container shell
-docker-compose exec backend bash
-docker-compose exec db psql -U lms_user -d lms_db
+docker compose -f docker-compose.prod.yml exec backend bash
+docker compose -f docker-compose.prod.yml exec db psql -U lms_user -d lms_db
+
+# Stop all services
+docker compose -f docker-compose.prod.yml down
 
 # Dọn dẹp
-docker-compose down -v  # Xóa cả volumes
+docker compose -f docker-compose.prod.yml down -v  # Xóa cả volumes
 docker system prune -a  # Xóa unused images
 ```
 
