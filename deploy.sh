@@ -85,6 +85,8 @@ DB_PORT=5432
 SECRET_KEY=your-super-secret-key-change-this-in-production-at-least-32-characters
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 REFRESH_TOKEN_EXPIRE_DAYS=7
+MAX_DOCUMENT_SIZE_MB=100
+MAX_VIDEO_SIZE_MB=500
 
 # CORS
 CORS_ORIGINS=http://localhost,http://localhost:80,http://localhost:3000
@@ -126,9 +128,18 @@ start_services() {
     echo ""
 }
 
+# Run database migrations
+run_migrations() {
+    print_step "BƯỚC 7: Chạy database migrations..."
+
+    docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head
+    print_success "Database migrations hoàn tất!"
+    echo ""
+}
+
 # Wait for services to be healthy
 wait_for_services() {
-    print_step "BƯỚC 7: Đợi services khởi động..."
+    print_step "BƯỚC 8: Đợi services khởi động..."
     
     print_info "Đợi database..."
     sleep 5
@@ -159,7 +170,7 @@ wait_for_services() {
 
 # Create default users
 create_users() {
-    print_step "BƯỚC 8: Tạo tài khoản mặc định..."
+    print_step "BƯỚC 9: Tạo tài khoản mặc định..."
     
     docker compose -f docker-compose.prod.yml exec -T backend python -c "
 from app.db.session import SessionLocal
@@ -198,7 +209,7 @@ print('Done!')
 
 # Show status
 show_status() {
-    print_step "BƯỚC 9: Kiểm tra trạng thái..."
+    print_step "BƯỚC 10: Kiểm tra trạng thái..."
     
     echo ""
     docker compose -f docker-compose.prod.yml ps
@@ -243,6 +254,7 @@ main() {
     stop_existing
     build_images
     start_services
+    run_migrations
     wait_for_services
     create_users
     show_status

@@ -98,7 +98,8 @@ class MaterialResponse(MaterialBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    lesson_id: uuid.UUID
+    course_id: Optional[uuid.UUID] = None
+    lesson_id: Optional[uuid.UUID] = None
     file_url: Optional[str] = None
     file_size: Optional[int] = None
     mime_type: Optional[str] = None

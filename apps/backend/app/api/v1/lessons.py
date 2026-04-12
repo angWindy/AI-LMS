@@ -235,6 +235,7 @@ async def create_material(
     
     # Create material
     material = Material(
+        course_id=lesson.course_id,
         lesson_id=lesson_id,
         title=title,
         description=description,

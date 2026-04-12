@@ -16,6 +16,7 @@ from app.db.base import Base, TimestampMixin
 if TYPE_CHECKING:
     from app.models.user import User
     from app.models.lesson import Lesson
+    from app.models.material import Material
     from app.models.enrollment import Enrollment
     from app.models.assignment import Assignment
 
@@ -80,6 +81,13 @@ class Course(Base, TimestampMixin):
         "Assignment",
         back_populates="course",
         cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    materials: Mapped[List["Material"]] = relationship(
+        "Material",
+        back_populates="course",
+        cascade="all, delete-orphan",
+        order_by="Material.order_index",
         lazy="selectin",
     )
 

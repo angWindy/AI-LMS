@@ -30,6 +30,7 @@ services:
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
       - CORS_ORIGINS=http://localhost,http://localhost:80,http://nginx
       - STORAGE_PATH=/app/storage
+      - MAX_DOCUMENT_SIZE_MB=${MAX_DOCUMENT_SIZE_MB:-100}
     volumes:
       - storage_data:/app/storage
     depends_on:

@@ -38,10 +38,10 @@ from app.schemas.assignment import (
     AssignmentCreate,
     AssignmentUpdate,
     AssignmentResponse,
-    SubmissionCreate,
-    SubmissionUpdate,
-    SubmissionGrade,
-    SubmissionResponse,
+    AssignmentQuestionCreate,
+    AssignmentQuestionResponse,
+    AssignmentOptionCreate,
+    AssignmentOptionResponse,
 )
 
 __all__ = [
@@ -73,8 +73,8 @@ __all__ = [
     "AssignmentCreate",
     "AssignmentUpdate",
     "AssignmentResponse",
-    "SubmissionCreate",
-    "SubmissionUpdate",
-    "SubmissionGrade",
-    "SubmissionResponse",
+    "AssignmentQuestionCreate",
+    "AssignmentQuestionResponse",
+    "AssignmentOptionCreate",
+    "AssignmentOptionResponse",
 ]

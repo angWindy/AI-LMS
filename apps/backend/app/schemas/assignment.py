@@ -3,93 +3,118 @@ Assignment schemas for API validation.
 """
 import uuid
 from datetime import datetime
-from typing import Optional, List
+from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict
-
-
-class AssignmentBase(BaseModel):
-    """Base assignment schema."""
-    title: str
-    description: str
-    instructions: Optional[str] = None
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
-class AssignmentCreate(AssignmentBase):
-    """Assignment creation schema."""
-    lesson_id: Optional[uuid.UUID] = None
-    due_date: Optional[datetime] = None
-    max_score: float = 100.0
-    allow_late_submission: bool = False
-    late_penalty_percent: float = 0.0
+class AssignmentOptionBase(BaseModel):
+    """Option payload for a multiple-choice question."""
+
+    option_text: str
+    is_correct: bool = False
 
 
-class AssignmentUpdate(BaseModel):
-    """Assignment update schema."""
-    title: Optional[str] = None
-    description: Optional[str] = None
-    instructions: Optional[str] = None
-    due_date: Optional[datetime] = None
-    max_score: Optional[float] = None
-    allow_late_submission: Optional[bool] = None
-    late_penalty_percent: Optional[float] = None
-    is_published: Optional[bool] = None
+class AssignmentOptionCreate(AssignmentOptionBase):
+    """Option creation schema."""
 
 
-class AssignmentResponse(AssignmentBase):
-    """Assignment response schema."""
+class AssignmentOptionResponse(AssignmentOptionBase):
+    """Option response schema."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
-    course_id: uuid.UUID
-    lesson_id: Optional[uuid.UUID] = None
-    due_date: Optional[datetime] = None
-    max_score: float
-    allow_late_submission: bool
-    late_penalty_percent: float
-    is_published: bool
+    question_id: uuid.UUID
     order_index: int
     created_at: datetime
     updated_at: datetime
 
 
-# Submission schemas
-class SubmissionCreate(BaseModel):
-    """Submission creation schema."""
-    content: Optional[str] = None
+class AssignmentQuestionBase(BaseModel):
+    """Question payload schema."""
+
+    question_text: str
+    explanation: Optional[str] = None
 
 
-class SubmissionUpdate(BaseModel):
-    """Submission update schema (before grading)."""
-    content: Optional[str] = None
+class AssignmentQuestionCreate(AssignmentQuestionBase):
+    """Question creation schema with exactly 4 choices."""
+
+    options: List[AssignmentOptionCreate]
+
+    @model_validator(mode="after")
+    def validate_options(self):
+        if len(self.options) != 4:
+            raise ValueError("Each question must contain exactly 4 options")
+
+        correct_count = sum(1 for option in self.options if option.is_correct)
+        if correct_count != 1:
+            raise ValueError("Each question must have exactly 1 correct option")
+
+        return self
 
 
-class SubmissionGrade(BaseModel):
-    """Grade submission schema."""
-    score: float
-    feedback: Optional[str] = None
+class AssignmentQuestionResponse(AssignmentQuestionBase):
+    """Question response schema."""
 
-
-class SubmissionResponse(BaseModel):
-    """Submission response schema."""
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     assignment_id: uuid.UUID
-    user_id: uuid.UUID
-    content: Optional[str] = None
-    file_url: Optional[str] = None
-    file_name: Optional[str] = None
-    file_size: Optional[int] = None
-    status: str
-    score: Optional[float] = None
-    feedback: Optional[str] = None
-    submitted_at: datetime
-    graded_at: Optional[datetime] = None
-    is_late: bool
+    order_index: int
+    options: List[AssignmentOptionResponse]
+    created_at: datetime
+    updated_at: datetime
 
 
-class SubmissionDetailResponse(SubmissionResponse):
-    """Detailed submission with user info."""
-    user_name: str
-    user_email: str
+class AssignmentBase(BaseModel):
+    """Base assignment schema."""
+
+    title: str
+
+
+class AssignmentCreate(AssignmentBase):
+    """Assignment creation schema."""
+
+    lesson_id: Optional[uuid.UUID] = None
+    questions: List[AssignmentQuestionCreate]
+
+    @model_validator(mode="after")
+    def validate_questions(self):
+        if not self.questions:
+            raise ValueError("Assignment must contain at least 1 question")
+        return self
+
+
+class AssignmentUpdate(BaseModel):
+    """Assignment update schema."""
+
+    title: Optional[str] = None
+    is_published: Optional[bool] = None
+    questions: Optional[List[AssignmentQuestionCreate]] = None
+
+    @model_validator(mode="after")
+    def validate_questions(self):
+        if self.questions is None:
+            return self
+
+        if not self.questions:
+            raise ValueError("Assignment must contain at least 1 question")
+
+        return self
+
+
+class AssignmentResponse(AssignmentBase):
+    """Assignment response schema."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    course_id: uuid.UUID
+    lesson_id: Optional[uuid.UUID] = None
+    is_published: bool
+    order_index: int
+    questions: List[AssignmentQuestionResponse]
+    created_at: datetime
+    updated_at: datetime

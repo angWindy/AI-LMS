@@ -5,8 +5,9 @@ from datetime import datetime, timezone
 from typing import List, Optional
 import uuid
 
-from fastapi import APIRouter, HTTPException, status, Query, Depends
+from fastapi import APIRouter, HTTPException, status, Query, Depends, UploadFile, File, Form
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 from slugify import slugify
 
 from app.core.dependencies import DBSession, CurrentUser, InstructorUser, get_current_user_optional
@@ -14,7 +15,9 @@ from app.core.exceptions import NotFoundException, ForbiddenException
 from app.models.user import User, UserRole
 from app.models.course import Course, CourseStatus
 from app.models.lesson import Lesson
+from app.models.material import Material
 from app.models.enrollment import Enrollment, EnrollmentStatus
+from app.schemas.lesson import MaterialResponse
 from app.schemas.course import (
     CourseCreate,
     CourseUpdate,
@@ -23,6 +26,7 @@ from app.schemas.course import (
     CourseListResponse,
 )
 from app.schemas.common import PaginatedResponse, Message
+from app.utils.file_handler import file_handler
 
 router = APIRouter(prefix="/courses", tags=["Courses"])
 
@@ -42,6 +46,18 @@ def generate_unique_slug(db: DBSession, title: str, exclude_id: uuid.UUID | None
             return slug
         slug = f"{base_slug}-{counter}"
         counter += 1
+
+
+def check_course_owner(db: DBSession, course_id: uuid.UUID, user: User) -> Course:
+    """Check if user owns the course or is admin."""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise NotFoundException("Course not found")
+
+    if user.role != UserRole.ADMIN and course.instructor_id != user.id:
+        raise ForbiddenException("Only course instructor or admin can perform this action")
+
+    return course
 
 
 @router.get("", response_model=PaginatedResponse[CourseListResponse])
@@ -457,6 +473,118 @@ async def get_course_lessons(
     lessons = query.order_by(Lesson.order_index).all()
 
     return [LessonResponse.model_validate(lesson) for lesson in lessons]
+
+
+@router.get("/{course_id}/materials", response_model=List[MaterialResponse])
+async def get_course_materials(
+    course_id: uuid.UUID,
+    db: DBSession,
+    current_user: Optional[User] = Depends(get_current_user_optional),
+):
+    """Get materials attached directly to a course."""
+    course = db.query(Course).filter(Course.id == course_id).first()
+    if not course:
+        raise NotFoundException("Course not found")
+
+    is_owner = current_user and (
+        current_user.role == UserRole.ADMIN or
+        course.instructor_id == current_user.id
+    )
+
+    if not is_owner:
+        if not current_user:
+            raise ForbiddenException("You must login to access course materials")
+
+        is_enrolled = db.query(Enrollment).filter(
+            Enrollment.course_id == course_id,
+            Enrollment.user_id == current_user.id,
+            Enrollment.status == EnrollmentStatus.ACTIVE,
+        ).first() is not None
+        if not is_enrolled:
+            raise ForbiddenException("You must be enrolled in this course")
+
+    return db.query(Material).filter(
+        Material.course_id == course_id,
+        Material.lesson_id.is_(None),
+    ).order_by(Material.order_index).all()
+
+
+@router.post("/{course_id}/materials", response_model=MaterialResponse, status_code=status.HTTP_201_CREATED)
+async def create_course_material(
+    course_id: uuid.UUID,
+    db: DBSession,
+    current_user: InstructorUser,
+    title: str = Form(...),
+    description: Optional[str] = Form(None),
+    material_type: str = Form(..., alias="type"),
+    file: Optional[UploadFile] = File(None),
+    external_url: Optional[str] = Form(None),
+):
+    """Create a material directly under a course."""
+    check_course_owner(db, course_id, current_user)
+
+    max_order = db.query(func.max(Material.order_index)).filter(
+        Material.course_id == course_id,
+        Material.lesson_id.is_(None),
+    ).scalar()
+    next_order = (max_order or 0) + 1
+
+    file_url = external_url
+    file_size = None
+    mime_type = None
+
+    if file and file.filename:
+        file_info = await file_handler.save_file(
+            file,
+            subdirectory=f"materials/courses/{course_id}",
+            allowed_types=file_handler.ALLOWED_VIDEO_TYPES + file_handler.ALLOWED_DOCUMENT_TYPES + file_handler.ALLOWED_IMAGE_TYPES,
+        )
+        file_url = file_info["file_url"]
+        file_size = file_info["file_size"]
+        mime_type = file_info["mime_type"]
+
+    material = Material(
+        course_id=course_id,
+        lesson_id=None,
+        title=title,
+        description=description,
+        type=material_type,
+        file_url=file_url,
+        file_size=file_size,
+        mime_type=mime_type,
+        order_index=next_order,
+    )
+    db.add(material)
+    db.commit()
+    db.refresh(material)
+
+    return material
+
+
+@router.delete("/materials/{material_id}", response_model=Message)
+async def delete_course_material(
+    material_id: uuid.UUID,
+    db: DBSession,
+    current_user: InstructorUser,
+):
+    """Delete a course-level material."""
+    material = db.query(Material).options(joinedload(Material.course)).filter(
+        Material.id == material_id,
+        Material.lesson_id.is_(None),
+    ).first()
+    if not material:
+        raise NotFoundException("Course material not found")
+
+    if current_user.role != UserRole.ADMIN and material.course.instructor_id != current_user.id:
+        raise ForbiddenException("Only course instructor or admin can delete this material")
+
+    if material.file_url:
+        file_handler.delete_file(material.file_url)
+
+    db.delete(material)
+    db.commit()
+
+    return Message(message="Course material deleted successfully")
 
 
 @router.get("/my/teaching", response_model=List[CourseResponse])
