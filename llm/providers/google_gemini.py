@@ -85,6 +85,10 @@ class GoogleGeminiProvider(LLMProvider):
             "system_instruction": request.system_prompt,
         }
 
+        response_mime_type = request.metadata.get("response_mime_type")
+        if response_mime_type:
+            config_kwargs["response_mime_type"] = response_mime_type
+
         thinking_config = self._build_thinking_config(request.thinking_level)
         if thinking_config is not None:
             config_kwargs["thinking_config"] = thinking_config

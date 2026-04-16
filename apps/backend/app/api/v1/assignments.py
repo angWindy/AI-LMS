@@ -4,12 +4,12 @@ Assignment API endpoints.
 from typing import List
 import uuid
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from app.core.dependencies import DBSession, CurrentUser, InstructorUser
-from app.core.exceptions import NotFoundException, ForbiddenException
+from app.core.exceptions import NotFoundException, ForbiddenException, ConflictException
 from app.models.user import User, UserRole
 from app.models.course import Course
 from app.models.lesson import Lesson
@@ -17,11 +17,13 @@ from app.models.assignment import Assignment, AssignmentQuestion, AssignmentOpti
 from app.models.enrollment import Enrollment, EnrollmentStatus
 from app.schemas.assignment import (
     AssignmentCreate,
+    AssignmentGenerateDraftRequest,
     AssignmentUpdate,
     AssignmentResponse,
     AssignmentQuestionCreate,
 )
 from app.schemas.common import Message
+from app.services.assignment_generator_service import AssignmentGeneratorService
 
 router = APIRouter(prefix="/assignments", tags=["Assignments"])
 
@@ -52,6 +54,21 @@ def check_assignment_access(db: DBSession, assignment_id: uuid.UUID, user: User,
         raise ForbiddenException("Only course instructor or admin can perform this action")
 
     return assignment
+
+
+def ensure_learner_enrolled(db: DBSession, course_id: uuid.UUID, user: User) -> None:
+    """Ensure learner is actively enrolled before accessing assignment data."""
+    if user.role != UserRole.LEARNER:
+        return
+
+    is_enrolled = db.query(Enrollment).filter(
+        Enrollment.course_id == course_id,
+        Enrollment.user_id == user.id,
+        Enrollment.status == EnrollmentStatus.ACTIVE,
+    ).first() is not None
+
+    if not is_enrolled:
+        raise ForbiddenException("You must be enrolled in this course")
 
 
 def add_questions_to_assignment(db: DBSession, assignment: Assignment, questions_data: List[AssignmentQuestionCreate]):
@@ -94,6 +111,13 @@ async def create_assignment(
         if not lesson:
             raise NotFoundException("Lesson not found in this course")
 
+        existing_lesson_assignment = db.query(Assignment).filter(
+            Assignment.course_id == course_id,
+            Assignment.lesson_id == assignment_data.lesson_id,
+        ).first()
+        if existing_lesson_assignment:
+            raise ConflictException("This lesson already has an assignment. Please update the existing assignment")
+
     max_order = db.query(func.max(Assignment.order_index)).filter(
         Assignment.course_id == course_id
     ).scalar()
@@ -103,6 +127,7 @@ async def create_assignment(
         course_id=course_id,
         lesson_id=assignment_data.lesson_id,
         title=assignment_data.title,
+        is_published=False,
         order_index=next_order,
     )
 
@@ -110,6 +135,82 @@ async def create_assignment(
     db.flush()
 
     add_questions_to_assignment(db, assignment, assignment_data.questions)
+
+    db.commit()
+    db.refresh(assignment)
+
+    return assignment
+
+
+@router.post("/generate-draft", response_model=AssignmentResponse, status_code=status.HTTP_201_CREATED)
+async def generate_assignment_draft(
+    db: DBSession,
+    current_user: InstructorUser,
+    course_id: uuid.UUID,
+    payload: AssignmentGenerateDraftRequest,
+):
+    """Generate an unpublished assignment draft for one lesson using LLM."""
+    check_course_owner(db, course_id, current_user)
+
+    course = db.query(Course).options(
+        joinedload(Course.materials),
+    ).filter(Course.id == course_id).first()
+    if not course:
+        raise NotFoundException("Course not found")
+
+    lesson = db.query(Lesson).options(
+        joinedload(Lesson.materials),
+    ).filter(
+        Lesson.id == payload.lesson_id,
+        Lesson.course_id == course_id,
+    ).first()
+    if not lesson:
+        raise NotFoundException("Lesson not found in this course")
+
+    existing_lesson_assignment = db.query(Assignment).filter(
+        Assignment.course_id == course_id,
+        Assignment.lesson_id == payload.lesson_id,
+    ).first()
+    if existing_lesson_assignment:
+        raise ConflictException(
+            "This lesson already has an assignment. Please update the existing assignment"
+        )
+
+    generator_service = AssignmentGeneratorService()
+    try:
+        generation_result = generator_service.generate_questions(
+            course=course,
+            lesson=lesson,
+            question_count=payload.question_count,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+
+    max_order = db.query(func.max(Assignment.order_index)).filter(
+        Assignment.course_id == course_id
+    ).scalar()
+    next_order = (max_order or 0) + 1
+
+    assignment_title = (payload.title or "").strip() or f"{lesson.title} - Bai tap AI"
+    assignment = Assignment(
+        course_id=course_id,
+        lesson_id=lesson.id,
+        title=assignment_title,
+        is_published=False,
+        order_index=next_order,
+    )
+    db.add(assignment)
+    db.flush()
+
+    add_questions_to_assignment(db, assignment, generation_result.questions)
 
     db.commit()
     db.refresh(assignment)
@@ -133,17 +234,9 @@ async def list_assignments(
         joinedload(Assignment.questions).joinedload(AssignmentQuestion.options),
     ).filter(Assignment.course_id == course_id)
 
-    if current_user.role == UserRole.LEARNER:
-        is_enrolled = db.query(Enrollment).filter(
-            Enrollment.course_id == course_id,
-            Enrollment.user_id == current_user.id,
-            Enrollment.status == EnrollmentStatus.ACTIVE,
-        ).first() is not None
+    ensure_learner_enrolled(db, course_id, current_user)
 
-        if not is_enrolled:
-            raise ForbiddenException("You must be enrolled in this course")
-
-    if not include_unpublished or current_user.role == UserRole.LEARNER:
+    if current_user.role == UserRole.LEARNER or not include_unpublished:
         query = query.filter(Assignment.is_published == True)
 
     return query.order_by(Assignment.order_index).all()
@@ -157,6 +250,12 @@ async def get_assignment(
 ):
     """Get assignment details."""
     assignment = check_assignment_access(db, assignment_id, current_user)
+
+    if current_user.role == UserRole.LEARNER:
+        ensure_learner_enrolled(db, assignment.course_id, current_user)
+        if not assignment.is_published:
+            raise NotFoundException("Assignment not found")
+        return assignment
 
     if not assignment.is_published:
         is_owner = current_user.role == UserRole.ADMIN or assignment.course.instructor_id == current_user.id

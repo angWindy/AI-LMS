@@ -28,7 +28,7 @@ Nguyên tắc tổ chức:
 
 ```env
 LLM_PROVIDER=google
-LLM_MODEL=gemini-2.5-flash
+LLM_MODEL=gemini-3.1-flash-lite-preview
 LLM_TEMPERATURE=0.1
 LLM_THINKING_LEVEL=low
 GOOGLE_AI_API_KEY=your_google_ai_studio_key

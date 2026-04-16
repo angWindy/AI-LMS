@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, ConfigDict, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class AssignmentOptionBase(BaseModel):
@@ -85,6 +85,14 @@ class AssignmentCreate(AssignmentBase):
         if not self.questions:
             raise ValueError("Assignment must contain at least 1 question")
         return self
+
+
+class AssignmentGenerateDraftRequest(BaseModel):
+    """Payload for creating an AI-generated assignment draft."""
+
+    lesson_id: uuid.UUID
+    question_count: int = Field(..., ge=1, le=20)
+    title: Optional[str] = None
 
 
 class AssignmentUpdate(BaseModel):
