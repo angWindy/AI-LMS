@@ -11,14 +11,17 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first for caching
-COPY requirements.txt .
+COPY apps/backend/requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY . .
+COPY apps/backend /app
+
+# Copy the llm package
+COPY llm /app/llm
 
 # Create storage directories
 RUN mkdir -p /app/storage/videos /app/storage/documents /app/storage/submissions

@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     # LLM / Chatbot Configuration
     LLM_PROVIDER: str = "google"
     LLM_MODEL: str = "gemini-2.5-flash"
-    LLM_TEMPERATURE: float = 1.0
+    LLM_TEMPERATURE: float = 0.1
     LLM_MAX_OUTPUT_TOKENS: int = 512
     LLM_THINKING_LEVEL: str | None = None
     GOOGLE_AI_API_KEY: str | None = None

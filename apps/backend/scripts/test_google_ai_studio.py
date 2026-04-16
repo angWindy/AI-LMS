@@ -6,18 +6,25 @@ import sys
 
 
 def _ensure_repo_on_path() -> None:
-    repo_root = Path(__file__).resolve().parents[3]
-    repo_root_str = str(repo_root)
-    if repo_root_str not in sys.path:
-        sys.path.insert(0, repo_root_str)
-
+    try:
+        repo_root = Path(__file__).resolve().parents[3]
+        repo_root_str = str(repo_root)
+        if os.path.exists(repo_root_str) and repo_root_str not in sys.path:
+            sys.path.insert(0, repo_root_str)
+    except IndexError:
+        pass
 
 def _load_root_env() -> None:
     """Load root .env values if they are not already present in environment."""
-    repo_root = Path(__file__).resolve().parents[3]
-    env_path = repo_root / ".env"
-    if not env_path.exists():
-        return
+    try:
+        repo_root = Path(__file__).resolve().parents[3]
+        env_path = repo_root / ".env"
+        if not env_path.exists():
+            return
+    except IndexError:
+        env_path = Path("/app/.env")
+        if not env_path.exists():
+            return
 
     for raw_line in env_path.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
@@ -43,7 +50,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--temperature",
         type=float,
-        default=1.0,
+        default=0.1,
         help="Sampling temperature.",
     )
     parser.add_argument(

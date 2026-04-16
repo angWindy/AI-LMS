@@ -12,14 +12,25 @@ class ChatMessage:
 
 
 @dataclass
+class ImageInput:
+    """Binary image input used for multimodal model requests."""
+
+    data: bytes
+    mime_type: str
+    description: str | None = None
+    source: str | None = None
+
+
+@dataclass
 class LLMRequest:
     """Normalized request structure sent to an LLM provider."""
 
     messages: list[ChatMessage]
     system_prompt: str | None = None
-    temperature: float = 1.0
+    temperature: float = 0.1
     max_output_tokens: int = 512
     thinking_level: str | None = None
+    images: list[ImageInput] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
 

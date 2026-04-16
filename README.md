@@ -25,15 +25,15 @@ A scalable Learning Management System built with FastAPI, Next.js, and PostgreSQ
 ## 🏗️ Architecture
 
 ```
-AI-Support-for-Online-Teaching/
+AI-LMS/
 ├── apps/
 │   ├── backend/          # FastAPI Backend (Python 3.11)
-│   └── frontend/         # Next.js 14 Frontend ✅
-├── services/
-│   └── ai/               # AI Service (future)
-├── docker/               # Docker configs
+│   └── frontend/         # Next.js 14 Frontend
+├── llm/                  # LLM provider/workflow abstraction
+├── docker/               # Nginx and container configs
 ├── docs/                 # Documentation
 ├── docker-compose.yml
+├── docker-compose.prod.yml
 ├── Makefile
 └── README.md
 ```

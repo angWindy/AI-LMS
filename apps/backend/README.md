@@ -1,52 +1,26 @@
-Folder thể hiện các chức năng của Backend ( FastAPI )
+Folder thể hiện các chức năng của Backend (FastAPI).
 
-Cấu trúc backend (FastAPI)
-
-Backend nên tổ chức theo modular architecture.
+Cấu trúc backend hiện tại:
 
 apps/backend
-│
 ├── app
 │   ├── main.py
-│
-│   ├── core
-│   │   ├── config.py
-│   │   └── security.py
-│
-│   ├── db
-│   │   ├── session.py
-│   │   └── base.py
-│
-│   ├── modules
-│   │   ├── auth
-│   │   │   ├── router.py
-│   │   │   ├── service.py
-│   │   │   ├── schema.py
-│   │   │   └── model.py
-│   │   │
-│   │   ├── courses
-│   │   ├── materials
-│   │   └── assignments
-│
-│   └── utils
-│
+│   ├── api/v1/          # Routers theo nhóm API
+│   ├── core/            # Config, security, dependencies
+│   ├── db/              # Session, base, migrations
+│   ├── models/          # SQLAlchemy models
+│   ├── schemas/         # Pydantic schemas
+│   ├── services/        # Business logic
+│   └── utils/           # Helper utilities
+├── scripts/             # Smoke tests / utilities
+├── storage/             # Uploaded assets
 └── requirements.txt
 
-Nguyên tắc:
+Nguyên tắc tổ chức:
 
-chia theo feature/module
-
-mỗi module có:
-
-router
-
-service
-
-model
-
-schema
-
-Cách modular này giúp dự án dễ mở rộng và maintain hơn.
+- Chia theo layer rõ ràng (API, service, data model, schema).
+- Tránh giữ các placeholder/legacy file rỗng gây nhiễu.
+- Ưu tiên import qua namespace `app.*` để nhất quán.
 
 ## Chatbot smoke test (Google AI Studio)
 
@@ -55,7 +29,7 @@ Cách modular này giúp dự án dễ mở rộng và maintain hơn.
 ```env
 LLM_PROVIDER=google
 LLM_MODEL=gemini-2.5-flash
-LLM_TEMPERATURE=1.0
+LLM_TEMPERATURE=0.1
 LLM_THINKING_LEVEL=low
 GOOGLE_AI_API_KEY=your_google_ai_studio_key
 ```
@@ -74,6 +48,11 @@ python scripts/test_google_ai_studio.py --question "Hay tra loi ngan gon: thu do
 ## API chatbot
 
 - Endpoint: `POST /api/v1/chatbot/ask`
+- Endpoint: `GET /api/v1/chatbot/conversations`
+- Endpoint: `GET /api/v1/chatbot/conversations/{conversation_id}/messages`
 - Yêu cầu đăng nhập (Bearer token)
 - Google provider dùng SDK chính thức `google-genai`
 - Thiết kế theo provider abstraction để sau này có thể mở rộng sang vLLM/OpenAI và tích hợp RAG.
+- Hỗ trợ `conversation_id` để tiếp tục hội thoại theo từng user (mỗi học sinh một thread).
+- Hỗ trợ `teaching_images` (base64 + mime_type) để gửi ảnh màn hình bài giảng trước khi LLM trả lời.
+- Response trả về `context.image_contexts` để hiển thị thông tin ảnh đã dùng trong lượt chat.

@@ -23,8 +23,8 @@ services:
   # FastAPI Backend
   backend:
     build:
-      context: ./apps/backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/backend/Dockerfile
     container_name: lms_backend
     restart: unless-stopped
     environment:
@@ -32,6 +32,9 @@ services:
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
       - CORS_ORIGINS=http://localhost:3000,http://localhost:8000
       - STORAGE_PATH=/app/storage
+      - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
+      - GOOGLE_AI_ENDPOINT=${GOOGLE_AI_ENDPOINT}
+      - LLM_PROVIDER=${LLM_PROVIDER:-google}
     volumes:
       - ./apps/backend/app:/app/app
       - storage_data:/app/storage

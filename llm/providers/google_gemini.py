@@ -4,7 +4,7 @@ from google import genai
 from google.genai import types
 
 from llm.config import LLMConfig
-from llm.models import ChatMessage, LLMRequest, LLMResponse
+from llm.models import ChatMessage, ImageInput, LLMRequest, LLMResponse
 from llm.providers.base import LLMProvider
 
 
@@ -24,7 +24,11 @@ class GoogleGeminiProvider(LLMProvider):
             return "model"
         return "user"
 
-    def _build_contents(self, messages: list[ChatMessage]) -> list[types.Content]:
+    def _build_contents(
+        self,
+        messages: list[ChatMessage],
+        images: list[ImageInput] | None = None,
+    ) -> list[types.Content]:
         contents: list[types.Content] = []
         for message in messages:
             # Gemini expects system instructions in config.system_instruction.
@@ -38,6 +42,28 @@ class GoogleGeminiProvider(LLMProvider):
                     parts=[types.Part(text=message.content)],
                 )
             )
+
+        image_parts = [
+            types.Part.from_bytes(data=image.data, mime_type=image.mime_type)
+            for image in (images or [])
+            if image.data
+        ]
+        if image_parts:
+            # Place images in the latest user turn so the model sees visual context
+            # immediately before answering the user's current question.
+            target_index = next(
+                (i for i in range(len(contents) - 1, -1, -1) if contents[i].role == "user"),
+                None,
+            )
+            if target_index is None:
+                contents.append(types.Content(role="user", parts=image_parts))
+            else:
+                existing_parts = list(contents[target_index].parts or [])
+                contents[target_index] = types.Content(
+                    role="user",
+                    parts=[*image_parts, *existing_parts],
+                )
+
         return contents
 
     @staticmethod
@@ -68,7 +94,7 @@ class GoogleGeminiProvider(LLMProvider):
         try:
             response = client.models.generate_content(
                 model=model,
-                contents=self._build_contents(request.messages),
+                contents=self._build_contents(request.messages, request.images),
                 config=config,
             )
         except Exception as exc:

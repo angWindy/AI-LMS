@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from collections.abc import Sequence
 
 from llm.config import LLMConfig
-from llm.models import ChatMessage, ContextTrace, LLMRequest
+from llm.models import ChatMessage, ContextTrace, ImageInput, LLMRequest
 from llm.prompts.chatbot import default_chatbot_prompt
 from llm.providers.base import LLMProvider
 from llm.providers.factory import get_llm_provider
@@ -43,6 +43,7 @@ class ChatbotWorkflow:
         system_prompt: str | None = None,
         rag_context: Sequence[str] | None = None,
         image_contexts: Sequence[str] | None = None,
+        images: Sequence[ImageInput] | None = None,
         temperature: float | None = None,
         max_output_tokens: int | None = None,
         thinking_level: str | None = None,
@@ -79,6 +80,7 @@ class ChatbotWorkflow:
                 if thinking_level is None
                 else thinking_level
             ),
+            images=list(images or []),
         )
 
         response = self.provider.generate(request)

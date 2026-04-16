@@ -175,7 +175,7 @@ create_users() {
     docker compose -f docker-compose.prod.yml exec -T backend python -c "
 from app.db.session import SessionLocal
 from app.models.user import User
-from app.utils.auth import get_password_hash
+from app.core.security import get_password_hash
 
 db = SessionLocal()
 
@@ -191,7 +191,7 @@ for user_data in users_data:
         user = User(
             email=user_data['email'],
             full_name=user_data['full_name'],
-            hashed_password=get_password_hash(user_data['password']),
+            password_hash=get_password_hash(user_data['password']),
             role=user_data['role'],
             is_active=True
         )
