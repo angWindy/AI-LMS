@@ -49,6 +49,15 @@ class Settings(BaseSettings):
     FIRST_ADMIN_EMAIL: str = "admin@lms.local"
     FIRST_ADMIN_PASSWORD: str = "changeme123"
 
+    # LLM / Chatbot Configuration
+    LLM_PROVIDER: str = "google"
+    LLM_MODEL: str = "gemini-2.5-flash"
+    LLM_TEMPERATURE: float = 1.0
+    LLM_MAX_OUTPUT_TOKENS: int = 512
+    LLM_THINKING_LEVEL: str | None = None
+    GOOGLE_AI_API_KEY: str | None = None
+    GOOGLE_AI_ENDPOINT: str = "https://generativelanguage.googleapis.com/v1beta"
+
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def parse_cors_origins(cls, v: Any) -> List[str]:

@@ -24,3 +24,6 @@ aiofiles>=23.2.1
 
 # Utilities
 python-slugify>=8.0.1
+
+# LLM Providers
+google-genai>=1.11.0
