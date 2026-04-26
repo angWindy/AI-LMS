@@ -1,0 +1,20 @@
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+export function middleware(request: NextRequest) {
+  // Allow all routes - auth handled client-side
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    "/dashboard/:path*",
+    "/courses/create",
+    "/courses/my",
+    "/courses/enrolled",
+    "/users/:path*",
+    "/profile/:path*",
+    "/login",
+    "/register",
+  ],
+};
