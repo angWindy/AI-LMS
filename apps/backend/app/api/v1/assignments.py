@@ -9,7 +9,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from app.core.dependencies import DBSession, CurrentUser, InstructorUser
-from app.core.exceptions import NotFoundException, ForbiddenException, ConflictException
+from app.core.exceptions import NotFoundException, ForbiddenException
 from app.models.user import User, UserRole
 from app.models.course import Course
 from app.models.lesson import Lesson
@@ -111,13 +111,6 @@ async def create_assignment(
         if not lesson:
             raise NotFoundException("Lesson not found in this course")
 
-        existing_lesson_assignment = db.query(Assignment).filter(
-            Assignment.course_id == course_id,
-            Assignment.lesson_id == assignment_data.lesson_id,
-        ).first()
-        if existing_lesson_assignment:
-            raise ConflictException("This lesson already has an assignment. Please update the existing assignment")
-
     max_order = db.query(func.max(Assignment.order_index)).filter(
         Assignment.course_id == course_id
     ).scalar()
@@ -166,15 +159,6 @@ async def generate_assignment_draft(
     ).first()
     if not lesson:
         raise NotFoundException("Lesson not found in this course")
-
-    existing_lesson_assignment = db.query(Assignment).filter(
-        Assignment.course_id == course_id,
-        Assignment.lesson_id == payload.lesson_id,
-    ).first()
-    if existing_lesson_assignment:
-        raise ConflictException(
-            "This lesson already has an assignment. Please update the existing assignment"
-        )
 
     generator_service = AssignmentGeneratorService()
     try:
