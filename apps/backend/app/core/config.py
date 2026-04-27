@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "LMS API"
     VERSION: str = "0.1.0"
     API_V1_STR: str = "/api/v1"
+    LOG_LEVEL: str = "INFO"
 
     # Security
     SECRET_KEY: str = "your-secret-key-change-in-production"
@@ -51,7 +52,9 @@ class Settings(BaseSettings):
 
     # LLM / Chatbot Configuration
     LLM_PROVIDER: str = "google"
-    LLM_MODEL: str = "gemini-3.1-flash-lite-preview"
+    # LLM_MODEL: str = "gemini-3.1-flash-lite-preview"
+    LLM_MODEL: str = "gemma-4-31b-it"
+    # LLM_MODEL: str = "gemini-2.5-flash"
     LLM_TEMPERATURE: float = 0.1
     LLM_MAX_OUTPUT_TOKENS: int = 512
     LLM_THINKING_LEVEL: str | None = None

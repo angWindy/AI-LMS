@@ -1,4 +1,5 @@
 """Chatbot API endpoints."""
+import logging
 import uuid
 
 from fastapi import APIRouter, HTTPException, status
@@ -18,6 +19,7 @@ from app.services.chatbot_service import ChatbotService
 from llm.models import ChatMessage
 
 router = APIRouter(prefix="/chatbot", tags=["Chatbot"])
+logger = logging.getLogger(__name__)
 
 
 @router.get("/providers")
@@ -73,6 +75,21 @@ async def ask_chatbot(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         ) from exc
+
+    question_preview = payload.question.strip().replace("\n", " ")
+    if len(question_preview) > 120:
+        question_preview = f"{question_preview[:120]}..."
+    context_count = len(payload.context_docs or []) + len(payload.image_contexts or [])
+
+    logger.info(
+        "[Success] Chatbot ask succeeded user=%s conversation_id=%s provider=%s model=%s context_count=%s question=%s",
+        current_user.email,
+        response.conversation_id,
+        response.result.provider,
+        response.result.model,
+        context_count,
+        question_preview,
+    )
 
     return ChatbotAskResponse(
         answer=response.result.answer,

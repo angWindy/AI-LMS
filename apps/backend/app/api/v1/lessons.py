@@ -1,6 +1,7 @@
 """
 Lesson management API endpoints.
 """
+import logging
 from typing import List, Optional
 import uuid
 
@@ -31,6 +32,7 @@ from app.schemas.common import Message
 from app.utils.file_handler import file_handler
 
 router = APIRouter(prefix="/lessons", tags=["Lessons"])
+logger = logging.getLogger(__name__)
 
 
 def check_course_access(db: DBSession, course_id: uuid.UUID, user: User, require_owner: bool = False):
@@ -91,6 +93,14 @@ async def create_lesson(
     db.add(lesson)
     db.commit()
     db.refresh(lesson)
+
+    logger.info(
+        "[Success] Lesson created lesson_id=%s course_id=%s title=%s created_by=%s",
+        lesson.id,
+        lesson.course_id,
+        lesson.title,
+        current_user.email,
+    )
     
     return lesson
 
@@ -143,6 +153,15 @@ async def update_lesson(
     
     db.commit()
     db.refresh(lesson)
+
+    logger.info(
+        "[Success] Lesson updated lesson_id=%s course_id=%s title=%s updated_by=%s is_published=%s",
+        lesson.id,
+        lesson.course_id,
+        lesson.title,
+        current_user.email,
+        lesson.is_published,
+    )
     
     return lesson
 
@@ -155,6 +174,9 @@ async def delete_lesson(
 ):
     """Delete a lesson and its materials."""
     lesson = check_lesson_access(db, lesson_id, current_user, require_owner=True)
+
+    lesson_title = lesson.title
+    course_id = lesson.course_id
     
     # Delete associated materials' files
     for material in lesson.materials:
@@ -164,6 +186,14 @@ async def delete_lesson(
     # Delete lesson (cascades to materials)
     db.delete(lesson)
     db.commit()
+
+    logger.info(
+        "[Success] Lesson deleted lesson_id=%s course_id=%s title=%s deleted_by=%s",
+        lesson_id,
+        course_id,
+        lesson_title,
+        current_user.email,
+    )
     
     return Message(message="Lesson deleted successfully")
 
@@ -181,6 +211,14 @@ async def update_lesson_order(
     lesson.order_index = order_data.order_index
     db.commit()
     db.refresh(lesson)
+
+    logger.info(
+        "[Success] Lesson order updated lesson_id=%s course_id=%s order_index=%s updated_by=%s",
+        lesson.id,
+        lesson.course_id,
+        lesson.order_index,
+        current_user.email,
+    )
     
     return lesson
 
@@ -197,6 +235,14 @@ async def publish_lesson(
     lesson.is_published = True
     db.commit()
     db.refresh(lesson)
+
+    logger.info(
+        "[Success] Lesson published lesson_id=%s course_id=%s title=%s published_by=%s",
+        lesson.id,
+        lesson.course_id,
+        lesson.title,
+        current_user.email,
+    )
     
     return lesson
 
@@ -249,6 +295,17 @@ async def create_material(
     db.add(material)
     db.commit()
     db.refresh(material)
+
+    logger.info(
+        "[Success] Lesson material created material_id=%s lesson_id=%s course_id=%s type=%s title=%s created_by=%s file_size=%s",
+        material.id,
+        material.lesson_id,
+        material.course_id,
+        material.type,
+        material.title,
+        current_user.email,
+        material.file_size,
+    )
     
     return material
 
@@ -288,6 +345,10 @@ async def delete_material(
     # Check ownership
     if current_user.role != UserRole.ADMIN and material.lesson.course.instructor_id != current_user.id:
         raise ForbiddenException("Only course instructor or admin can delete this material")
+
+    material_lesson_id = material.lesson_id
+    material_course_id = material.course_id
+    material_title = material.title
     
     # Delete file if exists
     if material.file_url:
@@ -295,6 +356,15 @@ async def delete_material(
     
     db.delete(material)
     db.commit()
+
+    logger.info(
+        "[Success] Lesson material deleted material_id=%s lesson_id=%s course_id=%s title=%s deleted_by=%s",
+        material_id,
+        material_lesson_id,
+        material_course_id,
+        material_title,
+        current_user.email,
+    )
     
     return Message(message="Material deleted successfully")
 
@@ -329,6 +399,7 @@ async def update_progress(
         LessonProgress.lesson_id == lesson_id,
         LessonProgress.user_id == current_user.id
     ).first()
+    created_new = progress is None
     
     if progress:
         # Update existing
@@ -348,6 +419,17 @@ async def update_progress(
     
     db.commit()
     db.refresh(progress)
+
+    logger.info(
+        "[Success] Lesson progress updated lesson_id=%s course_id=%s user=%s progress_mode=%s watched_seconds=%s last_position=%s completed=%s",
+        lesson_id,
+        lesson.course_id,
+        current_user.email,
+        "created" if created_new else "updated",
+        progress.watched_seconds,
+        progress.last_position,
+        progress.is_completed,
+    )
     
     # Add total_seconds from lesson video
     result = LessonProgressResponse(

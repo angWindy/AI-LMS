@@ -4,6 +4,7 @@ import binascii
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
+import logging
 import uuid
 
 from sqlalchemy import desc
@@ -15,6 +16,9 @@ from llm.config import LLMConfig
 from llm.models import ChatMessage, ImageInput
 from llm.rag.context_builder import ContextBuilder, DefaultContextBuilder
 from llm.workflows.chatbot import ChatbotResult, ChatbotWorkflow
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -108,6 +112,20 @@ class ChatbotService:
             temperature=temperature,
             max_output_tokens=max_output_tokens,
             thinking_level=thinking_level,
+        )
+
+        context_preview = " | ".join((context_docs or [])[:2]).strip() or "none"
+        image_context_preview = " | ".join(merged_image_contexts[:2]).strip() or "none"
+
+        logger.info(
+            "[Success] LLM request succeeded provider=%s model=%s user_id=%s conversation_id=%s question=%s context=%s image_context=%s",
+            llm_result.provider,
+            llm_result.model,
+            user_id,
+            conversation.id,
+            _shorten(question, 180),
+            _shorten(context_preview, 300),
+            _shorten(image_context_preview, 300),
         )
 
         messages_to_save: list[AIMessage] = []
@@ -339,3 +357,9 @@ def _format_image_context_message(image_contexts: Sequence[str]) -> str:
     lines = ["Image contexts for this turn:"]
     lines.extend(f"- {item}" for item in image_contexts)
     return "\n".join(lines)
+
+
+def _shorten(value: str, max_len: int) -> str:
+    if len(value) <= max_len:
+        return value
+    return value[: max_len - 3].rstrip() + "..."

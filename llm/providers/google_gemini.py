@@ -1,11 +1,16 @@
 """Google Gemini provider via the official google-genai SDK."""
 
+import logging
+
 from google import genai
 from google.genai import types
 
 from llm.config import LLMConfig
 from llm.models import ChatMessage, ImageInput, LLMRequest, LLMResponse
 from llm.providers.base import LLMProvider
+
+
+logger = logging.getLogger(__name__)
 
 
 class GoogleGeminiProvider(LLMProvider):
@@ -74,6 +79,7 @@ class GoogleGeminiProvider(LLMProvider):
 
     def generate(self, request: LLMRequest) -> LLMResponse:
         if not self.config.google_api_key:
+            logger.error("[Error][Gemini] GOOGLE_AI_API_KEY is not configured")
             raise ValueError("GOOGLE_AI_API_KEY is not configured.")
 
         client = genai.Client(api_key=self.config.google_api_key)
@@ -94,14 +100,36 @@ class GoogleGeminiProvider(LLMProvider):
             config_kwargs["thinking_config"] = thinking_config
 
         config = types.GenerateContentConfig(**config_kwargs)
+        contents = self._build_contents(request.messages, request.images)
+
+        logger.debug(
+            "[Debug][Gemini] Sending request model=%s messages=%s images=%s temperature=%s max_output_tokens=%s thinking_level=%s response_mime_type=%s",
+            model,
+            len(request.messages),
+            len(request.images),
+            request.temperature,
+            request.max_output_tokens,
+            request.thinking_level,
+            response_mime_type,
+        )
 
         try:
             response = client.models.generate_content(
                 model=model,
-                contents=self._build_contents(request.messages, request.images),
+                contents=contents,
                 config=config,
             )
         except Exception as exc:
+            logger.exception(
+                "[Error][Gemini] Request failed model=%s messages=%s images=%s temperature=%s max_output_tokens=%s thinking_level=%s error=%s",
+                model,
+                len(request.messages),
+                len(request.images),
+                request.temperature,
+                request.max_output_tokens,
+                request.thinking_level,
+                exc,
+            )
             raise RuntimeError(f"Google AI Studio request failed: {exc}") from exc
 
         text = (response.text or "").strip()
@@ -119,6 +147,17 @@ class GoogleGeminiProvider(LLMProvider):
             "total_tokens": int(getattr(usage_metadata, "total_token_count", 0) or 0),
         }
 
+        logger.info(
+            "[Success][Gemini] Response model=%s finish_reason=%s prompt_tokens=%s completion_tokens=%s total_tokens=%s question=%s context=%s",
+            model,
+            finish_reason,
+            usage["prompt_tokens"],
+            usage["completion_tokens"],
+            usage["total_tokens"],
+            _extract_question_summary(request.messages),
+            _extract_context_summary(request.system_prompt),
+        )
+
         return LLMResponse(
             text=text,
             provider=self.provider_name,
@@ -127,3 +166,22 @@ class GoogleGeminiProvider(LLMProvider):
             usage=usage,
             raw=response.model_dump(),
         )
+
+
+def _extract_question_summary(messages: list[ChatMessage]) -> str:
+    for message in reversed(messages):
+        if message.role == "user" and message.content.strip():
+            return _shorten(message.content.strip(), 180)
+    return "none"
+
+
+def _extract_context_summary(system_prompt: str | None) -> str:
+    if not system_prompt:
+        return "none"
+    return _shorten(system_prompt.strip().replace("\n", " "), 220)
+
+
+def _shorten(value: str, max_len: int) -> str:
+    if len(value) <= max_len:
+        return value
+    return value[: max_len - 3].rstrip() + "..."

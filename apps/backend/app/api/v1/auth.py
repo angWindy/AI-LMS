@@ -2,6 +2,7 @@
 Authentication API endpoints.
 """
 from datetime import datetime, timezone
+import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -15,6 +16,16 @@ from app.schemas.user import UserCreate, UserResponse, UserLogin, UserUpdate, Pa
 from app.schemas.common import TokenResponse, Message, RefreshTokenRequest
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+logger = logging.getLogger(__name__)
+
+
+def _mask_password(value: str) -> str:
+    """Mask password for safe operational logs."""
+    if not value:
+        return "<empty>"
+    if len(value) <= 2:
+        return "*" * len(value)
+    return f"{value[0]}{'*' * (len(value) - 2)}{value[-1]}"
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -42,6 +53,12 @@ async def register(
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
+
+    logger.info(
+        "[Success] Register succeeded role=%s account=%s",
+        new_user.role,
+        new_user.email,
+    )
 
     return new_user
 
@@ -78,6 +95,13 @@ async def login(
     refresh_token = RefreshToken(user_id=user.id, token=refresh_token_value)
     db.add(refresh_token)
     db.commit()
+
+    logger.info(
+        "[Success] Login succeeded role=%s account=%s password_masked=%s",
+        user.role,
+        user.email,
+        _mask_password(credentials.password),
+    )
 
     return TokenResponse(
         access_token=access_token,
@@ -132,6 +156,14 @@ async def refresh_access_token(
     db.add(new_token_record)
     db.commit()
 
+    refreshed_user = db.query(User).filter(User.id == user_id).first()
+    if refreshed_user:
+        logger.info(
+            "[Success] Token refresh succeeded role=%s account=%s",
+            refreshed_user.role,
+            refreshed_user.email,
+        )
+
     return TokenResponse(
         access_token=access_token,
         refresh_token=new_refresh_token,
@@ -152,6 +184,12 @@ async def logout(
     ).update({"revoked_at": datetime.now(timezone.utc)})
 
     db.commit()
+
+    logger.info(
+        "[Success] Logout succeeded role=%s account=%s",
+        current_user.role,
+        current_user.email,
+    )
 
     return Message(message="Successfully logged out")
 
@@ -181,6 +219,12 @@ async def update_current_user_profile(
     db.commit()
     db.refresh(current_user)
 
+    logger.info(
+        "[Success] Profile update succeeded role=%s account=%s",
+        current_user.role,
+        current_user.email,
+    )
+
     return current_user
 
 
@@ -199,5 +243,13 @@ async def change_password(
 
     current_user.set_password(password_data.new_password)
     db.commit()
+
+    logger.info(
+        "[Success] Password change succeeded role=%s account=%s old_password_masked=%s new_password_masked=%s",
+        current_user.role,
+        current_user.email,
+        _mask_password(password_data.current_password),
+        _mask_password(password_data.new_password),
+    )
 
     return Message(message="Password changed successfully")

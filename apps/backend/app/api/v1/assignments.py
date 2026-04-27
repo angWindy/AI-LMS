@@ -1,6 +1,7 @@
 """
 Assignment API endpoints.
 """
+import logging
 from typing import List
 import uuid
 
@@ -26,6 +27,7 @@ from app.schemas.common import Message
 from app.services.assignment_generator_service import AssignmentGeneratorService
 
 router = APIRouter(prefix="/assignments", tags=["Assignments"])
+logger = logging.getLogger(__name__)
 
 
 def check_course_owner(db: DBSession, course_id: uuid.UUID, user: User) -> Course:
@@ -132,6 +134,16 @@ async def create_assignment(
     db.commit()
     db.refresh(assignment)
 
+    logger.info(
+        "[Success] Assignment created assignment_id=%s course_id=%s lesson_id=%s title=%s created_by=%s question_count=%s",
+        assignment.id,
+        assignment.course_id,
+        assignment.lesson_id,
+        assignment.title,
+        current_user.email,
+        len(assignment_data.questions),
+    )
+
     return assignment
 
 
@@ -198,6 +210,18 @@ async def generate_assignment_draft(
 
     db.commit()
     db.refresh(assignment)
+
+    logger.info(
+        "[Success] Assignment draft generated assignment_id=%s course_id=%s lesson_id=%s title=%s created_by=%s question_count=%s provider=%s model=%s",
+        assignment.id,
+        assignment.course_id,
+        assignment.lesson_id,
+        assignment.title,
+        current_user.email,
+        len(generation_result.questions),
+        generation_result.provider,
+        generation_result.model,
+    )
 
     return assignment
 
@@ -280,6 +304,16 @@ async def update_assignment(
     db.commit()
     db.refresh(assignment)
 
+    logger.info(
+        "[Success] Assignment updated assignment_id=%s course_id=%s title=%s updated_by=%s is_published=%s question_count=%s",
+        assignment.id,
+        assignment.course_id,
+        assignment.title,
+        current_user.email,
+        assignment.is_published,
+        len(assignment.questions),
+    )
+
     return assignment
 
 
@@ -292,8 +326,19 @@ async def delete_assignment(
     """Delete an assignment."""
     assignment = check_assignment_access(db, assignment_id, current_user, require_owner=True)
 
+    assignment_course_id = assignment.course_id
+    assignment_title = assignment.title
+
     db.delete(assignment)
     db.commit()
+
+    logger.info(
+        "[Success] Assignment deleted assignment_id=%s course_id=%s title=%s deleted_by=%s",
+        assignment_id,
+        assignment_course_id,
+        assignment_title,
+        current_user.email,
+    )
 
     return Message(message="Assignment deleted successfully")
 
@@ -310,5 +355,13 @@ async def publish_assignment(
     assignment.is_published = True
     db.commit()
     db.refresh(assignment)
+
+    logger.info(
+        "[Success] Assignment published assignment_id=%s course_id=%s title=%s published_by=%s",
+        assignment.id,
+        assignment.course_id,
+        assignment.title,
+        current_user.email,
+    )
 
     return assignment

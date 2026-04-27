@@ -2,6 +2,7 @@
 Course management API endpoints.
 """
 from datetime import datetime, timezone
+import logging
 from typing import List, Optional
 import uuid
 
@@ -29,6 +30,7 @@ from app.schemas.common import PaginatedResponse, Message
 from app.utils.file_handler import file_handler
 
 router = APIRouter(prefix="/courses", tags=["Courses"])
+logger = logging.getLogger(__name__)
 
 
 def generate_unique_slug(db: DBSession, title: str, exclude_id: uuid.UUID | None = None) -> str:
@@ -140,6 +142,15 @@ async def create_course(
     db.add(course)
     db.commit()
     db.refresh(course)
+
+    logger.info(
+        "[Success] Course created course_id=%s title=%s slug=%s created_by=%s role=%s",
+        course.id,
+        course.title,
+        course.slug,
+        current_user.email,
+        current_user.role,
+    )
 
     return course
 
@@ -265,6 +276,16 @@ async def update_course(
     db.commit()
     db.refresh(course)
 
+    logger.info(
+        "[Success] Course updated course_id=%s title=%s slug=%s updated_by=%s role=%s status=%s",
+        course.id,
+        course.title,
+        course.slug,
+        current_user.email,
+        current_user.role,
+        course.status,
+    )
+
     return course
 
 
@@ -284,8 +305,18 @@ async def delete_course(
     if current_user.role != UserRole.ADMIN and course.instructor_id != current_user.id:
         raise ForbiddenException("You don't have permission to delete this course")
 
+    course_title = course.title
+
     db.delete(course)
     db.commit()
+
+    logger.info(
+        "[Success] Course deleted course_id=%s title=%s deleted_by=%s role=%s",
+        course_id,
+        course_title,
+        current_user.email,
+        current_user.role,
+    )
 
     return Message(message="Course deleted successfully")
 
@@ -311,6 +342,14 @@ async def publish_course(
     db.commit()
     db.refresh(course)
 
+    logger.info(
+        "[Success] Course published course_id=%s title=%s published_by=%s role=%s",
+        course.id,
+        course.title,
+        current_user.email,
+        current_user.role,
+    )
+
     return course
 
 
@@ -333,6 +372,14 @@ async def archive_course(
 
     db.commit()
     db.refresh(course)
+
+    logger.info(
+        "[Success] Course archived course_id=%s title=%s archived_by=%s role=%s",
+        course.id,
+        course.title,
+        current_user.email,
+        current_user.role,
+    )
 
     return course
 
@@ -367,6 +414,12 @@ async def enroll_in_course(
             existing.status = EnrollmentStatus.ACTIVE
             existing.enrolled_at = datetime.now(timezone.utc)
             db.commit()
+            logger.info(
+                "[Success] Course re-enrollment succeeded course_id=%s user=%s role=%s",
+                course_id,
+                current_user.email,
+                current_user.role,
+            )
             return Message(message="Successfully re-enrolled in course")
         else:
             raise HTTPException(
@@ -381,6 +434,13 @@ async def enroll_in_course(
 
     db.add(enrollment)
     db.commit()
+
+    logger.info(
+        "[Success] Course enrollment succeeded course_id=%s user=%s role=%s",
+        course_id,
+        current_user.email,
+        current_user.role,
+    )
 
     return Message(message="Successfully enrolled in course")
 
@@ -413,6 +473,13 @@ async def unenroll_from_course(
     # Update status to DROPPED instead of deleting
     enrollment.status = EnrollmentStatus.DROPPED
     db.commit()
+
+    logger.info(
+        "[Success] Course unenrollment succeeded course_id=%s user=%s role=%s",
+        course_id,
+        current_user.email,
+        current_user.role,
+    )
 
     return Message(message="Successfully unenrolled from course")
 
@@ -558,6 +625,16 @@ async def create_course_material(
     db.commit()
     db.refresh(material)
 
+    logger.info(
+        "[Success] Course material created material_id=%s course_id=%s type=%s title=%s created_by=%s file_size=%s",
+        material.id,
+        material.course_id,
+        material.type,
+        material.title,
+        current_user.email,
+        material.file_size,
+    )
+
     return material
 
 
@@ -578,11 +655,22 @@ async def delete_course_material(
     if current_user.role != UserRole.ADMIN and material.course.instructor_id != current_user.id:
         raise ForbiddenException("Only course instructor or admin can delete this material")
 
+    material_course_id = material.course_id
+    material_title = material.title
+
     if material.file_url:
         file_handler.delete_file(material.file_url)
 
     db.delete(material)
     db.commit()
+
+    logger.info(
+        "[Success] Course material deleted material_id=%s course_id=%s title=%s deleted_by=%s",
+        material_id,
+        material_course_id,
+        material_title,
+        current_user.email,
+    )
 
     return Message(message="Course material deleted successfully")
 

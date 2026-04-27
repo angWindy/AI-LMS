@@ -1,6 +1,7 @@
 """
 File handling utilities for uploading, validating, and managing files.
 """
+import logging
 import os
 import uuid
 import aiofiles
@@ -10,6 +11,9 @@ from typing import Optional, Tuple, List
 from fastapi import UploadFile, HTTPException, status
 
 from app.core.config import settings
+
+
+logger = logging.getLogger(__name__)
 
 
 class FileHandler:
@@ -58,13 +62,15 @@ class FileHandler:
         ]
         for directory in directories:
             directory.mkdir(parents=True, exist_ok=True)
+            logger.debug("[Debug] Ensure storage directory path=%s", directory)
     
     def _get_mime_type(self, file_content: bytes) -> str:
         """Detect MIME type from file content."""
         try:
             mime = magic.Magic(mime=True)
             return mime.from_buffer(file_content)
-        except Exception:
+        except Exception as exc:
+            logger.debug("[Debug] MIME detection fallback error=%s", exc)
             return "application/octet-stream"
     
     def _get_file_extension(self, filename: str, mime_type: str) -> str:
@@ -120,7 +126,13 @@ class FileHandler:
         """
         # Check file size
         file_size = len(content)
+        logger.debug(
+            "[Debug] Validate file filename=%s size_bytes=%s",
+            filename,
+            file_size,
+        )
         if file_size == 0:
+            logger.error("[Error] Empty file upload filename=%s", filename)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Empty file uploaded"
@@ -139,6 +151,11 @@ class FileHandler:
         
         # Check MIME type
         if mime_type not in allowed_types:
+            logger.error(
+                "[Error] File type not allowed filename=%s mime_type=%s",
+                filename,
+                mime_type,
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"File type '{mime_type}' not allowed. Allowed types: {allowed_types}"
@@ -156,6 +173,12 @@ class FileHandler:
         # Check size
         if file_size > max_size:
             max_mb = max_size / (1024 * 1024)
+            logger.error(
+                "[Error] File too large filename=%s size_bytes=%s max_bytes=%s",
+                filename,
+                file_size,
+                max_size,
+            )
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"File size ({file_size / (1024*1024):.2f}MB) exceeds maximum allowed ({max_mb:.0f}MB)"
@@ -174,47 +197,83 @@ class FileHandler:
         Save uploaded file to storage.
         Returns dict with file_url, file_name, file_size, mime_type.
         """
-        # Read file content
-        content = await file.read()
-        
-        # Validate file
-        mime_type, file_size = self.validate_file(
-            content, 
-            file.filename, 
-            allowed_types, 
-            max_size
+        original_filename = file.filename or "unknown"
+        logger.debug(
+            "[Debug] Upload started filename=%s subdirectory=%s",
+            original_filename,
+            subdirectory,
         )
-        
-        # Generate unique filename
-        unique_filename = self._generate_unique_filename(file.filename, mime_type)
-        
-        # Determine storage subdirectory
-        if subdirectory:
-            save_dir = self.storage_path / subdirectory
-        else:
-            category = self._get_file_category(mime_type)
-            save_dir = self.storage_path / category
-        
-        save_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Full path for saving
-        file_path = save_dir / unique_filename
-        
-        # Save file asynchronously
-        async with aiofiles.open(file_path, "wb") as f:
-            await f.write(content)
-        
-        # Generate relative URL for storage
-        relative_path = file_path.relative_to(self.storage_path)
-        file_url = f"/storage/{relative_path}"
-        
-        return {
-            "file_url": file_url,
-            "file_name": file.filename,
-            "file_size": file_size,
-            "mime_type": mime_type,
-            "storage_path": str(file_path),
-        }
+
+        try:
+            # Read file content
+            content = await file.read()
+
+            # Validate file
+            mime_type, file_size = self.validate_file(
+                content,
+                original_filename,
+                allowed_types,
+                max_size,
+            )
+
+            # Generate unique filename
+            unique_filename = self._generate_unique_filename(original_filename, mime_type)
+
+            # Determine storage subdirectory
+            if subdirectory:
+                save_dir = self.storage_path / subdirectory
+            else:
+                category = self._get_file_category(mime_type)
+                save_dir = self.storage_path / category
+
+            save_dir.mkdir(parents=True, exist_ok=True)
+
+            # Full path for saving
+            file_path = save_dir / unique_filename
+
+            # Save file asynchronously
+            async with aiofiles.open(file_path, "wb") as f:
+                await f.write(content)
+
+            # Generate relative URL for storage
+            relative_path = file_path.relative_to(self.storage_path)
+            file_url = f"/storage/{relative_path}"
+
+            logger.info(
+                "[Success] Upload file name=%s mime_type=%s size_bytes=%s file_url=%s storage_path=%s",
+                original_filename,
+                mime_type,
+                file_size,
+                file_url,
+                file_path,
+            )
+
+            return {
+                "file_url": file_url,
+                "file_name": original_filename,
+                "file_size": file_size,
+                "mime_type": mime_type,
+                "storage_path": str(file_path),
+            }
+        except HTTPException as exc:
+            logger.error(
+                "[Error] Upload File failed name=%s status=%s detail=%s",
+                original_filename,
+                exc.status_code,
+                exc.detail,
+            )
+            raise
+        except Exception as exc:
+            logger.exception(
+                "[Error] Upload File unexpected failure name=%s subdirectory=%s error=%s",
+                original_filename,
+                subdirectory,
+                exc,
+            )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to save uploaded file",
+            ) from exc
     
     async def save_material_file(self, file: UploadFile, lesson_id: str) -> dict:
         """Save a material file (video/document/image) for a lesson."""
@@ -245,6 +304,7 @@ class FileHandler:
     def delete_file(self, file_url: str) -> bool:
         """Delete a file by its URL. Returns True if deleted."""
         if not file_url:
+            logger.debug("[Debug] Delete file skipped because file_url is empty")
             return False
         
         # Convert URL to path
@@ -255,9 +315,23 @@ class FileHandler:
             
             if file_path.exists() and file_path.is_file():
                 file_path.unlink()
+                logger.info(
+                    "[Success] Delete file file_url=%s storage_path=%s",
+                    file_url,
+                    file_path,
+                )
                 return True
-        except Exception:
-            pass
+            logger.debug(
+                "[Debug] Delete file target not found file_url=%s storage_path=%s",
+                file_url,
+                file_path,
+            )
+        except Exception as exc:
+            logger.exception(
+                "[Error] Delete File failed file_url=%s error=%s",
+                file_url,
+                exc,
+            )
         
         return False
     
