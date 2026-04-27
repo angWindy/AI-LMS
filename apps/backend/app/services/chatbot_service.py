@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import logging
+import re
 import uuid
 
 from sqlalchemy import desc
@@ -28,6 +29,9 @@ class ChatbotServiceResult:
     conversation_id: uuid.UUID
     conversation_title: str | None
     result: ChatbotResult
+    image_rule_matched: bool
+    image_input_count: int
+    image_used_count: int
 
 
 class ChatbotService:
@@ -94,13 +98,27 @@ class ChatbotService:
         if not conversation_id and history:
             runtime_history.extend(history)
 
+        incoming_teaching_images = list(teaching_images or [])
+        image_rule_matched = _need_teaching_image_strict(question)
+        selected_teaching_images = (
+            incoming_teaching_images if image_rule_matched else []
+        )
+
         prepared_images, image_contexts_from_images = self._prepare_teaching_images(
-            teaching_images or []
+            selected_teaching_images
         )
         merged_image_contexts = [
             *(image_contexts or []),
             *image_contexts_from_images,
         ]
+
+        if incoming_teaching_images and not image_rule_matched:
+            logger.debug(
+                "[Debug] Chatbot service skipped teaching images by rule user_id=%s conversation_id=%s image_input_count=%s",
+                user_id,
+                conversation.id,
+                len(incoming_teaching_images),
+            )
 
         llm_result = self.workflow.run(
             question=question,
@@ -114,18 +132,18 @@ class ChatbotService:
             thinking_level=thinking_level,
         )
 
-        context_preview = " | ".join((context_docs or [])[:2]).strip() or "none"
-        image_context_preview = " | ".join(merged_image_contexts[:2]).strip() or "none"
-
-        logger.info(
-            "[Success] LLM request succeeded provider=%s model=%s user_id=%s conversation_id=%s question=%s context=%s image_context=%s",
+        logger.debug(
+            "[Debug] Chatbot service assembled request provider=%s model=%s user_id=%s conversation_id=%s image_rule_matched=%s has_image_input=%s image_input_count=%s image_used_count=%s rag_context_count=%s merged_image_context_count=%s",
             llm_result.provider,
             llm_result.model,
             user_id,
             conversation.id,
-            _shorten(question, 180),
-            _shorten(context_preview, 300),
-            _shorten(image_context_preview, 300),
+            image_rule_matched,
+            len(incoming_teaching_images) > 0,
+            len(incoming_teaching_images),
+            len(prepared_images),
+            len(context_docs or []),
+            len(merged_image_contexts),
         )
 
         messages_to_save: list[AIMessage] = []
@@ -163,6 +181,9 @@ class ChatbotService:
             conversation_id=conversation.id,
             conversation_title=conversation.title,
             result=llm_result,
+            image_rule_matched=image_rule_matched,
+            image_input_count=len(incoming_teaching_images),
+            image_used_count=len(prepared_images),
         )
 
     def list_conversations(
@@ -359,7 +380,59 @@ def _format_image_context_message(image_contexts: Sequence[str]) -> str:
     return "\n".join(lines)
 
 
-def _shorten(value: str, max_len: int) -> str:
-    if len(value) <= max_len:
-        return value
-    return value[: max_len - 3].rstrip() + "..."
+def _need_teaching_image_strict(text: str) -> bool:
+    normalized = text.lower().strip()
+    if not normalized:
+        return False
+
+    deictic_strong = [
+        "cai nay",
+        "cái này",
+        "doan nay",
+        "đoạn này",
+        "cho nay",
+        "chỗ này",
+        "slide nay",
+        "slide này",
+        "dong nay",
+        "dòng này",
+        "frame nay",
+        "frame này",
+    ]
+
+    visual_context = [
+        "trong video",
+        "tren man hinh",
+        "trên màn hình",
+        "trong slide",
+        "tren hinh",
+        "trên hình",
+        "trong hinh",
+        "trong hình",
+    ]
+
+    visual_action = [
+        "ve cai",
+        "vẽ cái",
+        "ve lai",
+        "vẽ lại",
+        "plot cai",
+        "plot cái",
+        "minh hoa cai",
+        "minh họa cái",
+        "draw this",
+    ]
+
+    if any(keyword in normalized for keyword in deictic_strong):
+        return True
+
+    if any(keyword in normalized for keyword in visual_context):
+        return True
+
+    if any(keyword in normalized for keyword in visual_action):
+        return True
+
+    return (
+        re.search(r"đang\s+.*\s+gì", normalized) is not None
+        or re.search(r"dang\s+.*\s+gi", normalized) is not None
+    )

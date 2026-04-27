@@ -79,14 +79,24 @@ async def ask_chatbot(
     question_preview = payload.question.strip().replace("\n", " ")
     if len(question_preview) > 120:
         question_preview = f"{question_preview[:120]}..."
+    image_rule_matched = response.image_rule_matched
+    image_input_count = response.image_input_count
+    has_image_input = image_input_count > 0
+    image_used_count = response.image_used_count
+    has_image_used = image_used_count > 0
     context_count = len(payload.context_docs or []) + len(payload.image_contexts or [])
 
     logger.info(
-        "[Success] Chatbot ask succeeded user=%s conversation_id=%s provider=%s model=%s context_count=%s question=%s",
+        "[Success] Chatbot ask succeeded user=%s conversation_id=%s provider=%s model=%s image_rule_matched=%s has_image_input=%s image_input_count=%s has_image_used=%s image_used_count=%s context_count=%s question=%s",
         current_user.email,
         response.conversation_id,
         response.result.provider,
         response.result.model,
+        image_rule_matched,
+        has_image_input,
+        image_input_count,
+        has_image_used,
+        image_used_count,
         context_count,
         question_preview,
     )

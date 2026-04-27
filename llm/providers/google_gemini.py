@@ -148,14 +148,14 @@ class GoogleGeminiProvider(LLMProvider):
         }
 
         logger.info(
-            "[Success][Gemini] Response model=%s finish_reason=%s prompt_tokens=%s completion_tokens=%s total_tokens=%s question=%s context=%s",
+            "[Success][Gemini] Response model=%s finish_reason=%s prompt_tokens=%s completion_tokens=%s total_tokens=%s has_image_input=%s image_input_count=%s",
             model,
             finish_reason,
             usage["prompt_tokens"],
             usage["completion_tokens"],
             usage["total_tokens"],
-            _extract_question_summary(request.messages),
-            _extract_context_summary(request.system_prompt),
+            len(request.images or []) > 0,
+            len(request.images or []),
         )
 
         return LLMResponse(
@@ -166,22 +166,3 @@ class GoogleGeminiProvider(LLMProvider):
             usage=usage,
             raw=response.model_dump(),
         )
-
-
-def _extract_question_summary(messages: list[ChatMessage]) -> str:
-    for message in reversed(messages):
-        if message.role == "user" and message.content.strip():
-            return _shorten(message.content.strip(), 180)
-    return "none"
-
-
-def _extract_context_summary(system_prompt: str | None) -> str:
-    if not system_prompt:
-        return "none"
-    return _shorten(system_prompt.strip().replace("\n", " "), 220)
-
-
-def _shorten(value: str, max_len: int) -> str:
-    if len(value) <= max_len:
-        return value
-    return value[: max_len - 3].rstrip() + "..."

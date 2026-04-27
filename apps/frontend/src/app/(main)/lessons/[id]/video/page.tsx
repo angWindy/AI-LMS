@@ -731,8 +731,8 @@ export default function LessonVideoRoomPage() {
               </p>
               <p className="text-xs">
                 {canCaptureTeachingImage
-                  ? "Khi bật tùy chọn ảnh bài giảng, hệ thống sẽ chụp ảnh frame video hoặc screenshot vùng player để gửi vào chatbot."
-                  : "Trình duyệt hiện tại chưa hỗ trợ Screen Capture API. Hãy dùng nút Thêm ảnh trong chatbot."}
+                  ? "Chatbot tự động quyết định khi nào cần ảnh bài giảng dựa trên nội dung câu hỏi, rồi chụp frame video hoặc screenshot vùng player."
+                  : "Trình duyệt hiện tại chưa hỗ trợ Screen Capture API, nên chatbot sẽ trả lời bằng ngữ cảnh văn bản."}
               </p>
             </CardContent>
           </Card>

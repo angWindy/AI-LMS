@@ -1,57 +1,12 @@
 "use client";
 
-import { useRef, useEffect, useId, useState } from "react";
-import Image from "next/image";
-import { SendHorizontal, Loader2, Sparkles, X, ImagePlus } from "lucide-react";
+import { useRef, useEffect, useState } from "react";
+import { SendHorizontal, Loader2, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { chatbotApi, TeachingImagePayload } from "@/lib/api/chatbot";
 import { useChatbotStore, ChatMessage } from "./store";
-
-const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
-const ALLOWED_IMAGE_MIME_TYPES: TeachingImagePayload["mime_type"][] = [
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif",
-];
-
-interface PendingImageAttachment {
-  name: string;
-  previewUrl: string;
-  payload: TeachingImagePayload;
-}
-
-function isAllowedImageMimeType(mimeType: string): mimeType is TeachingImagePayload["mime_type"] {
-  return ALLOWED_IMAGE_MIME_TYPES.includes(mimeType as TeachingImagePayload["mime_type"]);
-}
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-
-    reader.onload = () => {
-      if (typeof reader.result !== "string") {
-        reject(new Error("Invalid file reader output"));
-        return;
-      }
-
-      const commaIndex = reader.result.indexOf(",");
-      if (commaIndex < 0) {
-        reject(new Error("Invalid data URL"));
-        return;
-      }
-
-      resolve(reader.result.slice(commaIndex + 1));
-    };
-
-    reader.onerror = () => reject(reader.error || new Error("Cannot read image file"));
-    reader.readAsDataURL(file);
-  });
-}
 
 interface ChatWindowProps {
   courseId?: string;
@@ -74,20 +29,7 @@ export function ChatWindow({
 }: ChatWindowProps) {
   const { messages, setMessages, input, setInput, isLoading, setIsLoading, conversationId, setConversationId } = useChatbotStore();
   const scrollRef = useRef<HTMLDivElement>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const teachingImageSwitchId = useId();
-
-  const [useTeachingImage, setUseTeachingImage] = useState(false);
-  const [attachedImage, setAttachedImage] = useState<PendingImageAttachment | null>(null);
   const [imageStatus, setImageStatus] = useState<string | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (attachedImage) {
-        URL.revokeObjectURL(attachedImage.previewUrl);
-      }
-    };
-  }, [attachedImage]);
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -95,50 +37,6 @@ export function ChatWindow({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
-
-  const handleAttachImage = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-
-    if (!file) {
-      return;
-    }
-
-    if (!isAllowedImageMimeType(file.type)) {
-      setImageStatus("Định dạng ảnh chưa được hỗ trợ. Vui lòng dùng PNG, JPEG, WEBP hoặc GIF.");
-      return;
-    }
-
-    if (file.size > MAX_IMAGE_BYTES) {
-      setImageStatus("Ảnh quá lớn. Mỗi ảnh tối đa 10MB.");
-      return;
-    }
-
-    try {
-      const dataBase64 = await fileToBase64(file);
-      const previewUrl = URL.createObjectURL(file);
-
-      setAttachedImage({
-        name: file.name,
-        previewUrl,
-        payload: {
-          mime_type: file.type,
-          data_base64: dataBase64,
-          description: `Ảnh đính kèm từ người học: ${file.name}`,
-          source: "chat_input_upload",
-        },
-      });
-      setImageStatus("Đã thêm ảnh vào câu hỏi.");
-    } catch (error) {
-      console.error("Cannot process selected image:", error);
-      setImageStatus("Không thể đọc ảnh đã chọn. Vui lòng thử lại.");
-    }
-  };
-
-  const handleRemoveAttachedImage = () => {
-    setAttachedImage(null);
-    setImageStatus(null);
-  };
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -161,26 +59,17 @@ export function ChatWindow({
     try {
       const teachingImages: TeachingImagePayload[] = [];
 
-      if (useTeachingImage) {
-        if (!captureTeachingImage) {
-          setImageStatus("Nguồn bài giảng hiện tại không hỗ trợ chụp ảnh tự động.");
-        } else {
-          try {
-            const capturedImage = await captureTeachingImage();
-            if (capturedImage) {
-              teachingImages.push(capturedImage);
-            } else {
-              setImageStatus("Không lấy được ảnh bài giảng tự động từ nguồn video hiện tại.");
-            }
-          } catch (captureError) {
-            console.error("Cannot capture teaching image:", captureError);
-            setImageStatus("Không thể chụp ảnh bài giảng lúc gửi câu hỏi.");
+      if (captureTeachingImage) {
+        try {
+          const capturedImage = await captureTeachingImage();
+          if (capturedImage) {
+            teachingImages.push(capturedImage);
+            setImageStatus("Đã gửi ảnh bài giảng, backend sẽ tự quyết định có dùng hay không.");
           }
+        } catch (captureError) {
+          console.error("Cannot capture teaching image:", captureError);
+          setImageStatus("Không thể chụp ảnh bài giảng lúc gửi câu hỏi.");
         }
-      }
-
-      if (attachedImage) {
-        teachingImages.push(attachedImage.payload);
       }
 
       const response = await chatbotApi.ask({
@@ -193,7 +82,6 @@ export function ChatWindow({
       });
       
       setConversationId(response.conversation_id);
-      setAttachedImage(null);
       
       const assistantMsg: ChatMessage = {
         id: Date.now().toString() + "_bot",
@@ -318,71 +206,9 @@ export function ChatWindow({
 
       {/* Input area */}
       <form onSubmit={handleSubmit} className="border-t p-3 bg-background space-y-2">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="flex items-center gap-2">
-            <Switch
-              id={teachingImageSwitchId}
-              checked={useTeachingImage}
-              onCheckedChange={setUseTeachingImage}
-            />
-            <Label htmlFor={teachingImageSwitchId} className="text-xs text-muted-foreground">
-              Dùng ảnh bài giảng khi gửi
-            </Label>
-          </div>
-
-          <div>
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept={ALLOWED_IMAGE_MIME_TYPES.join(",")}
-              onChange={handleAttachImage}
-              className="hidden"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 px-2.5 text-xs"
-              onClick={() => imageInputRef.current?.click()}
-            >
-              <ImagePlus className="h-3.5 w-3.5 mr-1.5" />
-              Thêm ảnh
-            </Button>
-          </div>
-        </div>
-
-        {useTeachingImage && !captureTeachingImage && (
-          <p className="text-[11px] text-amber-600">
-            Bài giảng hiện tại không hỗ trợ chụp ảnh tự động. Bạn vẫn có thể đính kèm ảnh thủ công.
-          </p>
-        )}
-
-        {attachedImage && (
-          <div className="flex items-center gap-3 rounded-lg border bg-muted/40 p-2">
-            <Image
-              src={attachedImage.previewUrl}
-              alt={attachedImage.name}
-              width={80}
-              height={56}
-              unoptimized
-              className="h-14 w-20 rounded-md border object-cover bg-white"
-            />
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium truncate">{attachedImage.name}</p>
-              <p className="text-[11px] text-muted-foreground">Ảnh sẽ được gửi kèm câu hỏi.</p>
-            </div>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 rounded-full"
-              onClick={handleRemoveAttachedImage}
-              title="Xóa ảnh đính kèm"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
+        <p className="text-[11px] text-muted-foreground">
+          Rule-based detector chạy ở backend để quyết định có dùng ảnh bài giảng hay không.
+        </p>
 
         {imageStatus && <p className="text-[11px] text-muted-foreground">{imageStatus}</p>}
 
