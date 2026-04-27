@@ -27,3 +27,8 @@ python-slugify>=8.0.1
 
 # LLM Providers
 google-genai>=1.11.0
+
+# RAG System
+PyPDF2>=3.0.1
+numpy>=1.24.0
+pgvector>=0.2.4
