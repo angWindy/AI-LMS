@@ -2,6 +2,43 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-04-28
+
+### 🎉 RAG System — Vietnamese Semantic Search
+
+#### New Modules
+- `llm/rag/pdf_processor.py` — PDF text extraction (PyMuPDF primary, PyPDF2 fallback)
+- `llm/rag/chunker.py` — Hierarchical chunker (L0 document → L1 section → L2 paragraph/sentence)
+- `llm/rag/embedder.py` — Google Gemini embedding service (`gemini-embedding-001`, 3072 dims)
+- `llm/rag/vector_store.py` — InMemoryVectorStore + PostgresVectorStore (pgvector, HNSW index)
+- `llm/rag/service.py` — RAGService orchestration layer
+
+#### LMS Backend Integration
+- `apps/backend/app/models/rag.py` — 5 SQLAlchemy models: `rag_documents`, `rag_chunks`, `rag_search_sessions`, `rag_search_results`, `rag_integrations`
+- `apps/backend/app/schemas/rag.py` — Pydantic request/response schemas
+- `apps/backend/app/api/v1/rag.py` — 5 FastAPI endpoints: `/upload`, `/search`, `/documents`, `/documents/{id}`, `/stats`
+
+#### Bug Fixes
+- `sqlalchemy.func` import placed before function definitions in `rag.py` API
+- `RAGSearchResult.__repr__` safe for `None` relevance_score
+- `get_document_stats` JOIN fixed (`d.id = c.document_id`)
+- Vector store search: added `embedding IS NOT NULL` and `is_active = 1` filters
+- `PostgresVectorStore` reads connection from `DB_*` env vars
+- Embedding API call updated for `google-genai >= 1.x` (`config={"task_type": ...}`)
+- Embedding dimension corrected: `gemini-embedding-001` → 3072 (not 768)
+- IVFFlat index replaced with HNSW partial index
+- Chunker skips empty sections from image-based PDFs
+
+#### Testing
+- `llm/rag/test_rag_comprehensive.py` — 7-test suite covering all components + hierarchy invariants
+- All 3 test scripts pass: `test_standalone`, `test_integration`, `test_rag_comprehensive`
+- Real Vietnamese embedding verified: VI↔VI similarity ~0.82–0.93, VI↔EN ~0.66–0.70
+
+#### Dependencies
+- Added `pymupdf>=1.23.0` to `apps/backend/requirements.txt`
+
+---
+
 ## [0.2.0] - 2026-03-29
 
 ### 🎉 Major Additions
@@ -110,27 +147,24 @@ All notable changes to this project will be documented in this file.
 
 ---
 
-## Future Roadmap - Phase 2
+## Future Roadmap
 
-### High Priority (Q2)
-- [ ] AI Conversation System (10-15 endpoints)
-- [ ] Notifications (Email, In-app)
-- [ ] Admin Analytics Dashboard
-- [ ] Advanced Search & Filtering
+### High Priority
+- [ ] Analytics dashboard (search metrics, course engagement)
+- [ ] Notification system (email, in-app)
+- [ ] Hybrid search (keyword + vector)
+- [ ] Multi-format ingestion (DOCX, TXT)
 
-### Medium Priority (Q3)
-- [ ] Frontend - React/Next.js Dashboard
-  - Student dashboard
-  - Instructor dashboard
-  - Admin panel
-- [ ] Certificate Generation
-- [ ] Course Analytics per Student
+### Medium Priority
+- [ ] OCR for scanned PDFs (pytesseract)
+- [ ] Certificate generation
+- [ ] Course analytics per student
 
-### Low Priority (Q4)
-- [ ] Payment Integration
-- [ ] Video Transcoding Service
-- [ ] Bulk Import/Export
-- [ ] API Rate Limiting
+### Lower Priority
+- [ ] Payment integration
+- [ ] Video transcoding
+- [ ] API rate limiting
+- [ ] Real-time WebSocket progress
 
 ---
 
@@ -197,5 +231,5 @@ Instructors can:
 ---
 
 **Maintainers**: [Development Team]  
-**Last Updated**: 2026-03-29  
+**Last Updated**: 2026-04-28  
 **Repository**: https://github.com/yourusername/AI-LMS

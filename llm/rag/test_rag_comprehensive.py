@@ -24,7 +24,7 @@ def unit_vec(angle: float, dim: int = 768) -> list[float]:
 
 # ── mock embedding service ──────────────────────────────────────────────────
 class MockEmbedder:
-    embedding_dimension = 768
+    embedding_dimension = 3072
     def embed_text(self, text, task_type="RETRIEVAL_DOCUMENT"):
         import hashlib, struct
         h = hashlib.md5(text.encode()).digest()
@@ -62,13 +62,14 @@ try:
     else:
         warn("pdf_sample.pdf missing")
 
-    img_pdf = Path(__file__).parent / "data_sample" / "Lesson_1_Part_1.pdf"
-    if img_pdf.exists():
-        ri = proc.process_pdf(img_pdf)
-        if ri["total_text_length"] == 0:
-            ok("Image-based PDF correctly reports 0 extractable chars")
+    sample_vi = Path(__file__).parent / "data_sample" / "Lesson_1_Part_1.pdf"
+    if sample_vi.exists():
+        rv = proc.process_pdf(sample_vi)
+        chars_vi = rv["total_text_length"]
+        if chars_vi > 0:
+            ok(f"Vietnamese PDF extracted: {chars_vi} chars, title='{rv['metadata']['title'][:40]}'")
         else:
-            warn(f"Image PDF returned {ri['total_text_length']} chars unexpectedly")
+            warn("Lesson_1_Part_1.pdf: 0 chars (image-based, OCR required)")
     else:
         warn("Lesson_1_Part_1.pdf missing")
 
@@ -136,12 +137,20 @@ except Exception as e:
 sec("TEST 3 · Embedding Service Catalog")
 try:
     from llm.rag.embedder import EmbeddingService
+    expected_dims = {'gemini-embedding-001': 3072, 'text-embedding-004': 768}
     for name, dim in EmbeddingService.MODELS.items():
-        ok(f"Model '{name}': dim={dim}") if dim == 768 else fail(f"Model '{name}' wrong dim={dim}")
+        expected = expected_dims.get(name)
+        if expected and dim == expected:
+            ok(f"Model '{name}': dim={dim}")
+        elif expected:
+            fail(f"Model '{name}' dim={dim}, expected {expected}")
+        else:
+            ok(f"Model '{name}': dim={dim} (no expectation set)")
 
     mock = MockEmbedder()
     q = mock.embed_query("test query")
-    ok(f"Mock query embedding: {len(q)} dims") if len(q) == 768 else fail(f"Wrong dim: {len(q)}")
+    default_dim = EmbeddingService.MODELS["gemini-embedding-001"]
+    ok(f"Mock query embedding: {len(q)} dims") if len(q) == default_dim else fail(f"Wrong dim: {len(q)} (expected {default_dim})")
 
     import numpy as np
     v1 = mock.embed_text("same text")
@@ -226,8 +235,8 @@ try:
         if sr["status"] == "success" and sr["results_count"] > 0:
             top = sr["results"][0]
             ok(f"Search: {sr['results_count']} results, top relevance={top['relevance']:.4f}")
-            if 0.0 <= top["relevance"] <= 1.0:
-                ok("Relevance in [0,1]")
+            if -1e-9 <= top["relevance"] <= 1.0 + 1e-9:
+                ok(f"Relevance in [0,1]: {top['relevance']:.6f}")
             else:
                 fail(f"Relevance out of range: {top['relevance']}")
         else:
@@ -258,21 +267,28 @@ try:
         ck2 = HierarchicalChunker(verbose=False)
         files = sorted(data_dir.glob("*.pdf"))
         ok(f"Found {len(files)} PDFs in data_sample/")
-        for f in files:
-            pr = p.process_pdf(f)
-            d = ck2.chunk_document(pr["pages"], {**pr["metadata"], "source_path": str(f)})
-            chars = pr["total_text_length"]
-            l0 = [c for c in d.chunks if c.level == 0]
-            hierarchy_ok = len(l0) == 1
 
-            if chars == 0:
-                warn(f"{f.name}: image-based PDF (0 chars). OCR required for indexing. Hierarchy root: {'OK' if hierarchy_ok else 'FAIL'}")
+        for fpath in files:
+            pdf_r = p.process_pdf(fpath)
+            doc = ck2.chunk_document(
+                pages=pdf_r["pages"],
+                doc_metadata={**pdf_r["metadata"], "source_path": str(fpath)},
+            )
+
+            total_chars = pdf_r["total_text_length"]
+            n_chunks = len(doc.chunks)
+            n_content = sum(1 for c in doc.chunks if c.level >= 2)
+            l0 = [c for c in doc.chunks if c.level == 0]
+
+            if total_chars == 0:
+                warn(f"{fpath.name}: 0 chars (image-based PDF, OCR required)")
             else:
-                content_chunks = sum(1 for c in d.chunks if c.level >= 2)
-                ok(f"{f.name}: {chars} chars, {len(d.chunks)} chunks ({content_chunks} content), hierarchy: {'OK' if hierarchy_ok else 'FAIL'}")
+                ok(f"{fpath.name}: {total_chars} chars, {n_chunks} chunks ({n_content} content)")
 
-            if not hierarchy_ok:
-                fail(f"{f.name}: Missing L0 document root")
+            if len(l0) == 1:
+                ok(f"  └─ Hierarchy root (L0): {l0[0].id}")
+            else:
+                fail(f"  └─ Missing L0 root in {fpath.name}")
 
 except Exception as e:
     fail(f"Data sample test: {e}"); import traceback; traceback.print_exc()

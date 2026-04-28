@@ -166,7 +166,7 @@ class RAGService:
             else:
                 # Fallback: return empty if no embedding service
                 logger.warning("[RAGService] No embedding service available")
-                query_embedding = [0.0] * 768
+                query_embedding = [0.0] * 3072
             
             # Search vector store
             results = self.vector_store.search(

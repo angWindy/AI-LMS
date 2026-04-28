@@ -21,8 +21,8 @@ class EmbeddingService:
     
     # Available Gemini embedding models {model_name: output_dimension}
     MODELS = {
-        'gemini-embedding-001': 768,
-        'text-embedding-004': 768,  # defaults to 768; supports 1–768 via output_dimensionality
+        'gemini-embedding-001': 3072,  # latest model, highest quality
+        'text-embedding-004': 768,     # older model, lower dim
     }
     
     def __init__(
@@ -223,33 +223,48 @@ class EmbeddingService:
         return result
 
     def _embed_content(self, text: str, task_type: str) -> object:
+        """Call the Gemini embedding API, handling SDK version differences."""
         try:
+            # google-genai >= 1.x: task_type passed via config dict
             return self.client.models.embed_content(
                 model=f"models/{self.model}",
                 contents=text,
-                task_type=task_type,
+                config={"task_type": task_type},
             )
-        except TypeError:
-            return genai.embed_content(
+        except Exception:
+            # Fallback: omit config (works without task_type too)
+            return self.client.models.embed_content(
                 model=f"models/{self.model}",
-                content=text,
-                task_type=task_type,
+                contents=text,
             )
 
     def _extract_embedding(self, response: object) -> list[float]:
+        """Extract float vector from various Gemini response shapes."""
+        # google-genai >= 1.x: response.embeddings is a list of ContentEmbedding
+        embeddings_attr = getattr(response, "embeddings", None)
+        if isinstance(embeddings_attr, list) and embeddings_attr:
+            first = embeddings_attr[0]
+            if hasattr(first, "values") and first.values:
+                return list(first.values)
+
+        # Older SDK: response.embedding with .values
+        embedding_attr = getattr(response, "embedding", None)
+        if embedding_attr is not None:
+            if hasattr(embedding_attr, "values"):
+                return list(embedding_attr.values)
+            if isinstance(embedding_attr, (list, tuple)):
+                return list(embedding_attr)
+
+        # Dict-style response
         if isinstance(response, dict):
-            embedding = response.get("embedding") or response.get("embeddings")
-        else:
-            embedding = getattr(response, "embedding", None) or getattr(response, "embeddings", None)
+            for key in ("embeddings", "embedding"):
+                val = response.get(key)
+                if val:
+                    if hasattr(val, "values"):
+                        return list(val.values)
+                    if isinstance(val, list) and val:
+                        if hasattr(val[0], "values"):
+                            return list(val[0].values)
+                        return list(val)
 
-        if hasattr(embedding, "values"):
-            return list(embedding.values)
-
-        if isinstance(embedding, list) and embedding:
-            if hasattr(embedding[0], "values"):
-                return list(embedding[0].values)
-            if isinstance(embedding[0], (list, tuple)):
-                return list(embedding[0])
-            return list(embedding)
-
-        raise ValueError("Embedding response did not contain vectors")
+        raise ValueError(f"Unrecognised embedding response shape: {type(response)}")

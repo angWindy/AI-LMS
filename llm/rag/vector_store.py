@@ -48,7 +48,7 @@ class PostgresVectorStore(VectorStore):
         database: str = None,
         user: str = None,
         password: str = None,
-        embedding_dimension: int = 768,
+        embedding_dimension: int = 3072,
         verbose: bool = True,
     ):
         """Initialize PostgreSQL vector store.

@@ -2,11 +2,11 @@
 
 A scalable Learning Management System built with FastAPI, Next.js, and PostgreSQL, with AI integration capability.
 
-> 📚 **[Read Full Documentation](./docs/README.md)** | [Setup Guide](./docs/SETUP_GUIDE.md) | [API Docs](./docs/API_DOCUMENTATION.md) | [Deployment Guide](./docs/DEPLOYMENT_GUIDE.md)
+> 📚 **[Read Full Documentation](./docs/README.md)** | [Setup Guide](./docs/SETUP_GUIDE.md) | [API Docs](./docs/API_DOCUMENTATION.md) | [RAG System](./README_RAG.md)
 
 ## 🎯 Features
 
-### Phase 1 (Current - MVP) ✅ 85% Complete
+### Phase 1 (MVP) ✅ Complete
 - ✅ User Management (Admin, Instructor, Learner roles)
 - ✅ JWT Authentication & Authorization
 - ✅ Course Management (CRUD operations)
@@ -14,13 +14,15 @@ A scalable Learning Management System built with FastAPI, Next.js, and PostgreSQ
 - ✅ Assignment & Submission system
 - ✅ Progress tracking
 - ✅ RESTful API with Swagger docs
-- ✅ **Frontend with Next.js + shadcn/ui**
+- ✅ Frontend with Next.js + shadcn/ui
+- ✅ **RAG System** — PDF ingestion, Vietnamese semantic search, Gemini embeddings
 
 ### Phase 2 (Planned)
-- AI Assistant integration (LLM-powered)
 - Video streaming optimization
 - Analytics dashboard
 - Notification system
+- Multi-format document support (DOCX, TXT)
+- Hybrid keyword + vector search
 
 ## 🏗️ Architecture
 
@@ -29,11 +31,12 @@ AI-LMS/
 ├── apps/
 │   ├── backend/          # FastAPI Backend (Python 3.11)
 │   └── frontend/         # Next.js 14 Frontend
-├── llm/                  # LLM provider/workflow abstraction
+├── llm/
+│   ├── rag/              # RAG pipeline (PDF→chunks→embeddings→search)
+│   └── ...               # LLM provider abstraction
 ├── docker/               # Nginx and container configs
 ├── docs/                 # Documentation
 ├── docker-compose.yml
-├── docker-compose.prod.yml
 ├── Makefile
 └── README.md
 ```
@@ -236,10 +239,13 @@ make logs-backend
 | Auth | JWT (python-jose) |
 | Migrations | Alembic |
 | Container | Docker & Docker Compose |
-| Frontend | Next.js 14 ✅ |
-| UI Library | shadcn/ui + Tailwind CSS ✅ |
-| State Mgmt | Zustand + React Query ✅ |
-| Forms | React Hook Form + Zod ✅ |
+| Frontend | Next.js 14 |
+| UI Library | shadcn/ui + Tailwind CSS |
+| State Mgmt | Zustand + React Query |
+| Forms | React Hook Form + Zod |
+| PDF Extraction | PyMuPDF + PyPDF2 fallback |
+| Embeddings | Google Gemini (`gemini-embedding-001`, 3072d) |
+| Vector Search | pgvector (HNSW) / InMemory |
 
 ## 📊 Database Schema
 
@@ -345,7 +351,7 @@ make logs-backend
 # Reset database (⚠️ destroys data)
 make clean
 make start
-make migratidon MESSAGE="initial"
+make migration MESSAGE="initial"
 make migrate
 ```
 
@@ -371,14 +377,15 @@ For issues, questions, or feature requests:
 - Tag appropriately: `bug`, `feature`, `documentation`, `question`
 
 ### 📊 Project Status
-- **Phase 1 (MVP)**: ~95% Complete ✅
-- **Backend**: 49 API endpoints implemented
-- **Frontend**: ✅ Complete with Next.js 14 + shadcn/ui
-- **Next Phase**: AI integration, analytics
+- **Phase 1 (MVP)**: ✅ Complete
+- **Backend**: 49+ API endpoints (incl. 5 RAG endpoints)
+- **Frontend**: ✅ Next.js 14 + shadcn/ui
+- **RAG System**: ✅ Vietnamese semantic search with Gemini embeddings
+- **Next Phase**: Analytics dashboard, hybrid search
 
 See [PROGRESS_TRACKING.md](./PROGRESS_TRACKING.md) for detailed progress tracking.
 
 ---
 
 **Built with ❤️ for online education**  
-**Version**: 1.0.0-beta | **Last Updated**: 2026-03-31
+**Version**: 1.0.0-beta | **Last Updated**: 2026-04-28
