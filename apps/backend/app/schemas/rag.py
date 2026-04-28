@@ -1,25 +1,30 @@
 """Pydantic schemas for RAG API."""
 
-from pydantic import BaseModel, Field
-from typing import Optional, List
+import uuid
 from datetime import datetime
+from typing import List, Optional
+
+from pydantic import BaseModel, Field
 
 
 # Request schemas
 class RAGDocumentUpload(BaseModel):
     """Request to upload a document for RAG."""
-    
+
     title: str = Field(..., min_length=1, max_length=500)
     description: Optional[str] = None
-    course_id: Optional[int] = None
+    course_id: Optional[uuid.UUID] = None
+    lesson_id: Optional[uuid.UUID] = None
 
 
 class RAGSearchRequest(BaseModel):
-    """Request to search using RAG."""
-    
+    """Request to search using RAG (optionally scoped to a course/lesson)."""
+
     query: str = Field(..., min_length=1)
     top_k: int = Field(default=5, ge=1, le=20)
     document_id: Optional[str] = None
+    course_id: Optional[uuid.UUID] = None
+    lesson_id: Optional[uuid.UUID] = None
 
 
 class RAGSearchFeedback(BaseModel):

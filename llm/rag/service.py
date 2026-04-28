@@ -2,6 +2,7 @@
 
 import json
 import logging
+import hashlib
 from pathlib import Path
 from typing import Optional, Dict, List
 from dataclasses import asdict
@@ -75,48 +76,69 @@ class RAGService:
         self,
         pdf_path: str | Path,
         document_id: Optional[str] = None,
+        course_id: Optional[str] = None,
+        lesson_id: Optional[str] = None,
+        material_id: Optional[str] = None,
+        uploaded_by: Optional[str] = None,
+        file_hash: Optional[str] = None,
+        title: Optional[str] = None,
+        extra_metadata: Optional[Dict] = None,
     ) -> Dict:
         """Ingest a PDF file into the RAG system.
-        
+
         Args:
-            pdf_path: Path to PDF file
-            document_id: Optional document ID (generated from filename if not provided)
-            
-        Returns:
-            Dictionary with ingestion results
+            pdf_path: Path to PDF file.
+            document_id: Optional explicit ``doc_id`` (auto-derived otherwise).
+            course_id, lesson_id, material_id, uploaded_by:
+                Hierarchy links (UUID strings) persisted with the document.
+            file_hash: Optional SHA-256 of the raw file for de-duplication.
+            title: Optional override for the document title.
+            extra_metadata: Free-form metadata merged into the document record.
         """
         pdf_path = Path(pdf_path)
-        
+
         if self.verbose:
             logger.info(f"[RAGService] Starting PDF ingestion: {pdf_path}")
-        
+
         try:
-            # Step 1: Process PDF
             processor = PDFProcessor(verbose=self.verbose)
             pdf_result = processor.process_pdf(pdf_path)
-            
-            # Step 2: Create chunks
+
+            doc_metadata = {
+                **pdf_result['metadata'],
+                'source_path': str(pdf_path),
+            }
+            for key, value in {
+                "course_id": str(course_id) if course_id else None,
+                "lesson_id": str(lesson_id) if lesson_id else None,
+                "material_id": str(material_id) if material_id else None,
+                "uploaded_by": str(uploaded_by) if uploaded_by else None,
+                "file_hash": file_hash,
+                "source_type": "pdf",
+            }.items():
+                if value is not None:
+                    doc_metadata[key] = value
+            if extra_metadata:
+                doc_metadata.update(extra_metadata)
+
             chunker = HierarchicalChunker(verbose=self.verbose)
             document = chunker.chunk_document(
                 pages=pdf_result['pages'],
-                doc_metadata={
-                    **pdf_result['metadata'],
-                    'source_path': str(pdf_path),
-                }
+                doc_metadata=doc_metadata,
             )
-            
-            # Set document ID
+
             if not document_id:
                 document_id = pdf_path.stem.lower().replace(' ', '_')
             document.id = document_id
-            
-            # Step 3: Generate embeddings
+            if title:
+                document.title = title
+            self._namespace_chunk_ids(document)
+
             if self.embedding_service:
                 document = self.embedding_service.embed_document(document)
-            
-            # Step 4: Add to vector store
+
             self.vector_store.add_chunks(document.chunks, document)
-            
+
             result = {
                 'status': 'success',
                 'document_id': document.id,
@@ -124,14 +146,17 @@ class RAGService:
                 'pages': pdf_result['metadata'].get('total_pages', 0),
                 'chunks': len(document.chunks),
                 'total_tokens': sum(c.tokens_count for c in document.chunks),
+                'course_id': doc_metadata.get('course_id'),
+                'lesson_id': doc_metadata.get('lesson_id'),
+                'material_id': doc_metadata.get('material_id'),
                 'message': f'Successfully ingested {len(document.chunks)} chunks from {pdf_path.name}',
             }
-            
+
             if self.verbose:
                 logger.info(f"[RAGService] PDF ingestion completed: {result}")
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(f"[RAGService] PDF ingestion failed: {str(e)}")
             return {
@@ -139,60 +164,83 @@ class RAGService:
                 'error': str(e),
                 'message': f'Failed to ingest PDF: {str(e)}',
             }
+
+    def _namespace_chunk_ids(self, document: Document) -> None:
+        """Make chunk IDs unique per document while preserving hierarchy links."""
+        id_map: dict[str, str] = {}
+        for chunk in document.chunks:
+            old_id = chunk.id
+            candidate = f"{document.id}:{old_id}"
+            if len(candidate) > 255:
+                digest = hashlib.sha1(candidate.encode("utf-8")).hexdigest()
+                candidate = f"{document.id}:{digest}"
+            id_map[old_id] = candidate
+
+        for chunk in document.chunks:
+            chunk.id = id_map[chunk.id]
+            if chunk.parent_id:
+                chunk.parent_id = id_map.get(chunk.parent_id, chunk.parent_id)
+            chunk.children_ids = [id_map.get(child_id, child_id) for child_id in chunk.children_ids]
+            if chunk.metadata:
+                if chunk.metadata.get("parent_id"):
+                    chunk.metadata["parent_id"] = id_map.get(chunk.metadata["parent_id"], chunk.metadata["parent_id"])
+                if chunk.metadata.get("children_ids"):
+                    chunk.metadata["children_ids"] = [
+                        id_map.get(child_id, child_id)
+                        for child_id in chunk.metadata["children_ids"]
+                    ]
     
     def search(
         self,
         query: str,
         top_k: int = 5,
         document_id: Optional[str] = None,
+        course_id: Optional[str] = None,
+        lesson_id: Optional[str] = None,
     ) -> Dict:
-        """Search for relevant chunks using RAG.
-        
-        Args:
-            query: Search query
-            top_k: Number of results to return
-            document_id: Optional document filter
-            
-        Returns:
-            Dictionary with search results
-        """
+        """Search for relevant chunks using RAG, optionally scoped to a course/lesson."""
         if self.verbose:
-            logger.info(f"[RAGService] Searching: {query[:100]}... (top_k={top_k})")
-        
+            logger.info(
+                "[RAGService] Searching: %s... (top_k=%s, course=%s, lesson=%s)",
+                query[:100], top_k, course_id, lesson_id,
+            )
+
         try:
-            # Generate query embedding
             if self.embedding_service:
                 query_embedding = self.embedding_service.embed_query(query)
             else:
-                # Fallback: return empty if no embedding service
                 logger.warning("[RAGService] No embedding service available")
                 query_embedding = [0.0] * 3072
-            
-            # Search vector store
+
             results = self.vector_store.search(
                 query_embedding=query_embedding,
                 top_k=top_k,
                 doc_id=document_id,
+                course_id=course_id,
+                lesson_id=lesson_id,
             )
-            
-            # Format results
-            formatted_results = []
-            for result in results:
-                formatted_results.append({
-                    'chunk_id': result['chunk_id'],
-                    'content': result['content'],
-                    'page_number': result.get('page_number', 0),
-                    'relevance': result.get('similarity', result.get('score', 0)),
-                    'document_id': result.get('doc_id', document_id),
-                })
-            
+
+            formatted_results = [
+                {
+                    'chunk_id': r['chunk_id'],
+                    'content': r['content'],
+                    'page_number': r.get('page_number', 0),
+                    'relevance': r.get('similarity', r.get('score', 0)),
+                    'document_id': r.get('doc_id', document_id),
+                    'course_id': r.get('course_id'),
+                    'lesson_id': r.get('lesson_id'),
+                    'material_id': r.get('material_id'),
+                }
+                for r in results
+            ]
+
             return {
                 'status': 'success',
                 'query': query,
                 'results_count': len(formatted_results),
                 'results': formatted_results,
             }
-            
+
         except Exception as e:
             logger.error(f"[RAGService] Search failed: {str(e)}")
             return {
@@ -201,6 +249,31 @@ class RAGService:
                 'error': str(e),
                 'results': [],
             }
+
+    def delete_by_material(self, material_id: str) -> Dict:
+        """Remove every RAG document linked to a Material."""
+        try:
+            count = self.vector_store.delete_by_material(str(material_id))
+            return {'status': 'success', 'material_id': str(material_id), 'deleted': count}
+        except Exception as e:
+            logger.error(f"[RAGService] delete_by_material failed: {e}")
+            return {'status': 'error', 'material_id': str(material_id), 'error': str(e)}
+
+    def delete_by_lesson(self, lesson_id: str) -> Dict:
+        try:
+            count = self.vector_store.delete_by_lesson(str(lesson_id))
+            return {'status': 'success', 'lesson_id': str(lesson_id), 'deleted': count}
+        except Exception as e:
+            logger.error(f"[RAGService] delete_by_lesson failed: {e}")
+            return {'status': 'error', 'lesson_id': str(lesson_id), 'error': str(e)}
+
+    def delete_by_course(self, course_id: str) -> Dict:
+        try:
+            count = self.vector_store.delete_by_course(str(course_id))
+            return {'status': 'success', 'course_id': str(course_id), 'deleted': count}
+        except Exception as e:
+            logger.error(f"[RAGService] delete_by_course failed: {e}")
+            return {'status': 'error', 'course_id': str(course_id), 'error': str(e)}
     
     def get_document_chunks(self, document_id: str) -> Dict:
         """Get all chunks for a document.

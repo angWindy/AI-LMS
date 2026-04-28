@@ -11,6 +11,14 @@ from app.models.assignment import Assignment, AssignmentQuestion, AssignmentOpti
 from app.models.submission import Submission, SubmissionStatus
 from app.models.ai_interaction import AIConversation, AIMessage
 from app.models.refresh_token import RefreshToken
+from app.models.rag import (
+    RAGDocument,
+    RAGChunk,
+    RAGSearchSession,
+    RAGSearchResult,
+    RAGIntegration,
+    RAG_EMBEDDING_DIM,
+)
 
 __all__ = [
     "User",
@@ -31,4 +39,10 @@ __all__ = [
     "AIConversation",
     "AIMessage",
     "RefreshToken",
+    "RAGDocument",
+    "RAGChunk",
+    "RAGSearchSession",
+    "RAGSearchResult",
+    "RAGIntegration",
+    "RAG_EMBEDDING_DIM",
 ]

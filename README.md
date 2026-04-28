@@ -15,7 +15,7 @@ A scalable Learning Management System built with FastAPI, Next.js, and PostgreSQ
 - ✅ Progress tracking
 - ✅ RESTful API with Swagger docs
 - ✅ Frontend with Next.js + shadcn/ui
-- ✅ **RAG System** — PDF ingestion, Vietnamese semantic search, Gemini embeddings
+- ✅ **RAG System** — PDF ingestion, Vietnamese semantic search, Gemini embeddings, automatic LMS material indexing
 
 ### Phase 2 (Planned)
 - Video streaming optimization
@@ -380,7 +380,7 @@ For issues, questions, or feature requests:
 - **Phase 1 (MVP)**: ✅ Complete
 - **Backend**: 49+ API endpoints (incl. 5 RAG endpoints)
 - **Frontend**: ✅ Next.js 14 + shadcn/ui
-- **RAG System**: ✅ Vietnamese semantic search with Gemini embeddings
+- **RAG System**: ✅ Vietnamese semantic search with LMS course/lesson/material integration
 - **Next Phase**: Analytics dashboard, hybrid search
 
 See [PROGRESS_TRACKING.md](./PROGRESS_TRACKING.md) for detailed progress tracking.

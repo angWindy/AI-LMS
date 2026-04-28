@@ -17,21 +17,30 @@ All notable changes to this project will be documented in this file.
 - `apps/backend/app/models/rag.py` — 5 SQLAlchemy models: `rag_documents`, `rag_chunks`, `rag_search_sessions`, `rag_search_results`, `rag_integrations`
 - `apps/backend/app/schemas/rag.py` — Pydantic request/response schemas
 - `apps/backend/app/api/v1/rag.py` — 5 FastAPI endpoints: `/upload`, `/search`, `/documents`, `/documents/{id}`, `/stats`
+- `apps/backend/app/services/rag_ingestion.py` — automatic PDF indexing/removal for LMS course and lesson materials
+- `apps/backend/scripts/seed_demo_rag.py` — demo course "Tư tưởng Hồ Chí Minh" with two lessons and sample PDFs from `llm/rag/data_sample/`
+- Material hierarchy metadata is persisted with every indexed document: `course_id`, `lesson_id`, `material_id`, `uploaded_by`
+- Scoped search supports `course_id` and `lesson_id`; cascade cleanup supports material, lesson, and course deletion
 
 #### Bug Fixes
 - `sqlalchemy.func` import placed before function definitions in `rag.py` API
 - `RAGSearchResult.__repr__` safe for `None` relevance_score
 - `get_document_stats` JOIN fixed (`d.id = c.document_id`)
 - Vector store search: added `embedding IS NOT NULL` and `is_active = 1` filters
-- `PostgresVectorStore` reads connection from `DB_*` env vars
+- `PostgresVectorStore` reads connection from `DB_*` env vars and backend `DATABASE_URL`
 - Embedding API call updated for `google-genai >= 1.x` (`config={"task_type": ...}`)
 - Embedding dimension corrected: `gemini-embedding-001` → 3072 (not 768)
-- IVFFlat index replaced with HNSW partial index
+- 3072-dimensional Gemini vectors now skip pgvector HNSW index creation because pgvector approximate indexes are limited to 2000 dimensions
 - Chunker skips empty sections from image-based PDFs
+- RAG API router is mounted correctly at `/api/v1/rag/*`
+- LMS material ingestion reuses the row created by `PostgresVectorStore`, avoiding duplicate `rag_documents` inserts
+- RAG chunk IDs are namespaced by document ID before storage so multiple PDFs cannot overwrite each other's chunks
+- Docker PostgreSQL image switched to `pgvector/pgvector:pg15` so `CREATE EXTENSION vector` works in local/prod compose
 
 #### Testing
 - `llm/rag/test_rag_comprehensive.py` — 7-test suite covering all components + hierarchy invariants
-- All 3 test scripts pass: `test_standalone`, `test_integration`, `test_rag_comprehensive`
+- `llm/rag/test_lms_integration.py` — E2E LMS hierarchy test: ingest six PDFs, course/lesson scoped search, material/lesson/course delete cascade
+- All 4 test scripts pass: `test_standalone`, `test_integration`, `test_rag_comprehensive`, `test_lms_integration`
 - Real Vietnamese embedding verified: VI↔VI similarity ~0.82–0.93, VI↔EN ~0.66–0.70
 
 #### Dependencies

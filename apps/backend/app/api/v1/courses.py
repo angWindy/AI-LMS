@@ -28,6 +28,7 @@ from app.schemas.course import (
 )
 from app.schemas.common import PaginatedResponse, Message
 from app.utils.file_handler import file_handler
+from app.services.rag_ingestion import index_material, remove_course_index, remove_material_index
 
 router = APIRouter(prefix="/courses", tags=["Courses"])
 logger = logging.getLogger(__name__)
@@ -306,6 +307,15 @@ async def delete_course(
         raise ForbiddenException("You don't have permission to delete this course")
 
     course_title = course.title
+
+    # Best-effort RAG cleanup before course/lesson/material rows are removed.
+    try:
+        remove_course_index(db, course.id)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning(
+            "[RAG] Cleanup failed for course_id=%s error=%s",
+            course.id, exc,
+        )
 
     db.delete(course)
     db.commit()
@@ -635,6 +645,15 @@ async def create_course_material(
         material.file_size,
     )
 
+    # Best-effort RAG ingestion. Never block the upload on indexing failure.
+    try:
+        index_material(db, material)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning(
+            "[RAG] Ingestion failed for material_id=%s error=%s",
+            material.id, exc,
+        )
+
     return material
 
 
@@ -657,6 +676,15 @@ async def delete_course_material(
 
     material_course_id = material.course_id
     material_title = material.title
+
+    # Best-effort RAG cleanup before we drop the row.
+    try:
+        remove_material_index(db, material.id)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning(
+            "[RAG] Cleanup failed for material_id=%s error=%s",
+            material.id, exc,
+        )
 
     if material.file_url:
         file_handler.delete_file(material.file_url)

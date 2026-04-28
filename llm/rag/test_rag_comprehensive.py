@@ -354,9 +354,9 @@ try:
 
     routes = [r.path for r in router.routes]
     ok(f"RAG router: {len(routes)} routes registered")
-    for expected_path in ["/api/v1/rag/upload", "/api/v1/rag/search", "/api/v1/rag/documents", "/api/v1/rag/stats"]:
+    for expected_path in ["/rag/upload", "/rag/search", "/rag/documents", "/rag/stats"]:
         if expected_path in routes:
-            ok(f"  Route: {expected_path}")
+            ok(f"  Route: {expected_path} (mounted as /api/v1{expected_path})")
         else:
             fail(f"  Missing route: {expected_path}")
 

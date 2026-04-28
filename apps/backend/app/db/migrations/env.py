@@ -24,6 +24,11 @@ from app.models import (
     AIConversation,
     AIMessage,
     RefreshToken,
+    RAGDocument,
+    RAGChunk,
+    RAGSearchSession,
+    RAGSearchResult,
+    RAGIntegration,
 )
 
 # this is the Alembic Config object

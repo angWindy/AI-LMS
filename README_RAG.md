@@ -51,6 +51,7 @@ Key RAG packages: `pymupdf`, `PyPDF2`, `numpy`, `pgvector`, `google-genai`
 GOOGLE_AI_API_KEY=your-gemini-api-key   # required for real embeddings
 
 # DB (defaults work for local Docker setup)
+DATABASE_URL=postgresql://lms_user:lms_password@localhost:5432/lms_db
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=lms_db
@@ -71,8 +72,9 @@ Creates: `rag_documents`, `rag_chunks`, `rag_search_sessions`, `rag_search_resul
 
 ```sql
 CREATE EXTENSION IF NOT EXISTS vector;
--- HNSW index created automatically on first run
 ```
+
+`gemini-embedding-001` uses 3072-dimensional vectors. pgvector approximate indexes currently support up to 2000 dimensions for `vector`, so the 3072d store uses exact cosine scan by default. Add a projection or `halfvec` strategy later if the corpus grows enough to need approximate indexing.
 
 ---
 
@@ -116,6 +118,43 @@ curl -X POST http://localhost:8000/api/v1/rag/search \
 
 ---
 
+## LMS Material Integration
+
+Teacher uploads through the normal LMS material endpoints are indexed automatically when the backend can process the file type. PDF documents are currently supported.
+
+| LMS action | RAG behavior |
+|------------|--------------|
+| `POST /api/v1/courses/{course_id}/materials` with PDF | Ingests course-level material with `course_id` + `material_id` |
+| `POST /api/v1/lessons/{lesson_id}/materials` with PDF | Ingests lesson material with `course_id` + `lesson_id` + `material_id` |
+| Delete material | Deletes matching RAG document/chunks by `material_id` |
+| Delete lesson | Deletes all RAG documents/chunks for that `lesson_id` |
+| Delete course | Deletes all RAG documents/chunks for that `course_id` |
+
+The glue code lives in `apps/backend/app/services/rag_ingestion.py`. It is fail-soft: upload/delete requests still complete if indexing cleanup fails, and errors are logged.
+
+Search can be scoped:
+
+```json
+{
+  "query": "cách mạng giải phóng dân tộc",
+  "top_k": 5,
+  "course_id": "<course-uuid>",
+  "lesson_id": "<lesson-uuid>"
+}
+```
+
+### Demo Seed
+
+Create the demo course **"Tư tưởng Hồ Chí Minh"**, two lessons, and six PDF materials from `llm/rag/data_sample/`:
+
+```bash
+python -m apps.backend.scripts.seed_demo_rag
+```
+
+The seed script refreshes existing demo materials and indexes them into RAG.
+
+---
+
 ## Python Usage
 
 ```python
@@ -149,6 +188,7 @@ L0  document   (1 per PDF, root node)
 ```
 
 Structural nodes (L0, L1) are **never** included in search results.
+Stored `chunk_id` values are namespaced by `document_id` to keep chunks from different PDFs isolated in PostgreSQL.
 
 > ⚠️ **Image-based / scanned PDFs** produce 0 extractable text.  
 > OCR (e.g. `pytesseract`) would be required to index them.
@@ -158,6 +198,9 @@ Structural nodes (L0, L1) are **never** included in search results.
 ## Running Tests
 
 ```bash
+# LMS hierarchy E2E: ingest, course/lesson scoped search, material/lesson/course delete cascade
+python -m llm.rag.test_lms_integration
+
 # Comprehensive test suite (all components + hierarchy + data samples)
 python -m llm.rag.test_rag_comprehensive
 
@@ -176,6 +219,7 @@ python -m llm.rag.test_integration
 |---------|-----|
 | `Google API key not found` | Set `GOOGLE_AI_API_KEY` in `.env` |
 | PostgreSQL connection failed | Check `DB_*` env vars; run `psql` to verify |
+| `extension "vector" is not available` | Use the `pgvector/pgvector:pg15` Docker image or install pgvector in PostgreSQL |
 | All search relevance scores are 0 | API key missing → mock zero vectors returned |
 | PDF gives 0 chars | Scanned/image-based PDF; requires OCR |
 | Low relevance on Vietnamese text | Use `gemini-embedding-001` (not `text-embedding-004`) |

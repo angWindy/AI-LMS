@@ -2,12 +2,14 @@
 
 import logging
 import time
-from typing import List, Optional
-from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
-from sqlalchemy import func
-from sqlalchemy.orm import Session
+import uuid
 import tempfile
 from pathlib import Path
+from typing import List, Optional
+
+from fastapi import APIRouter, UploadFile, File, Depends, HTTPException, Query
+from sqlalchemy import func
+from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_db, get_current_user
 from app.models.user import User
@@ -25,95 +27,80 @@ from llm.rag.service import get_rag_service
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/v1/rag", tags=["RAG"])
+router = APIRouter(prefix="/rag", tags=["RAG"])
 
 
 @router.post("/upload", response_model=RAGIngestionResponse)
 async def upload_document(
     file: UploadFile = File(...),
     title: Optional[str] = None,
-    course_id: Optional[int] = None,
+    course_id: Optional[uuid.UUID] = None,
+    lesson_id: Optional[uuid.UUID] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> RAGIngestionResponse:
-    """Upload a PDF document for RAG indexing.
-    
-    Args:
-        file: PDF file to upload
-        title: Document title
-        course_id: Associated course ID
-        current_user: Current authenticated user
-        db: Database session
-        
-    Returns:
-        Ingestion result
+    """Upload a PDF directly to the RAG store (admin / instructor side-channel).
+
+    For Teacher uploads via the regular Material endpoints, ingestion happens
+    automatically; this endpoint is for ad-hoc / testing usage.
     """
+    if not (file.filename or "").lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        content = await file.read()
+        tmp.write(content)
+        tmp_path = tmp.name
+
     try:
-        # Validate file type
-        if not file.filename.endswith(".pdf"):
-            raise HTTPException(status_code=400, detail="Only PDF files are supported")
-        
-        # Save uploaded file temporarily
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-            content = await file.read()
-            tmp.write(content)
-            tmp_path = tmp.name
-        
-        try:
-            # Get RAG service
-            rag_service = get_rag_service()
-            
-            # Ingest PDF
-            result = rag_service.ingest_pdf(
-                pdf_path=tmp_path,
-                document_id=f"doc_{file.filename.replace('.pdf', '').replace(' ', '_')[:50]}",
-            )
-            
-            if result['status'] == 'success':
-                # Store metadata in database
-                doc_title = title or file.filename.replace('.pdf', '')
-                
-                rag_doc = RAGDocument(
-                    doc_id=result['document_id'],
-                    title=doc_title,
-                    source_path=file.filename,
-                    source_type="pdf",
-                    course_id=course_id,
-                    chunks_count=result['chunks'],
-                    total_tokens=result['total_tokens'],
-                    metadata_json={
-                        'uploaded_by': current_user.id,
-                        'original_filename': file.filename,
-                    }
-                )
-                
-                db.add(rag_doc)
-                db.commit()
-                
-                logger.info(f"[RAG API] Document uploaded: {result['document_id']}")
-                
-                return RAGIngestionResponse(
-                    status="success",
-                    document_id=result['document_id'],
-                    title=doc_title,
-                    pages=result['pages'],
-                    chunks=result['chunks'],
-                    total_tokens=result['total_tokens'],
-                    message=result['message'],
-                )
-            else:
-                logger.error(f"[RAG API] Ingestion failed: {result.get('error', 'Unknown error')}")
-                raise HTTPException(status_code=400, detail=result.get('error', 'Ingestion failed'))
-                
-        finally:
-            # Clean up temporary file
-            Path(tmp_path).unlink(missing_ok=True)
-            
+        doc_title = title or Path(file.filename or "Untitled.pdf").stem
+        doc_id = f"upload_{uuid.uuid4().hex[:16]}"
+
+        rag_service = get_rag_service(use_postgres=True, verbose=False)
+        result = rag_service.ingest_pdf(
+            pdf_path=tmp_path,
+            document_id=doc_id,
+            course_id=str(course_id) if course_id else None,
+            lesson_id=str(lesson_id) if lesson_id else None,
+            uploaded_by=str(current_user.id),
+            title=doc_title,
+        )
+
+        if result["status"] != "success":
+            logger.error("[RAG API] Ingestion failed: %s", result.get("error"))
+            raise HTTPException(status_code=400, detail=result.get("error", "Ingestion failed"))
+
+        rag_doc = RAGDocument(
+            doc_id=result["document_id"],
+            title=doc_title,
+            source_path=file.filename,
+            source_type="pdf",
+            course_id=course_id,
+            lesson_id=lesson_id,
+            uploaded_by=current_user.id,
+            chunks_count=result["chunks"],
+            total_tokens=result["total_tokens"],
+            metadata_json={"original_filename": file.filename},
+        )
+        db.add(rag_doc)
+        db.commit()
+
+        return RAGIngestionResponse(
+            status="success",
+            document_id=result["document_id"],
+            title=doc_title,
+            pages=result["pages"],
+            chunks=result["chunks"],
+            total_tokens=result["total_tokens"],
+            message=result["message"],
+        )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"[RAG API] Upload error: {str(e)}")
+        logger.error(f"[RAG API] Upload error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        Path(tmp_path).unlink(missing_ok=True)
 
 
 @router.post("/search", response_model=RAGSearchResponse)
@@ -122,108 +109,92 @@ async def search(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> RAGSearchResponse:
-    """Search using RAG system.
-    
-    Args:
-        request: Search request
-        current_user: Current authenticated user
-        db: Database session
-        
-    Returns:
-        Search results
-    """
+    """Search the indexed RAG content (optionally scoped to a course/lesson)."""
     try:
         start_time = time.time()
-        
-        # Get RAG service
-        rag_service = get_rag_service()
-        
-        # Perform search
+
+        rag_service = get_rag_service(use_postgres=True, verbose=False)
         result = rag_service.search(
             query=request.query,
             top_k=request.top_k,
             document_id=request.document_id,
+            course_id=str(request.course_id) if request.course_id else None,
+            lesson_id=str(request.lesson_id) if request.lesson_id else None,
         )
-        
+
         execution_time = time.time() - start_time
-        
-        if result['status'] == 'success':
-            # Log search session
-            search_session = RAGSearchSession(
-                user_id=current_user.id,
-                query=request.query,
-                results_count=len(result['results']),
-                search_duration_ms=int(execution_time * 1000),
-            )
-            
-            db.add(search_session)
-            db.flush()  # Get the session ID
-            
-            # Log individual results
-            for rank, res in enumerate(result['results'], 1):
-                search_result = RAGSearchResult(
-                    session_id=search_session.id,
-                    chunk_id=res.get('chunk_id', ''),
-                    relevance_score=res.get('relevance', 0.0),
-                    rank=rank,
+
+        if result["status"] != "success":
+            logger.warning("[RAG API] Search failed: %s", result.get("error"))
+            raise HTTPException(status_code=400, detail=result.get("error", "Search failed"))
+
+        # Persist search session + ranked results for analytics.
+        search_session = RAGSearchSession(
+            user_id=current_user.id,
+            course_id=request.course_id,
+            lesson_id=request.lesson_id,
+            query=request.query,
+            results_count=len(result["results"]),
+            search_duration_ms=int(execution_time * 1000),
+        )
+        db.add(search_session)
+        db.flush()
+
+        for rank, res in enumerate(result["results"], 1):
+            db.add(RAGSearchResult(
+                session_id=search_session.id,
+                chunk_id=res.get("chunk_id", ""),
+                relevance_score=res.get("relevance", 0.0),
+                rank=rank,
+            ))
+        db.commit()
+
+        logger.info(
+            "[RAG API] Search completed: %s results in %.2fs (course=%s lesson=%s)",
+            len(result["results"]), execution_time,
+            request.course_id, request.lesson_id,
+        )
+
+        return RAGSearchResponse(
+            status="success",
+            query=request.query,
+            results_count=len(result["results"]),
+            results=[
+                RAGChunkResponse(
+                    chunk_id=res["chunk_id"],
+                    content=res["content"][:500],
+                    page_number=res.get("page_number"),
+                    chunk_type="reference",
+                    tokens_count=0,
+                    relevance=res["relevance"],
                 )
-                db.add(search_result)
-            
-            db.commit()
-            
-            logger.info(f"[RAG API] Search completed: {len(result['results'])} results in {execution_time:.2f}s")
-            
-            return RAGSearchResponse(
-                status="success",
-                query=request.query,
-                results_count=len(result['results']),
-                results=[
-                    RAGChunkResponse(
-                        chunk_id=res['chunk_id'],
-                        content=res['content'][:500],  # Truncate for API
-                        page_number=res.get('page_number'),
-                        chunk_type="reference",
-                        tokens_count=0,
-                        relevance=res['relevance'],
-                    )
-                    for res in result['results']
-                ],
-                execution_time_ms=execution_time * 1000,
-            )
-        else:
-            logger.warning(f"[RAG API] Search failed: {result.get('error', 'Unknown error')}")
-            raise HTTPException(status_code=400, detail=result.get('error', 'Search failed'))
-            
+                for res in result["results"]
+            ],
+            execution_time_ms=execution_time * 1000,
+        )
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"[RAG API] Search error: {str(e)}")
+        logger.error(f"[RAG API] Search error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/documents", response_model=List[RAGDocumentResponse])
 async def list_documents(
-    course_id: Optional[int] = None,
+    course_id: Optional[uuid.UUID] = Query(None),
+    lesson_id: Optional[uuid.UUID] = Query(None),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> List[RAGDocumentResponse]:
-    """List all RAG documents.
-    
-    Args:
-        course_id: Optional course filter
-        current_user: Current authenticated user
-        db: Database session
-        
-    Returns:
-        List of documents
-    """
+    """List all RAG documents (optionally filter by course / lesson)."""
     try:
         query = db.query(RAGDocument).filter(RAGDocument.is_active == 1)
-        
         if course_id:
             query = query.filter(RAGDocument.course_id == course_id)
-        
-        documents = query.all()
+        if lesson_id:
+            query = query.filter(RAGDocument.lesson_id == lesson_id)
+
+        documents = query.order_by(RAGDocument.created_at.desc()).all()
         
         return [
             RAGDocumentResponse(
@@ -267,7 +238,7 @@ async def delete_document(
             raise HTTPException(status_code=404, detail="Document not found")
         
         # Delete from vector store
-        rag_service = get_rag_service()
+        rag_service = get_rag_service(use_postgres=True, verbose=False)
         rag_service.delete_document(doc_id)
         
         # Mark as inactive in DB
@@ -321,5 +292,4 @@ async def get_stats(
     except Exception as e:
         logger.error(f"[RAG API] Stats error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-
 

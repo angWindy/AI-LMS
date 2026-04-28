@@ -6,6 +6,7 @@ import os
 from typing import Optional, Any
 from datetime import datetime
 from abc import ABC, abstractmethod
+from urllib.parse import unquote, urlparse
 
 try:
     import psycopg2
@@ -18,24 +19,63 @@ from llm.rag.chunker import Chunk, Document
 
 logger = logging.getLogger(__name__)
 
+PGVECTOR_INDEX_MAX_DIM = 2000
+
+
+def _parse_database_url(database_url: str | None) -> dict[str, Any]:
+    """Parse a SQLAlchemy-style PostgreSQL URL into psycopg2 kwargs."""
+    if not database_url:
+        return {}
+
+    parsed = urlparse(database_url)
+    if not parsed.scheme.startswith("postgresql"):
+        return {}
+
+    return {
+        "host": parsed.hostname,
+        "port": parsed.port,
+        "database": parsed.path.lstrip("/") or None,
+        "user": unquote(parsed.username) if parsed.username else None,
+        "password": unquote(parsed.password) if parsed.password else None,
+    }
+
 
 class VectorStore(ABC):
     """Abstract base class for vector stores."""
-    
+
     @abstractmethod
     def add_chunks(self, chunks: list[Chunk], document: Document) -> bool:
         """Add chunks to the vector store."""
-        pass
-    
+
     @abstractmethod
-    def search(self, query_embedding: list[float], top_k: int = 5) -> list[dict]:
-        """Search for similar chunks."""
-        pass
-    
+    def search(
+        self,
+        query_embedding: list[float],
+        top_k: int = 5,
+        doc_id: Optional[str] = None,
+        course_id: Optional[str] = None,
+        lesson_id: Optional[str] = None,
+    ) -> list[dict]:
+        """Search for similar chunks (optionally scoped to a course/lesson/document)."""
+
     @abstractmethod
     def delete_document(self, document_id: str) -> bool:
-        """Delete all chunks for a document."""
-        pass
+        """Delete a document and all its chunks."""
+
+    def delete_by_material(self, material_id: str) -> int:
+        """Delete all RAG documents linked to a Material. Returns # deleted."""
+        return 0
+
+    def delete_by_lesson(self, lesson_id: str) -> int:
+        """Delete all RAG documents linked to a Lesson. Returns # deleted."""
+        return 0
+
+    def delete_by_course(self, course_id: str) -> int:
+        """Delete all RAG documents linked to a Course. Returns # deleted."""
+        return 0
+
+    def is_empty(self) -> bool:  # pragma: no cover - small helper
+        return True
 
 
 class PostgresVectorStore(VectorStore):
@@ -61,11 +101,30 @@ class PostgresVectorStore(VectorStore):
             password: Database password (defaults to DB_PASSWORD env var, then 'postgres')
             verbose: Enable detailed logging
         """
-        host = host or os.getenv("DB_HOST", "localhost")
-        port = port or int(os.getenv("DB_PORT", "5432"))
-        database = database or os.getenv("DB_NAME", os.getenv("POSTGRES_DB", "lms_db"))
-        user = user or os.getenv("DB_USER", os.getenv("POSTGRES_USER", "postgres"))
-        password = password or os.getenv("DB_PASSWORD", os.getenv("POSTGRES_PASSWORD", "postgres"))
+        database_url_config = _parse_database_url(os.getenv("DATABASE_URL"))
+        host = host or os.getenv("DB_HOST") or database_url_config.get("host") or "localhost"
+        port = port or int(os.getenv("DB_PORT") or database_url_config.get("port") or 5432)
+        database = (
+            database
+            or os.getenv("DB_NAME")
+            or os.getenv("POSTGRES_DB")
+            or database_url_config.get("database")
+            or "lms_db"
+        )
+        user = (
+            user
+            or os.getenv("DB_USER")
+            or os.getenv("POSTGRES_USER")
+            or database_url_config.get("user")
+            or "postgres"
+        )
+        password = (
+            password
+            or os.getenv("DB_PASSWORD")
+            or os.getenv("POSTGRES_PASSWORD")
+            or database_url_config.get("password")
+            or "postgres"
+        )
         self.verbose = verbose
         if verbose:
             logger.setLevel(logging.DEBUG)
@@ -110,12 +169,15 @@ class PostgresVectorStore(VectorStore):
             if self.verbose:
                 logger.debug("[VectorStore] pgvector extension enabled")
             
-            # Create documents table
+            # Create documents table (UUID FKs to mirror LMS hierarchy)
             cursor.execute("""
                 CREATE TABLE IF NOT EXISTS rag_documents (
                     id SERIAL PRIMARY KEY,
                     doc_id VARCHAR(255) UNIQUE NOT NULL,
-                    course_id INTEGER,
+                    course_id UUID,
+                    lesson_id UUID,
+                    material_id UUID UNIQUE,
+                    uploaded_by UUID,
                     title VARCHAR(500),
                     description TEXT,
                     source_path TEXT,
@@ -129,6 +191,33 @@ class PostgresVectorStore(VectorStore):
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
+
+            # Drop legacy integer course_id column if it exists (pre-v0.4 schema).
+            cursor.execute("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_name = 'rag_documents'
+                          AND column_name = 'course_id'
+                          AND data_type = 'integer'
+                    ) THEN
+                        ALTER TABLE rag_documents DROP COLUMN course_id;
+                    END IF;
+                END $$;
+            """)
+
+            # Forward-compatible columns for installs that pre-date the hierarchy fields.
+            cursor.execute("ALTER TABLE rag_documents ADD COLUMN IF NOT EXISTS course_id UUID;")
+            cursor.execute("ALTER TABLE rag_documents ADD COLUMN IF NOT EXISTS lesson_id UUID;")
+            cursor.execute("ALTER TABLE rag_documents ADD COLUMN IF NOT EXISTS material_id UUID;")
+            cursor.execute("ALTER TABLE rag_documents ADD COLUMN IF NOT EXISTS uploaded_by UUID;")
+            cursor.execute("""
+                CREATE UNIQUE INDEX IF NOT EXISTS idx_rag_documents_material_id
+                ON rag_documents (material_id) WHERE material_id IS NOT NULL;
+            """)
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_rag_documents_course_id ON rag_documents (course_id);")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_rag_documents_lesson_id ON rag_documents (lesson_id);")
             
             # Create chunks table with vector column
             cursor.execute(f"""
@@ -157,12 +246,22 @@ class PostgresVectorStore(VectorStore):
             cursor.execute("ALTER TABLE rag_chunks ADD COLUMN IF NOT EXISTS embedding_dim INTEGER DEFAULT %s;", (self.embedding_dimension,))
             cursor.execute("ALTER TABLE rag_chunks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;")
 
-            # Create HNSW index for faster similarity search (partial: only non-NULL embeddings)
-            cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_rag_chunks_embedding
-                ON rag_chunks USING hnsw (embedding vector_cosine_ops)
-                WHERE embedding IS NOT NULL;
-            """)
+            # pgvector approximate indexes currently support up to 2000
+            # dimensions for vector columns. Gemini embeddings are 3072d, so
+            # keep exact-scan search unless a projection/halfvec strategy is
+            # added later.
+            if self.embedding_dimension <= PGVECTOR_INDEX_MAX_DIM:
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_rag_chunks_embedding
+                    ON rag_chunks USING hnsw (embedding vector_cosine_ops)
+                    WHERE embedding IS NOT NULL;
+                """)
+            elif self.verbose:
+                logger.info(
+                    "[VectorStore] Skipping HNSW index for %sd embeddings; pgvector index limit is %s",
+                    self.embedding_dimension,
+                    PGVECTOR_INDEX_MAX_DIM,
+                )
             
             self.connection.commit()
             
@@ -188,25 +287,39 @@ class PostgresVectorStore(VectorStore):
             cursor = self.connection.cursor()
             
             total_tokens = sum(chunk.tokens_count for chunk in chunks)
+            doc_meta = document.metadata or {}
             cursor.execute("""
                 INSERT INTO rag_documents
-                    (doc_id, title, source_path, metadata, chunks_count, total_tokens)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                    (doc_id, title, source_path, metadata, chunks_count, total_tokens,
+                     course_id, lesson_id, material_id, uploaded_by, source_type, file_hash)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (doc_id) DO UPDATE SET
                     title = EXCLUDED.title,
                     source_path = EXCLUDED.source_path,
                     metadata = EXCLUDED.metadata,
                     chunks_count = EXCLUDED.chunks_count,
                     total_tokens = EXCLUDED.total_tokens,
+                    course_id = COALESCE(EXCLUDED.course_id, rag_documents.course_id),
+                    lesson_id = COALESCE(EXCLUDED.lesson_id, rag_documents.lesson_id),
+                    material_id = COALESCE(EXCLUDED.material_id, rag_documents.material_id),
+                    uploaded_by = COALESCE(EXCLUDED.uploaded_by, rag_documents.uploaded_by),
+                    source_type = COALESCE(EXCLUDED.source_type, rag_documents.source_type),
+                    file_hash = COALESCE(EXCLUDED.file_hash, rag_documents.file_hash),
                     updated_at = CURRENT_TIMESTAMP
                 RETURNING id;
             """, (
                 document.id,
                 document.title,
                 document.source_path,
-                Json(document.metadata),
+                Json(doc_meta),
                 len(chunks),
                 total_tokens,
+                doc_meta.get("course_id"),
+                doc_meta.get("lesson_id"),
+                doc_meta.get("material_id"),
+                doc_meta.get("uploaded_by"),
+                doc_meta.get("source_type") or "pdf",
+                doc_meta.get("file_hash"),
             ))
             document_row = cursor.fetchone()
             if not document_row:
@@ -295,29 +408,36 @@ class PostgresVectorStore(VectorStore):
         query_embedding: list[float],
         top_k: int = 5,
         doc_id: Optional[str] = None,
+        course_id: Optional[str] = None,
+        lesson_id: Optional[str] = None,
     ) -> list[dict]:
         """Search for similar chunks using cosine similarity.
-        
+
         Args:
             query_embedding: Query embedding vector
             top_k: Number of results to return
-            doc_id: Optional document ID to search within
-            
-        Returns:
-            List of search results with chunks and similarity scores
+            doc_id: Restrict to a single RAG document
+            course_id: Restrict to documents of a specific course
+            lesson_id: Restrict to documents of a specific lesson
         """
         try:
             cursor = self.connection.cursor()
-            
+
             # Convert embedding to pgvector format
             embedding_str = '[' + ','.join(str(x) for x in query_embedding) + ']'
-            
+
             conditions = ["c.embedding IS NOT NULL", "d.is_active = 1"]
             params: list[object] = [embedding_str]
 
             if doc_id:
                 conditions.append("d.doc_id = %s")
                 params.append(doc_id)
+            if course_id:
+                conditions.append("d.course_id = %s::uuid")
+                params.append(str(course_id))
+            if lesson_id:
+                conditions.append("d.lesson_id = %s::uuid")
+                params.append(str(lesson_id))
 
             where_clause = "WHERE " + " AND ".join(conditions)
             params.extend([embedding_str, top_k])
@@ -331,7 +451,10 @@ class PostgresVectorStore(VectorStore):
                     c.page_number,
                     c.chunk_type,
                     (1 - (c.embedding <=> %s::vector)) as similarity,
-                    c.metadata
+                    c.metadata,
+                    d.course_id,
+                    d.lesson_id,
+                    d.material_id
                 FROM rag_chunks c
                 JOIN rag_documents d ON d.id = c.document_id
                 {where_clause}
@@ -341,8 +464,7 @@ class PostgresVectorStore(VectorStore):
 
             cursor.execute(query, params)
             results = cursor.fetchall()
-            
-            # Convert to list of dictionaries
+
             search_results = []
             for row in results:
                 search_results.append({
@@ -354,6 +476,9 @@ class PostgresVectorStore(VectorStore):
                     'chunk_type': row[5],
                     'similarity': float(row[6]),
                     'metadata': row[7],
+                    'course_id': str(row[8]) if row[8] else None,
+                    'lesson_id': str(row[9]) if row[9] else None,
+                    'material_id': str(row[10]) if row[10] else None,
                 })
             
             if self.verbose:
@@ -368,33 +493,75 @@ class PostgresVectorStore(VectorStore):
             return []
     
     def delete_document(self, document_id: str) -> bool:
-        """Delete all chunks and document from vector store.
-        
-        Args:
-            document_id: Document ID to delete
-            
-        Returns:
-            True if successful
-        """
+        """Delete a document (and chunks via FK cascade)."""
         try:
             cursor = self.connection.cursor()
-            
-            # Delete document (cascades to chunks)
-            cursor.execute("""
-                DELETE FROM rag_documents WHERE doc_id = %s;
-            """, (document_id,))
-            
+            cursor.execute(
+                "DELETE FROM rag_documents WHERE doc_id = %s;",
+                (document_id,),
+            )
             self.connection.commit()
-            
             if self.verbose:
-                logger.info(f"[VectorStore] Deleted document and chunks: {document_id}")
-            
+                logger.info(f"[VectorStore] Deleted document: {document_id}")
             return True
-            
         except psycopg2.Error as e:
             logger.error(f"[VectorStore] Error deleting document: {str(e)}")
             self.connection.rollback()
             return False
+
+    def _delete_by(self, column: str, value: str) -> int:
+        """Helper: delete documents where a UUID column equals ``value``."""
+        if not value:
+            return 0
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(
+                f"DELETE FROM rag_documents WHERE {column} = %s::uuid RETURNING doc_id;",
+                (str(value),),
+            )
+            deleted = cursor.fetchall() or []
+            self.connection.commit()
+            if self.verbose and deleted:
+                logger.info(
+                    "[VectorStore] Deleted %s document(s) by %s=%s",
+                    len(deleted), column, value,
+                )
+            return len(deleted)
+        except psycopg2.Error as e:
+            logger.error(f"[VectorStore] Error deleting by {column}: {str(e)}")
+            self.connection.rollback()
+            return 0
+
+    def delete_by_material(self, material_id: str) -> int:
+        return self._delete_by("material_id", material_id)
+
+    def delete_by_lesson(self, lesson_id: str) -> int:
+        return self._delete_by("lesson_id", lesson_id)
+
+    def delete_by_course(self, course_id: str) -> int:
+        return self._delete_by("course_id", course_id)
+
+    def find_doc_id_by_material(self, material_id: str) -> Optional[str]:
+        """Return the ``doc_id`` for a given ``material_id``, if indexed."""
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute(
+                "SELECT doc_id FROM rag_documents WHERE material_id = %s::uuid LIMIT 1;",
+                (str(material_id),),
+            )
+            row = cursor.fetchone()
+            return row[0] if row else None
+        except psycopg2.Error as e:
+            logger.error(f"[VectorStore] find_doc_id_by_material error: {e}")
+            return None
+
+    def is_empty(self) -> bool:
+        try:
+            cursor = self.connection.cursor()
+            cursor.execute("SELECT COUNT(*) FROM rag_chunks WHERE embedding IS NOT NULL LIMIT 1;")
+            return (cursor.fetchone() or [0])[0] == 0
+        except psycopg2.Error:
+            return True
     
     def get_document_stats(self, doc_id: str) -> dict:
         """Get statistics for a document.
@@ -464,22 +631,17 @@ class InMemoryVectorStore(VectorStore):
             logger.info("[VectorStore] Initialized in-memory vector store")
     
     def add_chunks(self, chunks: list[Chunk], document: Document) -> bool:
-        """Add chunks to in-memory store.
-        
-        Args:
-            chunks: List of chunks
-            document: Document metadata
-            
-        Returns:
-            True if successful
-        """
+        meta = document.metadata or {}
         self.documents[document.id] = {
             'id': document.id,
             'title': document.title,
             'source_path': document.source_path,
-            'metadata': document.metadata,
+            'metadata': meta,
+            'course_id': str(meta.get("course_id")) if meta.get("course_id") else None,
+            'lesson_id': str(meta.get("lesson_id")) if meta.get("lesson_id") else None,
+            'material_id': str(meta.get("material_id")) if meta.get("material_id") else None,
         }
-        
+
         inserted_chunks = 0
         for chunk in chunks:
             if chunk.metadata.get("is_structural"):
@@ -494,75 +656,93 @@ class InMemoryVectorStore(VectorStore):
                 'metadata': chunk.metadata,
             })
             inserted_chunks += 1
-        
+
         if self.verbose:
             logger.info(
                 "[VectorStore] Added %s/%s chunks to in-memory store",
-                inserted_chunks,
-                len(chunks),
+                inserted_chunks, len(chunks),
             )
-        
         return True
-    
+
     def search(
         self,
         query_embedding: list[float],
         top_k: int = 5,
         doc_id: Optional[str] = None,
+        course_id: Optional[str] = None,
+        lesson_id: Optional[str] = None,
     ) -> list[dict]:
-        """Search in-memory chunks.
-        
-        Args:
-            query_embedding: Query embedding
-            top_k: Number of results
-            doc_id: Optional document filter
-            
-        Returns:
-            Search results
-        """
         import numpy as np
-        
+
         results = []
-        
+        course_id = str(course_id) if course_id else None
+        lesson_id = str(lesson_id) if lesson_id else None
+
         for chunk_data in self.chunks:
+            doc = self.documents.get(chunk_data['doc_id'], {})
             if doc_id and chunk_data['doc_id'] != doc_id:
                 continue
-            
+            if course_id and doc.get('course_id') != course_id:
+                continue
+            if lesson_id and doc.get('lesson_id') != lesson_id:
+                continue
+
             if chunk_data['embedding']:
                 vec1 = np.array(query_embedding)
                 vec2 = np.array(chunk_data['embedding'])
-
                 norm1 = np.linalg.norm(vec1)
                 norm2 = np.linalg.norm(vec2)
-                if norm1 == 0 or norm2 == 0:
-                    similarity = 0.0
-                else:
-                    similarity = float(np.dot(vec1, vec2) / (norm1 * norm2))
-
+                similarity = (
+                    0.0 if norm1 == 0 or norm2 == 0
+                    else float(np.dot(vec1, vec2) / (norm1 * norm2))
+                )
                 results.append({
                     'chunk_id': chunk_data['chunk_id'],
                     'doc_id': chunk_data['doc_id'],
                     'content': chunk_data['content'],
                     'page_number': chunk_data['page_number'],
                     'similarity': float(max(0.0, similarity)),
+                    'course_id': doc.get('course_id'),
+                    'lesson_id': doc.get('lesson_id'),
+                    'material_id': doc.get('material_id'),
                 })
-        
-        # Sort by similarity
+
         results.sort(key=lambda x: x['similarity'], reverse=True)
-        
         return results[:top_k]
-    
+
     def delete_document(self, document_id: str) -> bool:
-        """Delete document from in-memory store.
-        
-        Args:
-            document_id: Document ID
-            
-        Returns:
-            True if successful
-        """
         if document_id in self.documents:
             del self.documents[document_id]
             self.chunks = [c for c in self.chunks if c['doc_id'] != document_id]
             return True
         return False
+
+    def _delete_where(self, key: str, value: str) -> int:
+        if not value:
+            return 0
+        value = str(value)
+        targets = [doc_id for doc_id, doc in self.documents.items() if doc.get(key) == value]
+        for doc_id in targets:
+            self.delete_document(doc_id)
+        return len(targets)
+
+    def delete_by_material(self, material_id: str) -> int:
+        return self._delete_where("material_id", material_id)
+
+    def delete_by_lesson(self, lesson_id: str) -> int:
+        return self._delete_where("lesson_id", lesson_id)
+
+    def delete_by_course(self, course_id: str) -> int:
+        return self._delete_where("course_id", course_id)
+
+    def find_doc_id_by_material(self, material_id: str) -> Optional[str]:
+        if not material_id:
+            return None
+        material_id = str(material_id)
+        for doc_id, doc in self.documents.items():
+            if doc.get("material_id") == material_id:
+                return doc_id
+        return None
+
+    def is_empty(self) -> bool:
+        return not self.chunks
