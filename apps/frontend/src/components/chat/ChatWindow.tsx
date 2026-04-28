@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState } from "react";
+import { ReactNode, useRef, useEffect, useState } from "react";
 import { SendHorizontal, Loader2, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +16,100 @@ interface ChatWindowProps {
   className?: string;
   isPopup?: boolean;
   captureTeachingImage?: () => Promise<TeachingImagePayload | null> | TeachingImagePayload | null;
+}
+
+function renderInlineMarkdown(text: string): ReactNode[] {
+  const nodes: ReactNode[] = [];
+  const pattern = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      nodes.push(text.slice(lastIndex, match.index));
+    }
+
+    const token = match[0];
+    const content = token.startsWith("**")
+      ? token.slice(2, -2)
+      : token.slice(1, -1);
+
+    nodes.push(
+      token.startsWith("**") ? (
+        <strong key={`${match.index}-${token}`} className="font-semibold">
+          {content}
+        </strong>
+      ) : (
+        <em key={`${match.index}-${token}`} className="italic">
+          {content}
+        </em>
+      )
+    );
+
+    lastIndex = match.index + token.length;
+  }
+
+  if (lastIndex < text.length) {
+    nodes.push(text.slice(lastIndex));
+  }
+
+  return nodes;
+}
+
+function ChatMarkdown({ content }: { content: string }) {
+  const lines = content.split(/\r?\n/);
+  const blocks: ReactNode[] = [];
+  let listItems: ReactNode[][] = [];
+  let listType: "ordered" | "unordered" | null = null;
+
+  const flushList = () => {
+    if (!listItems.length) return;
+    const ListTag = listType === "ordered" ? "ol" : "ul";
+    const listClass =
+      listType === "ordered"
+        ? "my-1 list-decimal space-y-1 pl-5"
+        : "my-1 list-disc space-y-1 pl-5";
+    blocks.push(
+      <ListTag key={`list-${blocks.length}`} className={listClass}>
+        {listItems.map((item, index) => (
+          <li key={index}>{item}</li>
+        ))}
+      </ListTag>
+    );
+    listItems = [];
+    listType = null;
+  };
+
+  lines.forEach((line, index) => {
+    const unorderedMatch = line.match(/^\s*[-*]\s+(.+)$/);
+    const orderedMatch = line.match(/^\s*\d+[.)]\s+(.+)$/);
+    if (unorderedMatch || orderedMatch) {
+      const currentType = orderedMatch ? "ordered" : "unordered";
+      if (listType && listType !== currentType) {
+        flushList();
+      }
+      listType = currentType;
+      listItems.push(renderInlineMarkdown((orderedMatch || unorderedMatch)?.[1] || ""));
+      return;
+    }
+
+    flushList();
+
+    if (!line.trim()) {
+      blocks.push(<div key={`space-${index}`} className="h-2" />);
+      return;
+    }
+
+    blocks.push(
+      <p key={`line-${index}`} className="my-1 leading-relaxed">
+        {renderInlineMarkdown(line)}
+      </p>
+    );
+  });
+
+  flushList();
+
+  return <>{blocks}</>;
 }
 
 export function ChatWindow({
@@ -180,13 +274,17 @@ export function ChatWindow({
                 }`}
               >
                 <div
-                  className={`rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap ${
+                  className={`rounded-2xl px-4 py-2 text-sm ${
                     msg.role === "user"
                       ? "bg-primary text-primary-foreground rounded-tr-sm"
                       : "bg-muted rounded-tl-sm"
                   }`}
                 >
-                  {msg.content}
+                  {msg.role === "assistant" ? (
+                    <ChatMarkdown content={msg.content} />
+                  ) : (
+                    <span className="whitespace-pre-wrap">{msg.content}</span>
+                  )}
                 </div>
               </div>
             </div>
