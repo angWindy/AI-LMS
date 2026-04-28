@@ -4,6 +4,7 @@ import logging
 import time
 from typing import List, Optional
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 import tempfile
 from pathlib import Path
@@ -80,7 +81,7 @@ async def upload_document(
                     course_id=course_id,
                     chunks_count=result['chunks'],
                     total_tokens=result['total_tokens'],
-                    metadata={
+                    metadata_json={
                         'uploaded_by': current_user.id,
                         'original_filename': file.filename,
                     }
@@ -322,4 +323,3 @@ async def get_stats(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-from sqlalchemy import func

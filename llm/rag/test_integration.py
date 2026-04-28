@@ -28,7 +28,7 @@ try:
     from llm.rag.vector_store import InMemoryVectorStore
     from pathlib import Path
     
-    pdf_path = Path(__file__).parent.parent / "llm" / "rag" / "pdf_sample.pdf"
+    pdf_path = Path(__file__).parent / "pdf_sample.pdf"
     
     if not pdf_path.exists():
         print("⚠ PDF sample not found, skipping standalone test")
@@ -88,6 +88,11 @@ except Exception as e:
 # Test 3: Database Models
 print("\n[TEST 3] Database Models")
 print("-" * 80)
+
+# Ensure apps/backend is on sys.path for app.* imports
+_backend_path = str(Path(__file__).parents[2] / "apps" / "backend")
+if _backend_path not in sys.path:
+    sys.path.insert(0, _backend_path)
 
 try:
     from app.models.rag import RAGDocument, RAGChunk, RAGSearchSession, RAGSearchResult

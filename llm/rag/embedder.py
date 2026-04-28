@@ -19,11 +19,10 @@ logger = logging.getLogger(__name__)
 class EmbeddingService:
     """Generate embeddings using Google Gemini models."""
     
-    # Available Gemini embedding models
+    # Available Gemini embedding models {model_name: output_dimension}
     MODELS = {
-        'gemini-embedding-001': 768,  # Dimension
-        'gemini-embedding-2': 768,
-        'text-embedding-004': 256,
+        'gemini-embedding-001': 768,
+        'text-embedding-004': 768,  # defaults to 768; supports 1–768 via output_dimensionality
     }
     
     def __init__(
@@ -59,14 +58,14 @@ class EmbeddingService:
         
         if genai is None:
             raise ImportError("google-genai package not installed. Install it with: pip install google-genai")
-        
-        genai.configure(api_key=api_key)
+
+        self.client = genai.Client(api_key=api_key)
         
         if self.verbose:
             logger.info(f"[Embedding] Initialized service with model: {model}")
             logger.info(f"[Embedding] Embedding dimension: {self.embedding_dimension}")
     
-    def embed_text(self, text: str) -> list[float]:
+    def embed_text(self, text: str, task_type: str = "RETRIEVAL_DOCUMENT") -> list[float]:
         """Generate embedding for a single text.
         
         Args:
@@ -83,14 +82,8 @@ class EmbeddingService:
             if self.verbose:
                 logger.debug(f"[Embedding] Generating embedding for text ({len(text)} chars)")
             
-            # Use Google Gemini embedding API
-            response = genai.embed_content(
-                model=f"models/{self.model}",
-                content=text,
-                task_type="RETRIEVAL_DOCUMENT",
-            )
-            
-            embedding = response['embedding']
+            response = self._embed_content(text, task_type)
+            embedding = self._extract_embedding(response)
             
             if self.verbose:
                 logger.debug(f"[Embedding] Generated embedding with dimension: {len(embedding)}")
@@ -115,13 +108,8 @@ class EmbeddingService:
             if self.verbose:
                 logger.debug(f"[Embedding] Generating query embedding: {query[:100]}...")
             
-            response = genai.embed_content(
-                model=f"models/{self.model}",
-                content=query,
-                task_type="RETRIEVAL_QUERY",
-            )
-            
-            embedding = response['embedding']
+            response = self._embed_content(query, "RETRIEVAL_QUERY")
+            embedding = self._extract_embedding(response)
             
             if self.verbose:
                 logger.debug(f"[Embedding] Query embedding generated with dimension: {len(embedding)}")
@@ -148,8 +136,9 @@ class EmbeddingService:
         for i, chunk in enumerate(chunks, 1):
             if self.verbose and i % 10 == 0:
                 logger.info(f"[Embedding] Progress: {i}/{len(chunks)} chunks")
-            
-            chunk.embedding = self.embed_text(chunk.content)
+            if chunk.metadata.get("is_structural"):
+                continue
+            chunk.embedding = self.embed_text(chunk.content, task_type=task_type)
         
         if self.verbose:
             logger.info(f"[Embedding] Completed embedding {len(chunks)} chunks")
@@ -232,3 +221,35 @@ class EmbeddingService:
                 logger.debug(f"[Embedding] - {chunk.id}: similarity={sim:.4f}")
         
         return result
+
+    def _embed_content(self, text: str, task_type: str) -> object:
+        try:
+            return self.client.models.embed_content(
+                model=f"models/{self.model}",
+                contents=text,
+                task_type=task_type,
+            )
+        except TypeError:
+            return genai.embed_content(
+                model=f"models/{self.model}",
+                content=text,
+                task_type=task_type,
+            )
+
+    def _extract_embedding(self, response: object) -> list[float]:
+        if isinstance(response, dict):
+            embedding = response.get("embedding") or response.get("embeddings")
+        else:
+            embedding = getattr(response, "embedding", None) or getattr(response, "embeddings", None)
+
+        if hasattr(embedding, "values"):
+            return list(embedding.values)
+
+        if isinstance(embedding, list) and embedding:
+            if hasattr(embedding[0], "values"):
+                return list(embedding[0].values)
+            if isinstance(embedding[0], (list, tuple)):
+                return list(embedding[0])
+            return list(embedding)
+
+        raise ValueError("Embedding response did not contain vectors")

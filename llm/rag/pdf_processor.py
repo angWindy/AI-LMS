@@ -2,9 +2,15 @@
 
 import json
 import logging
+import unicodedata
 from pathlib import Path
 from typing import Optional
 import PyPDF2
+
+try:
+    import fitz as pymupdf  # PyMuPDF - better text extraction
+except ImportError:
+    pymupdf = None
 
 
 logger = logging.getLogger(__name__)
@@ -23,8 +29,18 @@ class PDFProcessor:
         if verbose:
             logger.setLevel(logging.DEBUG)
 
+    @staticmethod
+    def _normalize_str(value: str) -> str:
+        """Normalize a string value: Unicode NFC + strip."""
+        if not value:
+            return value
+        return unicodedata.normalize("NFC", str(value)).strip()
+
     def process_pdf(self, pdf_path: str | Path) -> dict:
         """Process a PDF file and extract text with metadata.
+        
+        Tries PyMuPDF first (better extraction quality), then falls back
+        to PyPDF2.  Warns when pages yield no text (image-based PDFs).
         
         Args:
             pdf_path: Path to the PDF file
@@ -41,18 +57,96 @@ class PDFProcessor:
             logger.info(f"[PDF Processing] Starting to process: {pdf_path}")
             logger.info(f"[PDF Processing] File size: {pdf_path.stat().st_size / 1024:.2f} KB")
         
+        if pymupdf is not None:
+            return self._process_with_pymupdf(pdf_path)
+        return self._process_with_pypdf2(pdf_path)
+
+    def _process_with_pymupdf(self, pdf_path: Path) -> dict:
+        """Extract text using PyMuPDF (fitz)."""
+        try:
+            doc = pymupdf.open(str(pdf_path))
+            num_pages = len(doc)
+
+            if self.verbose:
+                logger.info(f"[PDF Processing] Using PyMuPDF — total pages: {num_pages}")
+
+            pages_content = []
+            empty_pages = 0
+            for page_num in range(num_pages):
+                page = doc[page_num]
+                text = page.get_text() or ""
+                text = self._normalize_str(text)
+
+                if not text:
+                    empty_pages += 1
+
+                if self.verbose:
+                    preview = text[:100].replace('\n', ' ')
+                    logger.debug(f"[PDF Processing] Page {page_num + 1}: {len(text)} chars - {preview}...")
+
+                pages_content.append({
+                    'page_number': page_num + 1,
+                    'text': text,
+                    'length': len(text),
+                    'metadata': {'rotation': page.rotation},
+                })
+
+            meta = doc.metadata or {}
+            metadata = {
+                'title': self._normalize_str(meta.get('title') or '') or 'Unknown',
+                'author': self._normalize_str(meta.get('author') or '') or 'Unknown',
+                'subject': self._normalize_str(meta.get('subject') or '') or 'N/A',
+                'created': str(meta.get('creationDate', 'N/A')),
+                'modified': str(meta.get('modDate', 'N/A')),
+                'total_pages': num_pages,
+            }
+            doc.close()
+
+            total_chars = sum(p['length'] for p in pages_content)
+            if empty_pages == num_pages:
+                logger.warning(
+                    "[PDF Processing] All %d pages are empty — this PDF appears to be "
+                    "image-based (scanned). OCR would be required to extract text.",
+                    num_pages,
+                )
+            elif empty_pages > 0 and self.verbose:
+                logger.warning(
+                    "[PDF Processing] %d/%d pages have no extractable text.",
+                    empty_pages, num_pages,
+                )
+
+            if self.verbose:
+                logger.info(f"[PDF Processing] Document title: {metadata['title']}")
+                logger.info(f"[PDF Processing] Total text extracted: {total_chars} characters")
+
+            return {
+                'status': 'success',
+                'metadata': metadata,
+                'pages': pages_content,
+                'total_text_length': total_chars,
+            }
+        except Exception as e:
+            logger.error(f"[PDF Processing] PyMuPDF failed: {e}. Falling back to PyPDF2.")
+            return self._process_with_pypdf2(pdf_path)
+
+    def _process_with_pypdf2(self, pdf_path: Path) -> dict:
+        """Extract text using PyPDF2 (fallback)."""
         try:
             with open(pdf_path, 'rb') as pdf_file:
                 reader = PyPDF2.PdfReader(pdf_file)
                 num_pages = len(reader.pages)
                 
                 if self.verbose:
-                    logger.info(f"[PDF Processing] Total pages: {num_pages}")
+                    logger.info(f"[PDF Processing] Using PyPDF2 — total pages: {num_pages}")
                 
-                # Extract text and metadata from each page
                 pages_content = []
+                empty_pages = 0
                 for page_num, page in enumerate(reader.pages, 1):
-                    text = page.extract_text()
+                    text = page.extract_text() or ""
+                    text = unicodedata.normalize("NFC", text)
+
+                    if not text:
+                        empty_pages += 1
                     
                     if self.verbose:
                         text_preview = text[:100].replace('\n', ' ')
@@ -67,16 +161,28 @@ class PDFProcessor:
                         }
                     })
                 
-                # Extract document metadata
                 doc_metadata = reader.metadata or {}
                 metadata = {
-                    'title': doc_metadata.get('/Title', 'Unknown'),
-                    'author': doc_metadata.get('/Author', 'Unknown'),
-                    'subject': doc_metadata.get('/Subject', 'N/A'),
+                    'title': self._normalize_str(doc_metadata.get('/Title', '')) or 'Unknown',
+                    'author': self._normalize_str(doc_metadata.get('/Author', '')) or 'Unknown',
+                    'subject': self._normalize_str(doc_metadata.get('/Subject', '')) or 'N/A',
                     'created': str(doc_metadata.get('/CreationDate', 'N/A')),
                     'modified': str(doc_metadata.get('/ModDate', 'N/A')),
                     'total_pages': num_pages,
                 }
+
+                total_chars = sum(p['length'] for p in pages_content)
+                if empty_pages == num_pages:
+                    logger.warning(
+                        "[PDF Processing] All %d pages are empty — this PDF appears to be "
+                        "image-based (scanned). OCR would be required to extract text.",
+                        num_pages,
+                    )
+                elif empty_pages > 0 and self.verbose:
+                    logger.warning(
+                        "[PDF Processing] %d/%d pages have no extractable text.",
+                        empty_pages, num_pages,
+                    )
                 
                 if self.verbose:
                     logger.info(f"[PDF Processing] Document title: {metadata['title']}")
@@ -86,7 +192,7 @@ class PDFProcessor:
                     'status': 'success',
                     'metadata': metadata,
                     'pages': pages_content,
-                    'total_text_length': sum(p['length'] for p in pages_content),
+                    'total_text_length': total_chars,
                 }
                 
                 if self.verbose:

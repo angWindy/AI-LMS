@@ -5,8 +5,8 @@
   "output_directory": "/home/icthagws/Github/AI-LMS/llm/rag/rag_output",
   "statistics": {
     "total_pages": 11,
-    "total_chunks": 11,
-    "total_tokens": 11053,
+    "total_chunks": 65,
+    "total_tokens": 21858,
     "embedding_dimension": 768
   },
   "retrieval_test": {

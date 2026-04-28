@@ -37,21 +37,6 @@ class RAGService:
         if verbose:
             logger.setLevel(logging.INFO)
         
-        # Initialize vector store
-        if vector_store:
-            self.vector_store = vector_store
-        elif use_postgres:
-            try:
-                self.vector_store = PostgresVectorStore(verbose=verbose)
-                logger.info("[RAGService] Using PostgreSQL vector store")
-            except Exception as e:
-                logger.warning(f"[RAGService] Failed to connect to PostgreSQL: {e}")
-                logger.info("[RAGService] Falling back to in-memory vector store")
-                self.vector_store = InMemoryVectorStore(verbose=verbose)
-        else:
-            self.vector_store = InMemoryVectorStore(verbose=verbose)
-            logger.info("[RAGService] Using in-memory vector store")
-        
         # Initialize embedding service
         if embedding_service:
             self.embedding_service = embedding_service
@@ -62,6 +47,29 @@ class RAGService:
             except ValueError as e:
                 logger.warning(f"[RAGService] Embedding service unavailable: {e}")
                 self.embedding_service = None
+
+        # Initialize vector store
+        if vector_store:
+            self.vector_store = vector_store
+        elif use_postgres:
+            try:
+                embedding_dim = (
+                    self.embedding_service.embedding_dimension
+                    if self.embedding_service
+                    else 768
+                )
+                self.vector_store = PostgresVectorStore(
+                    embedding_dimension=embedding_dim,
+                    verbose=verbose,
+                )
+                logger.info("[RAGService] Using PostgreSQL vector store")
+            except Exception as e:
+                logger.warning(f"[RAGService] Failed to connect to PostgreSQL: {e}")
+                logger.info("[RAGService] Falling back to in-memory vector store")
+                self.vector_store = InMemoryVectorStore(verbose=verbose)
+        else:
+            self.vector_store = InMemoryVectorStore(verbose=verbose)
+            logger.info("[RAGService] Using in-memory vector store")
     
     def ingest_pdf(
         self,

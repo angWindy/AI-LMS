@@ -2,6 +2,7 @@
 
 import json
 import logging
+import os
 from typing import Optional, Any
 from datetime import datetime
 from abc import ABC, abstractmethod
@@ -22,7 +23,7 @@ class VectorStore(ABC):
     """Abstract base class for vector stores."""
     
     @abstractmethod
-    def add_chunks(self, chunks: list[Chunk], document_id: str) -> bool:
+    def add_chunks(self, chunks: list[Chunk], document: Document) -> bool:
         """Add chunks to the vector store."""
         pass
     
@@ -42,23 +43,29 @@ class PostgresVectorStore(VectorStore):
     
     def __init__(
         self,
-        host: str = "localhost",
-        port: int = 5432,
-        database: str = "lms",
-        user: str = "postgres",
-        password: str = "postgres",
+        host: str = None,
+        port: int = None,
+        database: str = None,
+        user: str = None,
+        password: str = None,
+        embedding_dimension: int = 768,
         verbose: bool = True,
     ):
         """Initialize PostgreSQL vector store.
         
         Args:
-            host: Database host
-            port: Database port
-            database: Database name
-            user: Database user
-            password: Database password
+            host: Database host (defaults to DB_HOST env var, then 'localhost')
+            port: Database port (defaults to DB_PORT env var, then 5432)
+            database: Database name (defaults to DB_NAME env var, then 'lms_db')
+            user: Database user (defaults to DB_USER env var, then 'postgres')
+            password: Database password (defaults to DB_PASSWORD env var, then 'postgres')
             verbose: Enable detailed logging
         """
+        host = host or os.getenv("DB_HOST", "localhost")
+        port = port or int(os.getenv("DB_PORT", "5432"))
+        database = database or os.getenv("DB_NAME", os.getenv("POSTGRES_DB", "lms_db"))
+        user = user or os.getenv("DB_USER", os.getenv("POSTGRES_USER", "postgres"))
+        password = password or os.getenv("DB_PASSWORD", os.getenv("POSTGRES_PASSWORD", "postgres"))
         self.verbose = verbose
         if verbose:
             logger.setLevel(logging.DEBUG)
@@ -71,6 +78,7 @@ class PostgresVectorStore(VectorStore):
             'password': password,
         }
         
+        self.embedding_dimension = embedding_dimension
         self.connection = None
         
         if self.verbose:
@@ -107,36 +115,53 @@ class PostgresVectorStore(VectorStore):
                 CREATE TABLE IF NOT EXISTS rag_documents (
                     id SERIAL PRIMARY KEY,
                     doc_id VARCHAR(255) UNIQUE NOT NULL,
+                    course_id INTEGER,
                     title VARCHAR(500),
+                    description TEXT,
                     source_path TEXT,
+                    source_type VARCHAR(50) DEFAULT 'pdf',
+                    file_hash VARCHAR(64),
                     metadata JSONB,
+                    chunks_count INTEGER DEFAULT 0,
+                    total_tokens INTEGER DEFAULT 0,
+                    is_active INTEGER DEFAULT 1,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
             
             # Create chunks table with vector column
-            cursor.execute("""
+            cursor.execute(f"""
                 CREATE TABLE IF NOT EXISTS rag_chunks (
                     id SERIAL PRIMARY KEY,
                     chunk_id VARCHAR(255) UNIQUE NOT NULL,
-                    doc_id VARCHAR(255) NOT NULL,
+                    document_id INTEGER NOT NULL,
                     content TEXT NOT NULL,
                     page_number INTEGER,
                     chunk_type VARCHAR(50),
-                    embedding vector(768),
-                    tokens_count INTEGER,
+                    embedding vector({self.embedding_dimension}),
+                    embedding_dim INTEGER DEFAULT {self.embedding_dimension},
+                    tokens_count INTEGER DEFAULT 0,
                     metadata JSONB,
+                    is_active INTEGER DEFAULT 1,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (doc_id) REFERENCES rag_documents(doc_id) ON DELETE CASCADE
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (document_id) REFERENCES rag_documents(id) ON DELETE CASCADE
                 );
             """)
             
-            # Create index for faster similarity search
+            # Ensure required columns exist for legacy tables
+            cursor.execute("ALTER TABLE rag_documents ADD COLUMN IF NOT EXISTS chunks_count INTEGER DEFAULT 0;")
+            cursor.execute("ALTER TABLE rag_documents ADD COLUMN IF NOT EXISTS total_tokens INTEGER DEFAULT 0;")
+            cursor.execute("ALTER TABLE rag_documents ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;")
+            cursor.execute("ALTER TABLE rag_chunks ADD COLUMN IF NOT EXISTS embedding_dim INTEGER DEFAULT %s;", (self.embedding_dimension,))
+            cursor.execute("ALTER TABLE rag_chunks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;")
+
+            # Create HNSW index for faster similarity search (partial: only non-NULL embeddings)
             cursor.execute("""
-                CREATE INDEX IF NOT EXISTS idx_rag_chunks_embedding 
-                ON rag_chunks USING ivfflat (embedding vector_cosine_ops)
-                WITH (lists = 100);
+                CREATE INDEX IF NOT EXISTS idx_rag_chunks_embedding
+                ON rag_chunks USING hnsw (embedding vector_cosine_ops)
+                WHERE embedding IS NOT NULL;
             """)
             
             self.connection.commit()
@@ -162,52 +187,101 @@ class PostgresVectorStore(VectorStore):
         try:
             cursor = self.connection.cursor()
             
-            # Add document
+            total_tokens = sum(chunk.tokens_count for chunk in chunks)
             cursor.execute("""
-                INSERT INTO rag_documents (doc_id, title, source_path, metadata)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO rag_documents
+                    (doc_id, title, source_path, metadata, chunks_count, total_tokens)
+                VALUES (%s, %s, %s, %s, %s, %s)
                 ON CONFLICT (doc_id) DO UPDATE SET
-                    updated_at = CURRENT_TIMESTAMP;
+                    title = EXCLUDED.title,
+                    source_path = EXCLUDED.source_path,
+                    metadata = EXCLUDED.metadata,
+                    chunks_count = EXCLUDED.chunks_count,
+                    total_tokens = EXCLUDED.total_tokens,
+                    updated_at = CURRENT_TIMESTAMP
+                RETURNING id;
             """, (
                 document.id,
                 document.title,
                 document.source_path,
                 Json(document.metadata),
+                len(chunks),
+                total_tokens,
             ))
+            document_row = cursor.fetchone()
+            if not document_row:
+                raise ValueError("Failed to resolve rag_documents.id for doc_id")
+            document_db_id = document_row[0]
             
             if self.verbose:
                 logger.info(f"[VectorStore] Added document: {document.id}")
             
             # Add chunks
+            inserted_chunks = 0
             for chunk in chunks:
-                # Convert embedding to pgvector format
+                if chunk.metadata.get("is_structural"):
+                    continue
                 embedding_str = None
+                embedding_dim = None
                 if chunk.embedding:
-                    # Convert list to vector string format
+                    if len(chunk.embedding) != self.embedding_dimension:
+                        logger.warning(
+                            "[VectorStore] Skipping chunk %s: embedding dimension mismatch (got %s, expected %s)",
+                            chunk.id,
+                            len(chunk.embedding),
+                            self.embedding_dimension,
+                        )
+                        continue
+                    embedding_dim = len(chunk.embedding)
                     embedding_str = '[' + ','.join(str(x) for x in chunk.embedding) + ']'
-                
+
+                chunk_metadata = dict(chunk.metadata or {})
+                chunk_metadata.update(
+                    {
+                        "parent_id": chunk.parent_id,
+                        "children_ids": chunk.children_ids,
+                        "level": chunk.level,
+                        "start_char": chunk.start_char,
+                        "end_char": chunk.end_char,
+                    }
+                )
+
                 cursor.execute("""
-                    INSERT INTO rag_chunks 
-                    (chunk_id, doc_id, content, page_number, chunk_type, embedding, tokens_count, metadata)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    INSERT INTO rag_chunks
+                        (chunk_id, document_id, content, page_number, chunk_type, embedding, embedding_dim, tokens_count, metadata)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (chunk_id) DO UPDATE SET
+                        document_id = EXCLUDED.document_id,
+                        content = EXCLUDED.content,
+                        page_number = EXCLUDED.page_number,
+                        chunk_type = EXCLUDED.chunk_type,
                         embedding = EXCLUDED.embedding,
+                        embedding_dim = EXCLUDED.embedding_dim,
+                        tokens_count = EXCLUDED.tokens_count,
+                        metadata = EXCLUDED.metadata,
                         updated_at = CURRENT_TIMESTAMP;
                 """, (
                     chunk.id,
-                    document.id,
+                    document_db_id,
                     chunk.content,
                     chunk.page_number,
                     chunk.type.value,
                     embedding_str,
+                    embedding_dim or self.embedding_dimension,
                     chunk.tokens_count,
-                    Json(chunk.metadata),
+                    Json(chunk_metadata),
                 ))
+                inserted_chunks += 1
             
             self.connection.commit()
             
             if self.verbose:
-                logger.info(f"[VectorStore] Added {len(chunks)} chunks for document {document.id}")
+                logger.info(
+                    "[VectorStore] Added %s/%s chunks for document %s",
+                    inserted_chunks,
+                    len(chunks),
+                    document.id,
+                )
             
             return True
             
@@ -238,30 +312,33 @@ class PostgresVectorStore(VectorStore):
             # Convert embedding to pgvector format
             embedding_str = '[' + ','.join(str(x) for x in query_embedding) + ']'
             
-            # Build query
-            where_clause = ""
-            params = [embedding_str, top_k]
-            
+            conditions = ["c.embedding IS NOT NULL", "d.is_active = 1"]
+            params: list[object] = [embedding_str]
+
             if doc_id:
-                where_clause = "WHERE doc_id = %s"
-                params.insert(1, doc_id)
-            
+                conditions.append("d.doc_id = %s")
+                params.append(doc_id)
+
+            where_clause = "WHERE " + " AND ".join(conditions)
+            params.extend([embedding_str, top_k])
+
             query = f"""
-                SELECT 
-                    id,
-                    chunk_id,
-                    doc_id,
-                    content,
-                    page_number,
-                    chunk_type,
-                    (1 - (embedding <=> %s::vector)) as similarity,
-                    metadata
-                FROM rag_chunks
+                SELECT
+                    c.id,
+                    c.chunk_id,
+                    d.doc_id,
+                    c.content,
+                    c.page_number,
+                    c.chunk_type,
+                    (1 - (c.embedding <=> %s::vector)) as similarity,
+                    c.metadata
+                FROM rag_chunks c
+                JOIN rag_documents d ON d.id = c.document_id
                 {where_clause}
-                ORDER BY embedding <=> %s::vector
+                ORDER BY c.embedding <=> %s::vector
                 LIMIT %s;
             """
-            
+
             cursor.execute(query, params)
             results = cursor.fetchall()
             
@@ -339,7 +416,7 @@ class PostgresVectorStore(VectorStore):
                     MIN(c.created_at) as first_created,
                     MAX(c.updated_at) as last_updated
                 FROM rag_documents d
-                LEFT JOIN rag_chunks c ON d.doc_id = c.doc_id
+                LEFT JOIN rag_chunks c ON d.id = c.document_id
                 WHERE d.doc_id = %s
                 GROUP BY d.title;
             """, (doc_id,))
@@ -403,7 +480,10 @@ class InMemoryVectorStore(VectorStore):
             'metadata': document.metadata,
         }
         
+        inserted_chunks = 0
         for chunk in chunks:
+            if chunk.metadata.get("is_structural"):
+                continue
             self.chunks.append({
                 'chunk_id': chunk.id,
                 'doc_id': document.id,
@@ -413,9 +493,14 @@ class InMemoryVectorStore(VectorStore):
                 'embedding': chunk.embedding,
                 'metadata': chunk.metadata,
             })
+            inserted_chunks += 1
         
         if self.verbose:
-            logger.info(f"[VectorStore] Added {len(chunks)} chunks to in-memory store")
+            logger.info(
+                "[VectorStore] Added %s/%s chunks to in-memory store",
+                inserted_chunks,
+                len(chunks),
+            )
         
         return True
     
@@ -446,9 +531,14 @@ class InMemoryVectorStore(VectorStore):
             if chunk_data['embedding']:
                 vec1 = np.array(query_embedding)
                 vec2 = np.array(chunk_data['embedding'])
-                
-                similarity = np.dot(vec1, vec2) / (np.linalg.norm(vec1) * np.linalg.norm(vec2))
-                
+
+                norm1 = np.linalg.norm(vec1)
+                norm2 = np.linalg.norm(vec2)
+                if norm1 == 0 or norm2 == 0:
+                    similarity = 0.0
+                else:
+                    similarity = float(np.dot(vec1, vec2) / (norm1 * norm2))
+
                 results.append({
                     'chunk_id': chunk_data['chunk_id'],
                     'doc_id': chunk_data['doc_id'],

@@ -131,7 +131,7 @@ class HierarchicalChunker:
         Returns:
             Document object with hierarchical chunks
         """
-        doc_id = doc_metadata.get('title', 'document').lower().replace(' ', '_')
+        doc_id = self._safe_doc_id(doc_metadata)
         document = Document(
             id=doc_id,
             title=doc_metadata.get('title', 'Untitled'),
@@ -145,16 +145,53 @@ class HierarchicalChunker:
             logger.info(f"[Chunking] Starting chunking process for: {document.title}")
             logger.info(f"[Chunking] Configuration: chunk_size={self.chunk_size}, overlap={self.chunk_overlap}")
         
-        # Process each page
+        # Create document root chunk
+        doc_chunk = Chunk(
+            id=f"doc_{doc_id}",
+            type=ChunkType.DOCUMENT,
+            content=document.title or doc_id,
+            page_number=0,
+            level=0,
+        )
+        doc_chunk.metadata["is_structural"] = True
+        document.chunks.append(doc_chunk)
+
+        # Process each page as a section
         for page_data in pages:
             page_num = page_data['page_number']
-            text = page_data['text']
-            
+            raw_text = page_data['text'] or ""
+            text = self._normalize_text(raw_text)
+
             if self.verbose:
                 logger.debug(f"[Chunking] Processing page {page_num} ({len(text)} chars)")
-            
-            # Chunk the page text
-            chunks = self._chunk_text(text, page_num, level=0)
+
+            if not text:
+                if self.verbose:
+                    logger.debug(f"[Chunking] Page {page_num} has no text \u2014 skipping (image-based?)")
+                continue
+
+            section_id = f"section_{page_num:03d}"
+            section_chunk = Chunk(
+                id=section_id,
+                type=ChunkType.SECTION,
+                content=text,
+                page_number=page_num,
+                level=1,
+                parent_id=doc_chunk.id,
+            )
+            section_chunk.metadata["is_structural"] = True
+
+            # Chunk the page text into paragraph/sentence chunks
+            chunks = self._chunk_text(
+                text,
+                page_num,
+                level=2,
+                parent_id=section_id,
+            )
+            section_chunk.children_ids = [chunk.id for chunk in chunks]
+            doc_chunk.children_ids.append(section_id)
+
+            document.chunks.append(section_chunk)
             document.chunks.extend(chunks)
         
         if self.verbose:
@@ -169,6 +206,7 @@ class HierarchicalChunker:
         text: str,
         page_num: int,
         level: int = 0,
+        parent_id: Optional[str] = None,
     ) -> list[Chunk]:
         """Chunk text with overlapping windows.
         
@@ -182,44 +220,23 @@ class HierarchicalChunker:
         """
         chunks = []
         
-        # Split by paragraphs first
-        paragraphs = text.split('\n\n')
-        
-        current_chunk_text = ""
-        current_start_char = 0
-        
+        paragraphs = self._split_paragraphs(text)
+        cursor = 0
+
         for paragraph in paragraphs:
-            if not paragraph.strip():
-                continue
-            
-            # If adding this paragraph would exceed chunk size
-            if len(current_chunk_text) + len(paragraph) > self.chunk_size:
-                # Save current chunk if not empty
-                if current_chunk_text.strip():
-                    chunk = self._create_chunk(
-                        content=current_chunk_text.strip(),
-                        page_num=page_num,
-                        level=level,
-                        start_char=current_start_char,
-                    )
-                    chunks.append(chunk)
-                
-                # Start new chunk with overlap
-                overlap_text = current_chunk_text[-self.chunk_overlap:] if len(current_chunk_text) > self.chunk_overlap else ""
-                current_chunk_text = overlap_text + paragraph
-                current_start_char = max(0, len(current_chunk_text) - len(paragraph))
-            else:
-                current_chunk_text += "\n\n" + paragraph if current_chunk_text else paragraph
-        
-        # Add final chunk
-        if current_chunk_text.strip():
-            chunk = self._create_chunk(
-                content=current_chunk_text.strip(),
-                page_num=page_num,
-                level=level,
-                start_char=current_start_char,
-            )
-            chunks.append(chunk)
+            for piece in self._split_long_text(paragraph):
+                start_char = text.find(piece, cursor)
+                if start_char < 0:
+                    start_char = cursor
+                chunk = self._create_chunk(
+                    content=piece,
+                    page_num=page_num,
+                    level=level,
+                    start_char=start_char,
+                    parent_id=parent_id,
+                )
+                chunks.append(chunk)
+                cursor = start_char + len(piece)
         
         return chunks
     
@@ -229,6 +246,7 @@ class HierarchicalChunker:
         page_num: int,
         level: int,
         start_char: int,
+        parent_id: Optional[str] = None,
     ) -> Chunk:
         """Create a chunk object.
         
@@ -244,28 +262,96 @@ class HierarchicalChunker:
         self.chunk_counter += 1
         chunk_id = f"chunk_{page_num:03d}_{self.chunk_counter:04d}"
         
-        # Determine chunk type based on length and content
-        if len(content) < 200:
-            chunk_type = ChunkType.SENTENCE
-        elif len(content) < 500:
-            chunk_type = ChunkType.PARAGRAPH
+        # Determine chunk type based on level and length
+        if level >= 2:
+            if len(content) < 200:
+                chunk_type = ChunkType.SENTENCE
+            else:
+                chunk_type = ChunkType.PARAGRAPH
         else:
-            chunk_type = ChunkType.SECTION
+            if len(content) < 500:
+                chunk_type = ChunkType.PARAGRAPH
+            else:
+                chunk_type = ChunkType.SECTION
         
         chunk = Chunk(
             id=chunk_id,
             type=chunk_type,
             content=content,
             page_number=page_num,
+            parent_id=parent_id,
             level=level,
             start_char=start_char,
             end_char=start_char + len(content),
+        )
+        chunk.metadata.update(
+            {
+                "parent_id": parent_id,
+                "level": level,
+            }
         )
         
         if self.verbose:
             logger.debug(f"[Chunking] Created {chunk_type.value}: {chunk_id} ({len(content)} chars, {chunk.tokens_count} tokens)")
         
         return chunk
+
+    def _safe_doc_id(self, doc_metadata: dict) -> str:
+        title = (doc_metadata.get("title") or "").strip().lower()
+        source_path = (doc_metadata.get("source_path") or "").strip().lower()
+        base = title or Path(source_path).stem or "document"
+        return re.sub(r"[^a-z0-9_\-]+", "_", base).strip("_") or "document"
+
+    def _normalize_text(self, text: str) -> str:
+        cleaned = text.replace("\r\n", "\n").replace("\r", "\n")
+        cleaned = re.sub(r"(?<=\w)-\n(?=\w)", "", cleaned)
+        cleaned = re.sub(r"(?<!\n)\n(?!\n)", " ", cleaned)
+        cleaned = re.sub(r"[ \t]+", " ", cleaned)
+        cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+        return cleaned.strip()
+
+    def _split_paragraphs(self, text: str) -> list[str]:
+        paragraphs = [p.strip() for p in text.split("\n\n") if p.strip()]
+        if not paragraphs and text.strip():
+            return [text.strip()]
+        return paragraphs
+
+    def _split_long_text(self, text: str) -> list[str]:
+        max_chars = min(self.chunk_size, self.max_tokens_per_chunk * 4)
+        if len(text) <= max_chars:
+            return [text]
+
+        sentences = re.split(r"(?<=[.!?])\s+", text)
+        if len(sentences) == 1:
+            return self._split_by_window(text, max_chars)
+
+        chunks: list[str] = []
+        current = ""
+        for sentence in sentences:
+            if not sentence.strip():
+                continue
+            if len(current) + len(sentence) + 1 > max_chars:
+                if current:
+                    chunks.append(current.strip())
+                current = sentence
+            else:
+                current = f"{current} {sentence}".strip()
+        if current:
+            chunks.append(current.strip())
+        return chunks
+
+    def _split_by_window(self, text: str, max_chars: int) -> list[str]:
+        if max_chars <= 0:
+            return [text]
+        chunks: list[str] = []
+        start = 0
+        while start < len(text):
+            end = min(len(text), start + max_chars)
+            chunk = text[start:end].strip()
+            if chunk:
+                chunks.append(chunk)
+            start = max(0, end - self.chunk_overlap)
+        return chunks
     
     def save_chunks(self, document: Document, output_path: str | Path) -> None:
         """Save document and chunks to JSON file.

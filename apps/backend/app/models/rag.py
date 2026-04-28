@@ -1,6 +1,10 @@
 """Database models for RAG system."""
 
 from sqlalchemy import Column, String, Integer, Text, Float, DateTime, ForeignKey, JSON, LargeBinary
+try:
+    from pgvector.sqlalchemy import Vector
+except ImportError:  # pragma: no cover - optional dependency for vector storage
+    Vector = None
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from datetime import datetime
@@ -21,7 +25,7 @@ class RAGDocument(Base):
     source_path = Column(Text, nullable=True)
     source_type = Column(String(50), default="pdf")  # pdf, txt, web, etc.
     file_hash = Column(String(64), nullable=True)  # SHA-256 hash for deduplication
-    metadata = Column(JSON, nullable=True)
+    metadata_json = Column("metadata", JSON, nullable=True)
     chunks_count = Column(Integer, default=0)
     total_tokens = Column(Integer, default=0)
     is_active = Column(Integer, default=1)
@@ -49,8 +53,11 @@ class RAGChunk(Base):
     page_number = Column(Integer, nullable=True)
     chunk_type = Column(String(50), default="section")  # section, paragraph, sentence, etc.
     embedding_dim = Column(Integer, default=768)
-    # Note: For actual vector storage, use pgvector directly or separate vector DB
-    metadata = Column(JSON, nullable=True)
+    if Vector is not None:
+        embedding = Column(Vector(768), nullable=True)
+    else:
+        embedding = Column(LargeBinary, nullable=True)
+    metadata_json = Column("metadata", JSON, nullable=True)
     tokens_count = Column(Integer, default=0)
     is_active = Column(Integer, default=1)
     
@@ -98,7 +105,7 @@ class RAGSearchResult(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     session_id = Column(Integer, ForeignKey("rag_search_sessions.id"), nullable=False)
-    chunk_id = Column(Integer, ForeignKey("rag_chunks.id"), nullable=False)
+    chunk_id = Column(String(255), ForeignKey("rag_chunks.chunk_id"), nullable=False)
     relevance_score = Column(Float, nullable=True)
     rank = Column(Integer, nullable=True)  # Position in results (1, 2, 3, ...)
     was_selected = Column(Integer, default=0)  # Did user click on this result?
@@ -112,7 +119,8 @@ class RAGSearchResult(Base):
     chunk = relationship("RAGChunk", back_populates="search_results")
     
     def __repr__(self):
-        return f"<RAGSearchResult {self.id}: {self.relevance_score:.4f}>"
+        score = f"{self.relevance_score:.4f}" if self.relevance_score is not None else "N/A"
+        return f"<RAGSearchResult {self.id}: {score}>"
 
 
 class RAGIntegration(Base):
