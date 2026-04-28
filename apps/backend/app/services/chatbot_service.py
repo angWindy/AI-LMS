@@ -7,14 +7,19 @@ from datetime import datetime, timezone
 import logging
 import re
 import uuid
+from typing import Any
 
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.ai_interaction import AIConversation, AIMessage
+from app.models.course import Course
+from app.models.lesson import Lesson
+from app.models.rag import RAGDocument
 from llm.config import LLMConfig
 from llm.models import ChatMessage, ImageInput
+from llm.prompts.chatbot import build_lms_chatbot_prompt
 from llm.rag.context_builder import ContextBuilder, DefaultContextBuilder
 from llm.workflows.chatbot import ChatbotResult, ChatbotWorkflow
 
@@ -34,6 +39,18 @@ class ChatbotServiceResult:
     image_used_count: int
 
 
+@dataclass
+class LMSChatScope:
+    """Resolved course/lesson metadata for one chatbot turn."""
+
+    course_id: uuid.UUID | None = None
+    course_title: str | None = None
+    lesson_id: uuid.UUID | None = None
+    lesson_title: str | None = None
+    has_lesson_rag_documents: bool = False
+    has_course_rag_documents: bool = False
+
+
 class ChatbotService:
     """Coordinates prompt assembly and delegates text generation to a provider."""
 
@@ -50,6 +67,7 @@ class ChatbotService:
         self,
         workflow: ChatbotWorkflow | None = None,
         context_builder: ContextBuilder | None = None,
+        rag_service: Any | None = None,
     ) -> None:
         config = LLMConfig(
             provider=settings.LLM_PROVIDER,
@@ -63,6 +81,7 @@ class ChatbotService:
             config=config,
             context_builder=context_builder or DefaultContextBuilder(),
         )
+        self.rag_service = rag_service
 
     def ask(
         self,
@@ -83,14 +102,33 @@ class ChatbotService:
         thinking_level: str | None = None,
     ) -> ChatbotServiceResult:
         """Generate one assistant answer and persist the turn into conversation history."""
+        if conversation_id and (course_id is None or lesson_id is None):
+            existing_conversation = (
+                db.query(AIConversation)
+                .filter(
+                    AIConversation.id == conversation_id,
+                    AIConversation.user_id == user_id,
+                )
+                .first()
+            )
+            if existing_conversation:
+                course_id = course_id or existing_conversation.course_id
+                lesson_id = lesson_id or existing_conversation.lesson_id
+
+        scope = self._resolve_lms_scope(
+            db=db,
+            course_id=course_id,
+            lesson_id=lesson_id,
+        )
+
         conversation = self._get_or_create_conversation(
             db=db,
             user_id=user_id,
             question=question,
             conversation_id=conversation_id,
             conversation_title=conversation_title,
-            course_id=course_id,
-            lesson_id=lesson_id,
+            course_id=scope.course_id,
+            lesson_id=scope.lesson_id,
         )
 
         persisted_history = self._load_conversation_history(db, conversation.id)
@@ -120,11 +158,28 @@ class ChatbotService:
                 len(incoming_teaching_images),
             )
 
+        auto_rag_context = self._build_auto_rag_context(
+            db=db,
+            question=question,
+            scope=scope,
+        )
+        merged_context_docs = [
+            *auto_rag_context,
+            *(context_docs or []),
+        ]
+        effective_system_prompt = _merge_optional_text(
+            system_prompt,
+            build_lms_chatbot_prompt(
+                course_title=scope.course_title,
+                lesson_title=scope.lesson_title,
+            ),
+        )
+
         llm_result = self.workflow.run(
             question=question,
             history=runtime_history,
-            system_prompt=system_prompt,
-            rag_context=context_docs,
+            system_prompt=effective_system_prompt,
+            rag_context=merged_context_docs,
             image_contexts=merged_image_contexts,
             images=prepared_images,
             temperature=temperature,
@@ -142,7 +197,7 @@ class ChatbotService:
             len(incoming_teaching_images) > 0,
             len(incoming_teaching_images),
             len(prepared_images),
-            len(context_docs or []),
+            len(merged_context_docs),
             len(merged_image_contexts),
         )
 
@@ -244,6 +299,167 @@ class ChatbotService:
         )
         rows.reverse()
         return [ChatMessage(role=row.role, content=row.content) for row in rows]
+
+    def _resolve_lms_scope(
+        self,
+        db: Session,
+        course_id: uuid.UUID | None,
+        lesson_id: uuid.UUID | None,
+    ) -> LMSChatScope:
+        """Resolve course/lesson names and RAG document availability."""
+        course: Course | None = None
+        lesson: Lesson | None = None
+
+        if lesson_id:
+            lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
+            if not lesson:
+                raise ValueError("Lesson not found.")
+            if course_id and lesson.course_id != course_id:
+                raise ValueError("Lesson does not belong to the requested course.")
+            course = lesson.course
+            course_id = lesson.course_id
+        elif course_id:
+            course = db.query(Course).filter(Course.id == course_id).first()
+            if not course:
+                raise ValueError("Course not found.")
+
+        has_lesson_rag_documents = False
+        if lesson_id:
+            has_lesson_rag_documents = (
+                db.query(RAGDocument)
+                .filter(
+                    RAGDocument.lesson_id == lesson_id,
+                    RAGDocument.is_active == 1,
+                )
+                .count()
+                > 0
+            )
+
+        has_course_rag_documents = False
+        if course_id:
+            has_course_rag_documents = (
+                db.query(RAGDocument)
+                .filter(
+                    RAGDocument.course_id == course_id,
+                    RAGDocument.lesson_id.is_(None),
+                    RAGDocument.is_active == 1,
+                )
+                .count()
+                > 0
+            )
+
+        return LMSChatScope(
+            course_id=course_id,
+            course_title=course.title if course else None,
+            lesson_id=lesson_id,
+            lesson_title=lesson.title if lesson else None,
+            has_lesson_rag_documents=has_lesson_rag_documents,
+            has_course_rag_documents=has_course_rag_documents,
+        )
+
+    def _build_auto_rag_context(
+        self,
+        db: Session,
+        question: str,
+        scope: LMSChatScope,
+    ) -> list[str]:
+        """Retrieve classroom RAG context with lesson-first priority."""
+        _ = db
+        if not scope.course_id and not scope.lesson_id:
+            return []
+
+        rag_service = self._get_rag_service()
+        contexts: list[str] = []
+        seen_chunks: set[str] = set()
+
+        if scope.lesson_id and scope.has_lesson_rag_documents:
+            lesson_result = rag_service.search(
+                query=question,
+                top_k=4,
+                course_id=str(scope.course_id) if scope.course_id else None,
+                lesson_id=str(scope.lesson_id),
+            )
+            contexts.extend(
+                self._format_rag_results(
+                    label="CONTEXT_CHINH_LESSON",
+                    results=lesson_result.get("results", []),
+                    seen_chunks=seen_chunks,
+                )
+            )
+
+        if scope.course_id and scope.has_course_rag_documents:
+            course_result = rag_service.search(
+                query=question,
+                top_k=2 if scope.has_lesson_rag_documents else 5,
+                course_id=str(scope.course_id),
+                course_only=True,
+            )
+            contexts.extend(
+                self._format_rag_results(
+                    label=(
+                        "CONTEXT_PHU_COURSE"
+                        if scope.has_lesson_rag_documents
+                        else "CONTEXT_CHINH_COURSE"
+                    ),
+                    results=course_result.get("results", []),
+                    seen_chunks=seen_chunks,
+                )
+            )
+
+        return contexts
+
+    def _get_rag_service(self) -> Any:
+        if self.rag_service is not None:
+            return self.rag_service
+
+        from llm.rag.service import get_rag_service
+
+        self.rag_service = get_rag_service(
+            use_postgres=True,
+            verbose=False,
+            initialize_schema=False,
+        )
+        return self.rag_service
+
+    def _format_rag_results(
+        self,
+        label: str,
+        results: Sequence[dict[str, Any]],
+        seen_chunks: set[str],
+    ) -> list[str]:
+        formatted: list[str] = []
+        for index, result in enumerate(results, start=1):
+            chunk_id = str(result.get("chunk_id") or "")
+            if chunk_id and chunk_id in seen_chunks:
+                continue
+            if chunk_id:
+                seen_chunks.add(chunk_id)
+
+            source = (
+                result.get("document_title")
+                or result.get("document_id")
+                or result.get("doc_id")
+                or "Tài liệu LMS"
+            )
+            page_number = result.get("page_number")
+            relevance = result.get("relevance")
+            content = (result.get("content") or "").strip()
+            if not content:
+                continue
+
+            meta_parts = [f"Nguồn: {source}"]
+            if page_number:
+                meta_parts.append(f"trang {page_number}")
+            if isinstance(relevance, (float, int)):
+                meta_parts.append(f"độ phù hợp {float(relevance):.3f}")
+
+            formatted.append(
+                f"[{label} #{index}]\n"
+                f"{'; '.join(meta_parts)}\n"
+                f"{content}"
+            )
+
+        return formatted
 
     def _get_or_create_conversation(
         self,
@@ -378,6 +594,13 @@ def _format_image_context_message(image_contexts: Sequence[str]) -> str:
     lines = ["Image contexts for this turn:"]
     lines.extend(f"- {item}" for item in image_contexts)
     return "\n".join(lines)
+
+
+def _merge_optional_text(primary: str | None, secondary: str | None) -> str | None:
+    parts = [part.strip() for part in [primary, secondary] if part and part.strip()]
+    if not parts:
+        return None
+    return "\n\n".join(parts)
 
 
 def _need_teaching_image_strict(text: str) -> bool:

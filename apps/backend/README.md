@@ -56,3 +56,29 @@ python scripts/test_google_ai_studio.py --question "Hay tra loi ngan gon: thu do
 - Hỗ trợ `conversation_id` để tiếp tục hội thoại theo từng user (mỗi học sinh một thread).
 - Hỗ trợ `teaching_images` (base64 + mime_type) để gửi ảnh màn hình bài giảng trước khi LLM trả lời.
 - Response trả về `context.image_contexts` để hiển thị thông tin ảnh đã dùng trong lượt chat.
+
+### RAG trong phòng học
+
+Khi request có `course_id` / `lesson_id`, backend tự truy xuất RAG và ghép vào prompt:
+
+- Nếu lesson có tài liệu PDF đã index: dùng `CONTEXT_CHINH_LESSON` làm context chính.
+- Nếu course có tài liệu cấp course: dùng `CONTEXT_PHU_COURSE` làm context phụ, chỉ lấy tài liệu có `lesson_id IS NULL`.
+- Nếu lesson chưa có tài liệu: tài liệu cấp course được đánh dấu `CONTEXT_CHINH_COURSE`.
+- System prompt luôn có tên khóa học, tên bài học/phòng học và vai trò trợ giảng.
+
+Request mẫu:
+
+```json
+{
+  "question": "Giải thích ngắn gọn nội dung chính của buổi học này",
+  "course_id": "<course-uuid>",
+  "lesson_id": "<lesson-uuid>"
+}
+```
+
+Kiểm tra nhanh:
+
+```bash
+python -m llm.rag.test_chatbot_classroom_rag
+python -m llm.rag.test_lms_integration
+```

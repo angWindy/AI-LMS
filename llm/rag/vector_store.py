@@ -55,6 +55,7 @@ class VectorStore(ABC):
         doc_id: Optional[str] = None,
         course_id: Optional[str] = None,
         lesson_id: Optional[str] = None,
+        course_only: bool = False,
     ) -> list[dict]:
         """Search for similar chunks (optionally scoped to a course/lesson/document)."""
 
@@ -90,6 +91,7 @@ class PostgresVectorStore(VectorStore):
         password: str = None,
         embedding_dimension: int = 3072,
         verbose: bool = True,
+        initialize_schema: bool = True,
     ):
         """Initialize PostgreSQL vector store.
         
@@ -139,12 +141,14 @@ class PostgresVectorStore(VectorStore):
         
         self.embedding_dimension = embedding_dimension
         self.connection = None
+        self.initialize_schema = initialize_schema
         
         if self.verbose:
             logger.info(f"[VectorStore] Initializing PostgreSQL vector store at {host}:{port}/{database}")
         
         self.connect()
-        self.init_tables()
+        if self.initialize_schema:
+            self.init_tables()
     
     def connect(self) -> None:
         """Connect to PostgreSQL database."""
@@ -163,6 +167,8 @@ class PostgresVectorStore(VectorStore):
         """Initialize vector storage tables."""
         try:
             cursor = self.connection.cursor()
+            cursor.execute("SET LOCAL lock_timeout = '5s';")
+            cursor.execute("SET LOCAL statement_timeout = '30s';")
             
             # Enable pgvector extension
             cursor.execute("CREATE EXTENSION IF NOT EXISTS vector;")
@@ -410,6 +416,7 @@ class PostgresVectorStore(VectorStore):
         doc_id: Optional[str] = None,
         course_id: Optional[str] = None,
         lesson_id: Optional[str] = None,
+        course_only: bool = False,
     ) -> list[dict]:
         """Search for similar chunks using cosine similarity.
 
@@ -419,6 +426,7 @@ class PostgresVectorStore(VectorStore):
             doc_id: Restrict to a single RAG document
             course_id: Restrict to documents of a specific course
             lesson_id: Restrict to documents of a specific lesson
+            course_only: Restrict to course-level documents (lesson_id IS NULL)
         """
         try:
             cursor = self.connection.cursor()
@@ -438,6 +446,8 @@ class PostgresVectorStore(VectorStore):
             if lesson_id:
                 conditions.append("d.lesson_id = %s::uuid")
                 params.append(str(lesson_id))
+            if course_only:
+                conditions.append("d.lesson_id IS NULL")
 
             where_clause = "WHERE " + " AND ".join(conditions)
             params.extend([embedding_str, top_k])
@@ -454,7 +464,8 @@ class PostgresVectorStore(VectorStore):
                     c.metadata,
                     d.course_id,
                     d.lesson_id,
-                    d.material_id
+                    d.material_id,
+                    d.title
                 FROM rag_chunks c
                 JOIN rag_documents d ON d.id = c.document_id
                 {where_clause}
@@ -464,6 +475,7 @@ class PostgresVectorStore(VectorStore):
 
             cursor.execute(query, params)
             results = cursor.fetchall()
+            self.connection.commit()
 
             search_results = []
             for row in results:
@@ -479,6 +491,7 @@ class PostgresVectorStore(VectorStore):
                     'course_id': str(row[8]) if row[8] else None,
                     'lesson_id': str(row[9]) if row[9] else None,
                     'material_id': str(row[10]) if row[10] else None,
+                    'document_title': row[11],
                 })
             
             if self.verbose:
@@ -490,6 +503,7 @@ class PostgresVectorStore(VectorStore):
             
         except psycopg2.Error as e:
             logger.error(f"[VectorStore] Search error: {str(e)}")
+            self.connection.rollback()
             return []
     
     def delete_document(self, document_id: str) -> bool:
@@ -671,6 +685,7 @@ class InMemoryVectorStore(VectorStore):
         doc_id: Optional[str] = None,
         course_id: Optional[str] = None,
         lesson_id: Optional[str] = None,
+        course_only: bool = False,
     ) -> list[dict]:
         import numpy as np
 
@@ -685,6 +700,8 @@ class InMemoryVectorStore(VectorStore):
             if course_id and doc.get('course_id') != course_id:
                 continue
             if lesson_id and doc.get('lesson_id') != lesson_id:
+                continue
+            if course_only and doc.get('lesson_id') is not None:
                 continue
 
             if chunk_data['embedding']:
@@ -705,6 +722,7 @@ class InMemoryVectorStore(VectorStore):
                     'course_id': doc.get('course_id'),
                     'lesson_id': doc.get('lesson_id'),
                     'material_id': doc.get('material_id'),
+                    'document_title': doc.get('title'),
                 })
 
         results.sort(key=lambda x: x['similarity'], reverse=True)

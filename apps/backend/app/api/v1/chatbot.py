@@ -34,7 +34,7 @@ async def list_chatbot_providers(current_user: CurrentUser) -> dict:
 
 
 @router.post("/ask", response_model=ChatbotAskResponse)
-async def ask_chatbot(
+def ask_chatbot(
     db: DBSession,
     payload: ChatbotAskRequest,
     current_user: CurrentUser,

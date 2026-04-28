@@ -143,6 +143,62 @@ Search can be scoped:
 }
 ```
 
+### Classroom Chatbot RAG
+
+`POST /api/v1/chatbot/ask` now performs backend RAG retrieval automatically when `course_id` and/or `lesson_id` are provided. The frontend only needs to send the classroom scope; it does not need to pre-build `context_docs`.
+
+Context priority:
+
+| Condition | Retrieval behavior |
+|-----------|--------------------|
+| Lesson has indexed PDF material | `CONTEXT_CHINH_LESSON`: search only documents where `lesson_id` matches the classroom lesson |
+| Course has course-level indexed PDF material | `CONTEXT_PHU_COURSE`: search only course-level documents where `course_id` matches and `lesson_id IS NULL` |
+| Lesson has no indexed PDF material | course-level results are marked `CONTEXT_CHINH_COURSE` |
+
+The system prompt always includes:
+
+- course title
+- lesson/classroom title
+- assistant role as a teaching assistant for that course
+- instruction to answer in Vietnamese, concise and accurate
+- instruction to prefer lesson context before course context
+
+Example classroom request:
+
+```bash
+curl -X POST http://localhost:8000/api/v1/chatbot/ask \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{
+    "question": "Tóm tắt ngắn gọn ý chính của tài liệu trong buổi học này",
+    "course_id": "<course-uuid>",
+    "lesson_id": "<lesson-uuid>"
+  }'
+```
+
+The response includes `context.rag_context` so you can verify whether the retrieved blocks are labelled `CONTEXT_CHINH_LESSON`, `CONTEXT_PHU_COURSE`, or `CONTEXT_CHINH_COURSE`.
+
+### Delete Cleanup Verification
+
+When a material is deleted from the LMS database via:
+
+- `DELETE /api/v1/lessons/materials/{material_id}`
+- `DELETE /api/v1/courses/materials/{material_id}`
+
+the backend calls `remove_material_index(...)`, which deletes the linked `rag_documents` row by `material_id`. `rag_chunks` are removed by the database foreign key cascade.
+
+Quick SQL check:
+
+```sql
+SELECT doc_id, material_id FROM rag_documents WHERE material_id = '<material-uuid>';
+SELECT c.chunk_id
+FROM rag_chunks c
+JOIN rag_documents d ON d.id = c.document_id
+WHERE d.material_id = '<material-uuid>';
+```
+
+Both queries should return zero rows after deletion.
+
 ### Demo Seed
 
 Create the demo course **"Tư tưởng Hồ Chí Minh"**, two lessons, and six PDF materials from `llm/rag/data_sample/`:
@@ -198,6 +254,10 @@ Stored `chunk_id` values are namespaced by `document_id` to keep chunks from dif
 ## Running Tests
 
 ```bash
+# Classroom chatbot RAG: lesson-primary context, course supplementary context,
+# and course_only vector search behavior
+python -m llm.rag.test_chatbot_classroom_rag
+
 # LMS hierarchy E2E: ingest, course/lesson scoped search, material/lesson/course delete cascade
 python -m llm.rag.test_lms_integration
 

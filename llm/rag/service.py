@@ -25,6 +25,7 @@ class RAGService:
         embedding_service: Optional[EmbeddingService] = None,
         use_postgres: bool = False,
         verbose: bool = True,
+        initialize_schema: bool = True,
     ):
         """Initialize RAG service.
         
@@ -35,6 +36,7 @@ class RAGService:
             verbose: Enable detailed logging
         """
         self.verbose = verbose
+        self.initialize_schema = initialize_schema
         if verbose:
             logger.setLevel(logging.INFO)
         
@@ -62,6 +64,7 @@ class RAGService:
                 self.vector_store = PostgresVectorStore(
                     embedding_dimension=embedding_dim,
                     verbose=verbose,
+                    initialize_schema=initialize_schema,
                 )
                 logger.info("[RAGService] Using PostgreSQL vector store")
             except Exception as e:
@@ -197,12 +200,13 @@ class RAGService:
         document_id: Optional[str] = None,
         course_id: Optional[str] = None,
         lesson_id: Optional[str] = None,
+        course_only: bool = False,
     ) -> Dict:
         """Search for relevant chunks using RAG, optionally scoped to a course/lesson."""
         if self.verbose:
             logger.info(
-                "[RAGService] Searching: %s... (top_k=%s, course=%s, lesson=%s)",
-                query[:100], top_k, course_id, lesson_id,
+                "[RAGService] Searching: %s... (top_k=%s, course=%s, lesson=%s, course_only=%s)",
+                query[:100], top_k, course_id, lesson_id, course_only,
             )
 
         try:
@@ -218,6 +222,7 @@ class RAGService:
                 doc_id=document_id,
                 course_id=course_id,
                 lesson_id=lesson_id,
+                course_only=course_only,
             )
 
             formatted_results = [
@@ -230,6 +235,7 @@ class RAGService:
                     'course_id': r.get('course_id'),
                     'lesson_id': r.get('lesson_id'),
                     'material_id': r.get('material_id'),
+                    'document_title': r.get('document_title'),
                 }
                 for r in results
             ]
@@ -353,12 +359,14 @@ _rag_service: Optional[RAGService] = None
 def get_rag_service(
     use_postgres: bool = False,
     verbose: bool = True,
+    initialize_schema: bool = True,
 ) -> RAGService:
     """Get or create RAG service instance.
     
     Args:
         use_postgres: Use PostgreSQL vector store
         verbose: Enable detailed logging
+        initialize_schema: Run vector-store schema initialization.
         
     Returns:
         RAGService instance
@@ -366,7 +374,11 @@ def get_rag_service(
     global _rag_service
     
     if _rag_service is None:
-        _rag_service = RAGService(use_postgres=use_postgres, verbose=verbose)
+        _rag_service = RAGService(
+            use_postgres=use_postgres,
+            verbose=verbose,
+            initialize_schema=initialize_schema,
+        )
     
     return _rag_service
 
