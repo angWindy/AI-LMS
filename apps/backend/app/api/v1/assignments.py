@@ -189,6 +189,18 @@ async def generate_assignment_draft(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         ) from exc
+    except Exception as exc:
+        logger.exception(
+            "[Error] Unexpected error during assignment draft generation course_id=%s lesson_id=%s question_count=%s error=%s",
+            course_id,
+            payload.lesson_id,
+            payload.question_count,
+            exc,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Tạo assignment bằng AI thất bại: {exc}",
+        ) from exc
 
     max_order = db.query(func.max(Assignment.order_index)).filter(
         Assignment.course_id == course_id

@@ -50,6 +50,11 @@ class AssignmentGeneratorWorkflow:
             # Assignment JSON with 5+ questions can easily exceed 512 output tokens.
             token_budget = min(max(self.config.max_output_tokens, question_count * 650, 3000), 8192)
 
+        metadata = (
+            {"response_mime_type": "application/json"}
+            if self.provider.supports_json_mode
+            else {}
+        )
         request = LLMRequest(
             messages=[
                 ChatMessage(
@@ -65,7 +70,7 @@ class AssignmentGeneratorWorkflow:
             thinking_level=(
                 self.config.thinking_level if thinking_level is None else thinking_level
             ),
-            metadata={"response_mime_type": "application/json"},
+            metadata=metadata,
         )
 
         response = self.provider.generate(request)

@@ -23,6 +23,11 @@ class GoogleGeminiProvider(LLMProvider):
     def provider_name(self) -> str:
         return "google"
 
+    @property
+    def supports_json_mode(self) -> bool:
+        """Gemini models support JSON mode; gemma-* models do not."""
+        return self.config.model.lower().startswith("gemini")
+
     @staticmethod
     def _to_google_role(role: str) -> str:
         if role in {"assistant", "model"}:

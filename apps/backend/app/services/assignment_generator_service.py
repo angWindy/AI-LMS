@@ -1,5 +1,6 @@
 """Service for generating assignment questions from lesson context."""
 import json
+import logging
 import re
 from dataclasses import dataclass
 
@@ -12,6 +13,9 @@ from llm.workflows.assignment_generator import (
     AssignmentGeneratorResult,
     AssignmentGeneratorWorkflow,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -64,21 +68,58 @@ class AssignmentGeneratorService:
 
         course_context = self._build_course_context(course)
         lesson_context = self._build_lesson_context(lesson)
-        llm_result = self.workflow.run(
-            question_count=question_count,
-            course_context=course_context,
-            lesson_context=lesson_context,
-        )
+        try:
+            llm_result = self.workflow.run(
+                question_count=question_count,
+                course_context=course_context,
+                lesson_context=lesson_context,
+            )
+        except Exception:
+            logger.exception(
+                "[Error][AssignmentGeneratorService] LLM call failed course_id=%s lesson_id=%s question_count=%s",
+                getattr(course, "id", None),
+                getattr(lesson, "id", None),
+                question_count,
+            )
+            raise
 
         if not llm_result.text.strip():
-            raise ValueError("LLM returned an empty response.")
+            finish = (llm_result.finish_reason or "").upper()
+            logger.error(
+                "[Error][AssignmentGeneratorService] LLM returned empty response course_id=%s lesson_id=%s question_count=%s provider=%s model=%s finish_reason=%s",
+                getattr(course, "id", None),
+                getattr(lesson, "id", None),
+                question_count,
+                llm_result.provider,
+                llm_result.model,
+                llm_result.finish_reason,
+            )
+            if "RECITATION" in finish or "SAFETY" in finish or "PROHIBITED" in finish:
+                raise RuntimeError(
+                    f"LLM từ chối sinh nội dung do chính sách nội dung (finish_reason={llm_result.finish_reason}). "
+                    "Vui lòng thử lại hoặc điều chỉnh nội dung bài học."
+                )
+            raise RuntimeError("LLM returned an empty response.")
 
-        questions, final_result = self._parse_with_retry(
-            llm_result=llm_result,
-            course_context=course_context,
-            lesson_context=lesson_context,
-            question_count=question_count,
-        )
+        try:
+            questions, final_result = self._parse_with_retry(
+                llm_result=llm_result,
+                course_context=course_context,
+                lesson_context=lesson_context,
+                question_count=question_count,
+            )
+        except ValueError:
+            logger.exception(
+                "[Error][AssignmentGeneratorService] Failed to parse LLM response course_id=%s lesson_id=%s question_count=%s provider=%s model=%s raw_text_preview=%.200r",
+                getattr(course, "id", None),
+                getattr(lesson, "id", None),
+                question_count,
+                llm_result.provider,
+                llm_result.model,
+                llm_result.text,
+            )
+            raise
+
         return AssignmentGenerationServiceResult(
             questions=questions,
             provider=final_result.provider,
