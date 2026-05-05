@@ -13,7 +13,6 @@ import {
   FileText,
   MessageSquare,
   ExternalLink,
-  X,
 } from "lucide-react";
 
 import { Lesson } from "@/lib/api/lessons";
@@ -226,7 +225,7 @@ export default function LessonVideoRoomPage() {
 
     try {
       const captureVideoConstraints: ExtendedDisplayCaptureVideoConstraints = {
-          displaySurface: "browser",
+        displaySurface: "browser",
         frameRate: { max: 5 },
         preferCurrentTab: true,
         selfBrowserSurface: "include",
@@ -292,7 +291,7 @@ export default function LessonVideoRoomPage() {
         return {
           mime_type: "image/jpeg",
           data_base64: dataBase64,
-          description: `Khung hình video \"${lesson?.title || lessonTitle}\" tại ${formatPlaybackTime(video.currentTime)}`,
+          description: `Lesson video frame for \"${lesson?.title || lessonTitle}\" at ${formatPlaybackTime(video.currentTime)}`,
           source: "lesson_video_frame",
         };
       } catch (error) {
@@ -388,7 +387,7 @@ export default function LessonVideoRoomPage() {
       return {
         mime_type: "image/jpeg",
         data_base64: dataBase64,
-        description: `Screenshot video bài giảng \"${lesson?.title || lessonTitle}\"`,
+        description: `Lesson video screenshot for \"${lesson?.title || lessonTitle}\"`,
         source: "lesson_screen_capture",
       };
     } catch (error) {
@@ -533,6 +532,13 @@ export default function LessonVideoRoomPage() {
   const meetingPlatformLabel = getMeetingPlatformLabel(videoSourceKind);
   const isMeetingVideoSource = !!videoSourceKind && isMeetingSource(videoSourceKind);
   const teachingImageCapture = canCaptureTeachingImage ? captureTeachingImage : undefined;
+  const videoFrameClass = isFullscreen ? "h-full w-full" : "w-full aspect-video";
+  const playerShellClass = isFullscreen
+    ? "relative flex h-screen w-screen overflow-hidden bg-black"
+    : "relative w-full overflow-hidden rounded-xl bg-black";
+  const playerPaneClass = isFullscreen
+    ? "relative flex h-full min-w-0 flex-1 items-center justify-center bg-black"
+    : "relative w-full bg-black";
 
   return (
     <div className="space-y-6">
@@ -548,69 +554,73 @@ export default function LessonVideoRoomPage() {
         <span className="text-foreground font-medium">Phòng học video</span>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div className="xl:col-span-3 space-y-4">
-          <div ref={playerWrapperRef} className="relative w-full bg-black rounded-xl overflow-hidden">
-            {lesson.video_url ? (
-              videoSourceKind === "youtube" || videoSourceKind === "vimeo" ? (
-                <iframe
-                  src={getVideoEmbedUrl(lesson.video_url)}
-                  title={lesson.title}
-                  className="w-full aspect-video"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              ) : videoSourceKind === "direct-file" ? (
-                <video
-                  ref={lessonVideoRef}
-                  src={lesson.video_url}
-                  controls
-                  className="w-full aspect-video"
-                />
-              ) : isMeetingVideoSource ? (
-                <div className="aspect-video flex flex-col items-center justify-center gap-4 px-6 text-center text-white/90">
-                  <p className="text-sm md:text-base font-medium">
-                    Bài học đang liên kết với {meetingPlatformLabel}.
-                  </p>
-                  <p className="text-xs md:text-sm text-white/70 max-w-xl">
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
+        <div className="min-w-0 space-y-4">
+          <div ref={playerWrapperRef} className={playerShellClass}>
+            <div className={playerPaneClass}>
+              {lesson.video_url ? (
+                videoSourceKind === "youtube" || videoSourceKind === "vimeo" ? (
+                  <iframe
+                    src={getVideoEmbedUrl(lesson.video_url)}
+                    title={lesson.title}
+                    className={videoFrameClass}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                ) : videoSourceKind === "direct-file" ? (
+                  <video
+                    ref={lessonVideoRef}
+                    src={lesson.video_url}
+                    controls
+                    className={`${videoFrameClass} ${isFullscreen ? "object-contain" : ""}`}
+                  />
+                ) : isMeetingVideoSource ? (
+                  <div className={`${videoFrameClass} flex flex-col items-center justify-center gap-4 px-6 text-center text-white/90`}>
+                    <p className="text-sm md:text-base font-medium">
+                      Bài học đang liên kết với {meetingPlatformLabel}.
+                    </p>
+                    <p className="text-xs md:text-sm text-white/70 max-w-xl">
                       Nguồn {meetingPlatformLabel} không nhúng trực tiếp trong LMS. Hãy mở phòng học bằng nút bên dưới; khi gửi câu hỏi, chatbot có thể yêu cầu quyền screenshot màn hình.
-                  </p>
-                  <Button asChild>
-                    <a href={lesson.video_url} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-4 w-4 mr-2" />
-                      Mở {meetingPlatformLabel}
-                    </a>
-                  </Button>
-                </div>
+                    </p>
+                    <Button asChild>
+                      <a href={lesson.video_url} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Mở {meetingPlatformLabel}
+                      </a>
+                    </Button>
+                  </div>
+                ) : (
+                  <iframe
+                    src={lesson.video_url}
+                    title={lesson.title}
+                    className={videoFrameClass}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                )
               ) : (
-                <iframe
-                  src={lesson.video_url}
-                  title={lesson.title}
-                  className="w-full aspect-video"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              )
-            ) : (
-              <div className="aspect-video flex items-center justify-center text-white/70">
-                Chưa có video cho bài học này.
-              </div>
-            )}
+                <div className={`${videoFrameClass} flex items-center justify-center text-white/70`}>
+                  Chưa có video cho bài học này.
+                </div>
+              )}
+            </div>
 
             {isFullscreen && (
               <>
-                <Button
-                  type="button"
-                  size="icon"
-                  className="absolute bottom-4 right-4 h-11 w-11 rounded-full shadow-lg"
-                  onClick={() => setIsChatbotPopupOpen((prev) => !prev)}
-                  title="Mở chatbot học tập"
-                >
-                  {isChatbotPopupOpen ? <X className="h-5 w-5" /> : <MessageSquare className="h-5 w-5" />}
-                </Button>
+                {!isChatbotPopupOpen && (
+                  <Button
+                    type="button"
+                    size="icon"
+                    className="absolute right-4 top-4 z-30 h-11 w-11 rounded-full shadow-lg"
+                    onClick={() => setIsChatbotPopupOpen(true)}
+                    title="Mở chatbot học tập"
+                  >
+                    <MessageSquare className="h-5 w-5" />
+                  </Button>
+                )}
 
                 {isChatbotPopupOpen && (
-                  <div className="absolute right-4 bottom-20 z-20 w-[350px] max-w-[calc(100%-2rem)]">
+                  <aside className="h-full w-[360px] shrink-0 border-l border-white/10 bg-background shadow-2xl lg:w-[400px]">
                     <ChatWindow
                       courseId={lesson.course_id}
                       lessonId={lesson.id}
@@ -618,8 +628,10 @@ export default function LessonVideoRoomPage() {
                       captureTeachingImage={teachingImageCapture}
                       onClose={() => setIsChatbotPopupOpen(false)}
                       isPopup={true}
+                      fitContainer={true}
+                      className="rounded-none border-0 shadow-none"
                     />
-                  </div>
+                  </aside>
                 )}
               </>
             )}
@@ -661,82 +673,83 @@ export default function LessonVideoRoomPage() {
               </CardContent>
             </Card>
           )}
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Điều hướng nhanh</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Link
+                  href={course ? `/courses/${course.slug}` : courseSlug ? `/courses/${courseSlug}` : "/courses"}
+                  className="w-full border rounded-md px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
+                >
+                  <Video className="h-4 w-4" />
+                  Quay về nội dung khóa học
+                </Link>
+                {lessonAssignments.length > 0 &&
+                  lessonAssignments.map((assignment, assignmentIndex) => (
+                    <Link
+                      key={assignment.id}
+                      href={`/lessons/${lessonId}/assignment?${new URLSearchParams({
+                        courseId: course?.id || courseId || "",
+                        courseSlug: course?.slug || courseSlug || "",
+                        lessonTitle: lesson.title,
+                        assignmentId: assignment.id,
+                      }).toString()}`}
+                      className="w-full border rounded-md px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
+                    >
+                      <ClipboardList className="h-4 w-4" />
+                      {assignment.title || `Đi tới bài tập ${assignmentIndex + 1}`}
+                    </Link>
+                  ))}
+                {isMeetingVideoSource && lesson.video_url && (
+                  <a
+                    href={lesson.video_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full border rounded-md px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    Mở {meetingPlatformLabel}
+                  </a>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Trạng thái video</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p className="flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Chế độ thường: xem ngay trong trang nếu nguồn hỗ trợ nhúng/video trực tiếp.
+                </p>
+                <p className="flex items-center gap-2">
+                  <Maximize className="h-4 w-4" />
+                  Chế độ phóng to: toàn màn hình.
+                </p>
+                <p className="text-xs">
+                  {canCaptureTeachingImage
+                    ? "Chatbot tự động quyết định khi nào cần ảnh bài giảng dựa trên nội dung câu hỏi, rồi chụp frame video hoặc screenshot vùng player."
+                    : "Trình duyệt hiện tại chưa hỗ trợ Screen Capture API, nên chatbot sẽ trả lời bằng ngữ cảnh văn bản."}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        <div className="space-y-4">
+        <aside className="min-h-[560px] xl:sticky xl:top-6 xl:h-[calc(100vh-8rem)]">
           <ChatWindow
             courseId={lesson.course_id}
             lessonId={lesson.id}
             lessonTitle={lesson.title}
             captureTeachingImage={teachingImageCapture}
+            fitContainer={true}
+            className="h-full"
           />
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Điều hướng nhanh</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Link
-                href={course ? `/courses/${course.slug}` : courseSlug ? `/courses/${courseSlug}` : "/courses"}
-                className="w-full border rounded-md px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
-              >
-                <Video className="h-4 w-4" />
-                Quay về nội dung khóa học
-              </Link>
-              {lessonAssignments.length > 0 &&
-                lessonAssignments.map((assignment, assignmentIndex) => (
-                  <Link
-                    key={assignment.id}
-                    href={`/lessons/${lessonId}/assignment?${new URLSearchParams({
-                      courseId: course?.id || courseId || "",
-                      courseSlug: course?.slug || courseSlug || "",
-                      lessonTitle: lesson.title,
-                      assignmentId: assignment.id,
-                    }).toString()}`}
-                    className="w-full border rounded-md px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
-                  >
-                    <ClipboardList className="h-4 w-4" />
-                    {assignment.title || `Đi tới bài tập ${assignmentIndex + 1}`}
-                  </Link>
-                ))}
-              {isMeetingVideoSource && lesson.video_url && (
-                <a
-                  href={lesson.video_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full border rounded-md px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  Mở {meetingPlatformLabel}
-                </a>
-              )}
-              <div className="pt-2 border-t text-xs text-muted-foreground">
-                Tài liệu bài học sẽ được mở trong danh sách nội dung của khóa học.
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Trạng thái video</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p className="flex items-center gap-2">
-                <FileText className="h-4 w-4" />
-                Chế độ thường: xem ngay trong trang nếu nguồn hỗ trợ nhúng/video trực tiếp.
-              </p>
-              <p className="flex items-center gap-2">
-                <Maximize className="h-4 w-4" />
-                Chế độ phóng to: toàn màn hình.
-              </p>
-              <p className="text-xs">
-                {canCaptureTeachingImage
-                  ? "Chatbot tự động quyết định khi nào cần ảnh bài giảng dựa trên nội dung câu hỏi, rồi chụp frame video hoặc screenshot vùng player."
-                  : "Trình duyệt hiện tại chưa hỗ trợ Screen Capture API, nên chatbot sẽ trả lời bằng ngữ cảnh văn bản."}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        </aside>
       </div>
     </div>
   );

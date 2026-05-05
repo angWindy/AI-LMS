@@ -100,6 +100,9 @@ class ChatbotService:
         temperature: float | None = None,
         max_output_tokens: int | None = None,
         thinking_level: str | None = None,
+        reuse_existing_conversation: bool = True,
+        enable_auto_rag: bool = True,
+        append_lms_prompt: bool = True,
     ) -> ChatbotServiceResult:
         """Generate one assistant answer and persist the turn into conversation history."""
         if conversation_id and (course_id is None or lesson_id is None):
@@ -129,6 +132,7 @@ class ChatbotService:
             conversation_title=conversation_title,
             course_id=scope.course_id,
             lesson_id=scope.lesson_id,
+            reuse_existing=reuse_existing_conversation,
         )
 
         persisted_history = self._load_conversation_history(db, conversation.id)
@@ -158,21 +162,29 @@ class ChatbotService:
                 len(incoming_teaching_images),
             )
 
-        auto_rag_context = self._build_auto_rag_context(
-            db=db,
-            question=question,
-            scope=scope,
+        auto_rag_context = (
+            self._build_auto_rag_context(
+                db=db,
+                question=question,
+                scope=scope,
+            )
+            if enable_auto_rag
+            else []
         )
         merged_context_docs = [
             *auto_rag_context,
             *(context_docs or []),
         ]
-        effective_system_prompt = _merge_optional_text(
-            system_prompt,
-            build_lms_chatbot_prompt(
-                course_title=scope.course_title,
-                lesson_title=scope.lesson_title,
-            ),
+        effective_system_prompt = (
+            _merge_optional_text(
+                system_prompt,
+                build_lms_chatbot_prompt(
+                    course_title=scope.course_title,
+                    lesson_title=scope.lesson_title,
+                ),
+            )
+            if append_lms_prompt
+            else system_prompt
         )
 
         llm_result = self.workflow.run(
@@ -381,7 +393,7 @@ class ChatbotService:
             )
             contexts.extend(
                 self._format_rag_results(
-                    label="CONTEXT_CHINH_LESSON",
+                    label="PRIMARY_LESSON_CONTEXT",
                     results=lesson_result.get("results", []),
                     seen_chunks=seen_chunks,
                 )
@@ -397,9 +409,9 @@ class ChatbotService:
             contexts.extend(
                 self._format_rag_results(
                     label=(
-                        "CONTEXT_PHU_COURSE"
+                        "SUPPORTING_COURSE_CONTEXT"
                         if scope.has_lesson_rag_documents
-                        else "CONTEXT_CHINH_COURSE"
+                        else "PRIMARY_COURSE_CONTEXT"
                     ),
                     results=course_result.get("results", []),
                     seen_chunks=seen_chunks,
@@ -439,7 +451,7 @@ class ChatbotService:
                 result.get("document_title")
                 or result.get("document_id")
                 or result.get("doc_id")
-                or "Tài liệu LMS"
+                or "LMS material"
             )
             page_number = result.get("page_number")
             relevance = result.get("relevance")
@@ -447,11 +459,11 @@ class ChatbotService:
             if not content:
                 continue
 
-            meta_parts = [f"Nguồn: {source}"]
+            meta_parts = [f"Source: {source}"]
             if page_number:
-                meta_parts.append(f"trang {page_number}")
+                meta_parts.append(f"page {page_number}")
             if isinstance(relevance, (float, int)):
-                meta_parts.append(f"độ phù hợp {float(relevance):.3f}")
+                meta_parts.append(f"relevance {float(relevance):.3f}")
 
             formatted.append(
                 f"[{label} #{index}]\n"
@@ -470,6 +482,7 @@ class ChatbotService:
         conversation_title: str | None,
         course_id: uuid.UUID | None,
         lesson_id: uuid.UUID | None,
+        reuse_existing: bool = True,
     ) -> AIConversation:
         if conversation_id:
             conversation = (
@@ -502,7 +515,7 @@ class ChatbotService:
             query = query.filter(AIConversation.lesson_id == lesson_id)
 
         conversation = query.order_by(desc(AIConversation.updated_at)).first()
-        if conversation:
+        if conversation and reuse_existing:
             if conversation_title:
                 conversation.title = conversation_title[:255]
             return conversation

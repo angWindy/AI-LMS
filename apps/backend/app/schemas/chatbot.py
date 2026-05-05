@@ -77,6 +77,32 @@ class ChatbotAskRequest(BaseModel):
     thinking_level: Literal["low", "medium", "high"] | None = None
 
 
+class AssignmentChatbotAskRequest(BaseModel):
+    """Ask request payload for assignment support chatbot endpoint."""
+
+    question: str = Field(..., min_length=1)
+    assignment_id: uuid.UUID
+    conversation_id: uuid.UUID | None = None
+    history: list[ChatMessagePayload] = Field(default_factory=list)
+    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
+    max_output_tokens: int | None = Field(default=None, ge=1, le=8192)
+    thinking_level: Literal["low", "medium", "high"] | None = None
+
+
+class AssignmentChatbotPreloadRequest(BaseModel):
+    """Request payload for warming assignment chatbot context."""
+
+    assignment_id: uuid.UUID
+
+
+class AssignmentChatbotPreloadResponse(BaseModel):
+    """Response payload for assignment chatbot context preload."""
+
+    assignment_id: uuid.UUID
+    question_count: int
+    context_length: int
+
+
 class ChatbotAskResponse(BaseModel):
     """Chatbot response payload."""
 

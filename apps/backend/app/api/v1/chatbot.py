@@ -7,6 +7,9 @@ from fastapi import APIRouter, HTTPException, status
 from app.core.config import settings
 from app.core.dependencies import CurrentUser, DBSession
 from app.schemas.chatbot import (
+    AssignmentChatbotAskRequest,
+    AssignmentChatbotPreloadRequest,
+    AssignmentChatbotPreloadResponse,
     ChatbotAskRequest,
     ChatbotAskResponse,
     ChatMessagePayload,
@@ -15,6 +18,7 @@ from app.schemas.chatbot import (
     ConversationSummaryPayload,
     ContextTracePayload,
 )
+from app.services.assignment_chatbot_service import AssignmentChatbotService
 from app.services.chatbot_service import ChatbotService
 from llm.models import ChatMessage
 
@@ -99,6 +103,103 @@ def ask_chatbot(
         image_used_count,
         context_count,
         question_preview,
+    )
+
+    return ChatbotAskResponse(
+        answer=response.result.answer,
+        conversation_id=response.conversation_id,
+        conversation_title=response.conversation_title,
+        provider=response.result.provider,
+        model=response.result.model,
+        finish_reason=response.result.finish_reason,
+        usage=response.result.usage,
+        messages=[
+            ChatMessagePayload(role=message.role, content=message.content)
+            for message in response.result.messages
+        ],
+        context=ContextTracePayload(
+            rag_context=response.result.context.rag_context,
+            image_contexts=response.result.context.image_contexts,
+            merged_context=response.result.context.merged_context,
+        ),
+    )
+
+
+@router.post("/assignment/preload", response_model=AssignmentChatbotPreloadResponse)
+def preload_assignment_chatbot(
+    db: DBSession,
+    payload: AssignmentChatbotPreloadRequest,
+    current_user: CurrentUser,
+) -> AssignmentChatbotPreloadResponse:
+    """Warm sanitized assignment context for the assignment support chatbot."""
+    service = AssignmentChatbotService()
+    try:
+        preload_result = service.preload_context(
+            db=db,
+            user=current_user,
+            assignment_id=payload.assignment_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    logger.info(
+        "[Success] Assignment chatbot context preloaded user=%s assignment_id=%s question_count=%s context_length=%s",
+        current_user.email,
+        preload_result["assignment_id"],
+        preload_result["question_count"],
+        preload_result["context_length"],
+    )
+
+    return AssignmentChatbotPreloadResponse(**preload_result)
+
+
+@router.post("/assignment/ask", response_model=ChatbotAskResponse)
+def ask_assignment_chatbot(
+    db: DBSession,
+    payload: AssignmentChatbotAskRequest,
+    current_user: CurrentUser,
+) -> ChatbotAskResponse:
+    """Generate a guided hint for a learner working on an assignment."""
+    service = AssignmentChatbotService()
+    history = [
+        ChatMessage(role=message.role, content=message.content)
+        for message in payload.history
+    ]
+
+    try:
+        response = service.ask(
+            db=db,
+            user=current_user,
+            assignment_id=payload.assignment_id,
+            question=payload.question,
+            history=history,
+            conversation_id=payload.conversation_id,
+            temperature=payload.temperature,
+            max_output_tokens=payload.max_output_tokens,
+            thinking_level=payload.thinking_level,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except RuntimeError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+
+    logger.info(
+        "[Success] Assignment chatbot ask succeeded user=%s assignment_id=%s conversation_id=%s provider=%s model=%s question=%s",
+        current_user.email,
+        payload.assignment_id,
+        response.conversation_id,
+        response.result.provider,
+        response.result.model,
+        payload.question.strip().replace("\n", " ")[:120],
     )
 
     return ChatbotAskResponse(

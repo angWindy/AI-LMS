@@ -99,12 +99,12 @@ def test_chatbot_context_priority() -> None:
     else:
         fail(f"expected 2 context blocks, got {len(contexts)}")
 
-    if contexts and contexts[0].startswith("[CONTEXT_CHINH_LESSON"):
+    if contexts and contexts[0].startswith("[PRIMARY_LESSON_CONTEXT"):
         ok("lesson context is first and marked as primary")
     else:
         fail("lesson context is not first")
 
-    if len(contexts) > 1 and contexts[1].startswith("[CONTEXT_PHU_COURSE"):
+    if len(contexts) > 1 and contexts[1].startswith("[SUPPORTING_COURSE_CONTEXT"):
         ok("course context is marked as supplementary")
     else:
         fail("course context is not marked as supplementary")
@@ -176,10 +176,10 @@ def test_in_memory_course_only_filter() -> None:
 def test_prompt_allows_inference_without_full_context() -> None:
     prompt = build_lms_chatbot_prompt("Tư tưởng Hồ Chí Minh", "Chương 1: Nguồn gốc")
     required_phrases = [
-        "không được trả lời kiểu xin lỗi",
-        "không nói 'không đủ context'",
-        "tri thức nền của bộ môn",
-        "suy luận từ tên khóa học, tên bài học",
+        "do not apologize",
+        "do not say the system lacks context",
+        "subject-matter knowledge",
+        "course and lesson names",
     ]
     if all(phrase in prompt.lower() for phrase in required_phrases):
         ok("prompt explicitly allows inference when context is incomplete")

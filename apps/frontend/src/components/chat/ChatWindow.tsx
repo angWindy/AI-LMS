@@ -9,12 +9,16 @@ import { chatbotApi, TeachingImagePayload } from "@/lib/api/chatbot";
 import { useChatbotStore, ChatMessage } from "./store";
 
 interface ChatWindowProps {
+  mode?: "lesson" | "assignment";
   courseId?: string;
   lessonId?: string;
   lessonTitle?: string;
+  assignmentId?: string;
+  assignmentTitle?: string;
   onClose?: () => void;
   className?: string;
   isPopup?: boolean;
+  fitContainer?: boolean;
   captureTeachingImage?: () => Promise<TeachingImagePayload | null> | TeachingImagePayload | null;
 }
 
@@ -113,12 +117,16 @@ function ChatMarkdown({ content }: { content: string }) {
 }
 
 export function ChatWindow({
+  mode = "lesson",
   courseId,
   lessonId,
   lessonTitle,
+  assignmentId,
+  assignmentTitle,
   onClose,
   className = "",
   isPopup = false,
+  fitContainer = false,
   captureTeachingImage,
 }: ChatWindowProps) {
   const { messages, setMessages, input, setInput, isLoading, setIsLoading, conversationId, setConversationId } = useChatbotStore();
@@ -151,14 +159,18 @@ export function ChatWindow({
     setIsLoading(true);
 
     try {
+      if (mode === "assignment" && !assignmentId) {
+        throw new Error("Không tìm thấy bài tập để mở trợ lý.");
+      }
+
       const teachingImages: TeachingImagePayload[] = [];
 
-      if (captureTeachingImage) {
+      if (mode === "lesson" && captureTeachingImage) {
         try {
           const capturedImage = await captureTeachingImage();
           if (capturedImage) {
             teachingImages.push(capturedImage);
-            setImageStatus("Đã gửi ảnh bài giảng, backend sẽ tự quyết định có dùng hay không.");
+            setImageStatus("Đã gửi ảnh bài giảng để backend tự quyết định có cần dùng hay không.");
           }
         } catch (captureError) {
           console.error("Cannot capture teaching image:", captureError);
@@ -166,14 +178,20 @@ export function ChatWindow({
         }
       }
 
-      const response = await chatbotApi.ask({
-        question: userText,
-        conversation_id: conversationId,
-        conversation_title: lessonTitle ? `Q&A: ${lessonTitle}` : undefined,
-        course_id: courseId,
-        lesson_id: lessonId,
-        teaching_images: teachingImages.length > 0 ? teachingImages : undefined,
-      });
+      const response = mode === "assignment"
+        ? await chatbotApi.askAssignment({
+            question: userText,
+            assignment_id: assignmentId || "",
+            conversation_id: conversationId,
+          })
+        : await chatbotApi.ask({
+            question: userText,
+            conversation_id: conversationId,
+            conversation_title: lessonTitle ? `Q&A: ${lessonTitle}` : undefined,
+            course_id: courseId,
+            lesson_id: lessonId,
+            teaching_images: teachingImages.length > 0 ? teachingImages : undefined,
+          });
       
       setConversationId(response.conversation_id);
       
@@ -189,7 +207,7 @@ export function ChatWindow({
       const detail = error.response?.data?.detail;
       const content = detail === "GOOGLE_AI_API_KEY is not configured."
         ? "Hệ thống chưa được cấu hình API Key cho Google Gemini. Vui lòng kiểm tra lại thiết lập."
-        : (detail || "Xin lỗi, đã có lỗi xảy ra. Không thể kết nối với hệ thống AI.");
+        : (detail || error.message || "Xin lỗi, đã có lỗi xảy ra. Không thể kết nối với hệ thống AI.");
         
       const errorMsg: ChatMessage = {
         id: Date.now().toString() + "_error",
@@ -215,15 +233,35 @@ export function ChatWindow({
     // better to trigger indirectly or just use setInput
   };
 
+  const title = mode === "assignment" ? "Trợ lý bài tập" : "Trợ lý AI";
+  const subtitle = mode === "assignment"
+    ? (assignmentTitle ? `Bài tập: ${assignmentTitle}` : "Gợi ý khi làm bài")
+    : (lessonTitle ? `Phòng học: ${lessonTitle}` : "Sẵn sàng hỗ trợ");
+  const emptyTitle = mode === "assignment" ? "Bạn đang vướng ở đâu?" : "Bạn cần trợ giúp gì?";
+  const emptyDescription = mode === "assignment"
+    ? "Mô tả phần bạn chưa hiểu để nhận gợi ý từng bước."
+    : "Hỏi về nội dung bài học, thuật ngữ khó hiểu, hoặc yêu cầu tóm tắt.";
+  const quickActions = mode === "assignment"
+    ? [
+        "Gợi ý cách bắt đầu câu này.",
+        "Nhắc lại kiến thức cần dùng cho bài này.",
+      ]
+    : [
+        "Tóm tắt nội dung chính của bài học này.",
+        "Tạo 3 câu hỏi trắc nghiệm dựa trên bài học này.",
+      ];
+
+  const sizeClass = fitContainer ? "h-full min-h-0" : isPopup ? "h-[min(640px,calc(100vh-5rem))]" : "min-h-[560px]";
+
   return (
-    <div className={`flex flex-col bg-background border rounded-xl overflow-hidden shadow-sm ${className}`}>
+    <div className={`flex min-h-0 flex-col overflow-hidden rounded-lg border bg-background shadow-sm ${sizeClass} ${className}`}>
       {/* Header */}
-      <div className="flex items-center justify-between border-b px-4 py-3 bg-muted/30">
+      <div className="flex shrink-0 items-center justify-between border-b bg-muted/30 px-4 py-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-primary" />
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold">Trợ lý AI</span>
-            <span className="text-[10px] text-muted-foreground">{lessonTitle ? `Phòng học: ${lessonTitle}` : "Sẵn sàng hỗ trợ"}</span>
+          <div className="min-w-0 flex flex-col">
+            <span className="text-sm font-semibold">{title}</span>
+            <span className="truncate text-[10px] text-muted-foreground">{subtitle}</span>
           </div>
         </div>
         {isPopup && onClose && (
@@ -234,22 +272,25 @@ export function ChatWindow({
       </div>
 
       {/* Messages list */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef} style={{ minHeight: isPopup ? "300px" : "400px", maxHeight: isPopup ? "400px" : "600px" }}>
+      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4" ref={scrollRef}>
         {messages.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center space-y-3 opacity-70">
             <Sparkles className="h-10 w-10 text-muted-foreground" />
             <div>
-              <p className="text-sm font-medium">Bạn cần trợ giúp gì?</p>
-              <p className="text-xs text-muted-foreground mt-1">Hỏi về nội dung bài học, thuật ngữ khó hiểu, hoặc yêu cầu tóm tắt.</p>
+              <p className="text-sm font-medium">{emptyTitle}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{emptyDescription}</p>
             </div>
             
             <div className="flex flex-wrap gap-2 justify-center mt-4 w-full">
-              <span onClick={() => handleQuickAction("Tóm tắt nội dung chính của bài học này.")} className="text-xs border rounded-full px-3 py-1 cursor-pointer hover:bg-muted transition-colors">
-                Tóm tắt bài học
-              </span>
-              <span onClick={() => handleQuickAction("Tạo 3 câu hỏi trắc nghiệm dựa trên bài học này.")} className="text-xs border rounded-full px-3 py-1 cursor-pointer hover:bg-muted transition-colors">
-                Cho bài tập nhỏ
-              </span>
+              {quickActions.map((action) => (
+                <span
+                  key={action}
+                  onClick={() => handleQuickAction(action)}
+                  className="cursor-pointer rounded-full border px-3 py-1 text-xs transition-colors hover:bg-muted"
+                >
+                  {action}
+                </span>
+              ))}
             </div>
           </div>
         ) : (
@@ -303,9 +344,11 @@ export function ChatWindow({
       </div>
 
       {/* Input area */}
-      <form onSubmit={handleSubmit} className="border-t p-3 bg-background space-y-2">
+      <form onSubmit={handleSubmit} className="shrink-0 border-t bg-background p-3 space-y-2">
         <p className="text-[11px] text-muted-foreground">
-          Rule-based detector chạy ở backend để quyết định có dùng ảnh bài giảng hay không.
+          {mode === "assignment"
+            ? "Trợ lý chỉ đưa gợi ý học tập, không cung cấp đáp án trực tiếp."
+            : "Backend tự quyết định khi nào cần dùng ảnh bài giảng."}
         </p>
 
         {imageStatus && <p className="text-[11px] text-muted-foreground">{imageStatus}</p>}

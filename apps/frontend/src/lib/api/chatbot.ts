@@ -22,10 +22,29 @@ export interface ChatbotAskRequest {
   context_docs?: string[];
   image_contexts?: string[];
   teaching_images?: TeachingImagePayload[];
-  system_prompt?: string;
   temperature?: number;
   max_output_tokens?: number;
   thinking_level?: "low" | "medium" | "high";
+}
+
+export interface AssignmentChatbotAskRequest {
+  question: string;
+  assignment_id: string;
+  conversation_id?: string;
+  history?: ChatMessagePayload[];
+  temperature?: number;
+  max_output_tokens?: number;
+  thinking_level?: "low" | "medium" | "high";
+}
+
+export interface AssignmentChatbotPreloadRequest {
+  assignment_id: string;
+}
+
+export interface AssignmentChatbotPreloadResponse {
+  assignment_id: string;
+  question_count: number;
+  context_length: number;
 }
 
 export interface ChatbotAskResponse {
@@ -65,6 +84,16 @@ export interface ConversationMessagesResponse {
 export const chatbotApi = {
   ask: async (data: ChatbotAskRequest): Promise<ChatbotAskResponse> => {
     const response = await apiClient.post<ChatbotAskRequest, any>("/chatbot/ask", data);
+    return response.data;
+  },
+
+  askAssignment: async (data: AssignmentChatbotAskRequest): Promise<ChatbotAskResponse> => {
+    const response = await apiClient.post<AssignmentChatbotAskRequest, any>("/chatbot/assignment/ask", data);
+    return response.data;
+  },
+
+  preloadAssignment: async (data: AssignmentChatbotPreloadRequest): Promise<AssignmentChatbotPreloadResponse> => {
+    const response = await apiClient.post<AssignmentChatbotPreloadRequest, any>("/chatbot/assignment/preload", data);
     return response.data;
   },
 

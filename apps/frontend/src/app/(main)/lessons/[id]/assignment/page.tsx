@@ -6,11 +6,13 @@ import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Circle, ClipboardList, Loader2, XCircle } from "lucide-react";
 
 import { Lesson } from "@/lib/api/lessons";
-import { assignmentApi, courseApi } from "@/lib/api";
+import { assignmentApi, chatbotApi, courseApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth/store";
 import { Assignment, CourseDetail, UserRole } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ChatWindow } from "@/components/chat/ChatWindow";
+import { useChatbotStore } from "@/components/chat/store";
 
 interface AssignmentLessonContext {
   id: string;
@@ -95,7 +97,16 @@ export default function LessonAssignmentPage() {
     setSelectedAnswers({});
     setIsSubmitted(false);
     setScore(null);
+    useChatbotStore.getState().reset();
   }, [assignment?.id]);
+
+  useEffect(() => {
+    if (!assignment?.id || !isLearner) return;
+
+    chatbotApi.preloadAssignment({ assignment_id: assignment.id }).catch((preloadError) => {
+      console.debug("Assignment chatbot context preload skipped:", preloadError);
+    });
+  }, [assignment?.id, isLearner]);
 
   const orderedQuestions = [...(assignment?.questions || [])].sort((a, b) => a.order_index - b.order_index);
   const answeredCount = Object.keys(selectedAnswers).length;
@@ -159,129 +170,146 @@ export default function LessonAssignmentPage() {
         <span className="text-foreground font-medium">Bài tập</span>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ClipboardList className="h-5 w-5" />
-            Khu vực làm bài tập
-          </CardTitle>
-          <CardDescription>
-            {assignment
-              ? `Bài tập: ${assignment.title}`
-              : canAssignWork
-                ? "Lesson này chưa có bài tập. Hãy giao bài tập từ trang khóa học."
-                : "Bài tập cho lesson này chưa được tạo bởi giáo viên hoặc admin."}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {assignment && isLearner ? (
-            <>
-              <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 text-sm text-muted-foreground">
-                <p>
-                  Đã trả lời {answeredCount}/{totalQuestionCount} câu hỏi.
-                </p>
-                {isSubmitted && score && (
-                  <p className="mt-1 font-medium text-foreground">
-                    Kết quả: {score.correct}/{score.total} câu đúng ({score.percent}%)
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
+        <Card className="min-w-0">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5" />
+              Khu vực làm bài tập
+            </CardTitle>
+            <CardDescription>
+              {assignment
+                ? `Bài tập: ${assignment.title}`
+                : canAssignWork
+                  ? "Lesson này chưa có bài tập. Hãy giao bài tập từ trang khóa học."
+                  : "Bài tập cho lesson này chưa được tạo bởi giáo viên hoặc admin."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {assignment && isLearner ? (
+              <>
+                <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 text-sm text-muted-foreground">
+                  <p>
+                    Đã trả lời {answeredCount}/{totalQuestionCount} câu hỏi.
                   </p>
-                )}
-              </div>
+                  {isSubmitted && score && (
+                    <p className="mt-1 font-medium text-foreground">
+                      Kết quả: {score.correct}/{score.total} câu đúng ({score.percent}%)
+                    </p>
+                  )}
+                </div>
 
-              <div className="space-y-4">
-                {orderedQuestions.map((question, questionIndex) => {
-                  const sortedOptions = [...question.options].sort((a, b) => a.order_index - b.order_index);
-                  const selectedOptionId = selectedAnswers[question.id];
+                <div className="space-y-4">
+                  {orderedQuestions.map((question, questionIndex) => {
+                    const sortedOptions = [...question.options].sort((a, b) => a.order_index - b.order_index);
+                    const selectedOptionId = selectedAnswers[question.id];
 
-                  return (
-                    <div key={question.id} className="rounded-lg border border-slate-200 p-4 space-y-3">
-                      <p className="text-sm font-semibold text-foreground">
-                        Câu {questionIndex + 1}. {question.question_text}
-                      </p>
+                    return (
+                      <div key={question.id} className="rounded-lg border border-slate-200 p-4 space-y-3">
+                        <p className="text-sm font-semibold text-foreground">
+                          Câu {questionIndex + 1}. {question.question_text}
+                        </p>
 
-                      <div className="space-y-2">
-                        {sortedOptions.map((option, optionIndex) => {
-                          const isSelected = selectedOptionId === option.id;
-                          const showCorrect = isSubmitted && option.is_correct;
-                          const showIncorrect = isSubmitted && isSelected && !option.is_correct;
+                        <div className="space-y-2">
+                          {sortedOptions.map((option, optionIndex) => {
+                            const isSelected = selectedOptionId === option.id;
+                            const showCorrect = isSubmitted && option.is_correct;
+                            const showIncorrect = isSubmitted && isSelected && !option.is_correct;
 
-                          const optionClasses = showCorrect
-                            ? "border-emerald-300 bg-emerald-50"
-                            : showIncorrect
-                              ? "border-red-300 bg-red-50"
-                              : isSelected
-                                ? "border-primary bg-primary/5"
-                                : "border-slate-200 bg-white hover:bg-slate-50";
+                            const optionClasses = showCorrect
+                              ? "border-emerald-300 bg-emerald-50"
+                              : showIncorrect
+                                ? "border-red-300 bg-red-50"
+                                : isSelected
+                                  ? "border-primary bg-primary/5"
+                                  : "border-slate-200 bg-white hover:bg-slate-50";
 
-                          return (
-                            <button
-                              key={option.id}
-                              type="button"
-                              disabled={isSubmitted}
-                              onClick={() => handleChooseAnswer(question.id, option.id)}
-                              className={`w-full rounded-md border px-3 py-2 text-left text-sm flex items-center justify-between gap-2 transition-colors ${optionClasses} ${isSubmitted ? "cursor-default" : "cursor-pointer"}`}
-                            >
-                              <span>
-                                {String.fromCharCode(65 + optionIndex)}. {option.option_text}
-                              </span>
-                              {showCorrect ? (
-                                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                              ) : showIncorrect ? (
-                                <XCircle className="h-4 w-4 text-red-600" />
-                              ) : isSelected ? (
-                                <Circle className="h-4 w-4 text-primary" />
-                              ) : null}
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {isSubmitted && (
-                        <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                          Giải thích: {question.explanation?.trim() || "Giáo viên chưa thêm lời giải cho câu hỏi này."}
+                            return (
+                              <button
+                                key={option.id}
+                                type="button"
+                                disabled={isSubmitted}
+                                onClick={() => handleChooseAnswer(question.id, option.id)}
+                                className={`w-full rounded-md border px-3 py-2 text-left text-sm flex items-center justify-between gap-2 transition-colors ${optionClasses} ${isSubmitted ? "cursor-default" : "cursor-pointer"}`}
+                              >
+                                <span>
+                                  {String.fromCharCode(65 + optionIndex)}. {option.option_text}
+                                </span>
+                                {showCorrect ? (
+                                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                ) : showIncorrect ? (
+                                  <XCircle className="h-4 w-4 text-red-600" />
+                                ) : isSelected ? (
+                                  <Circle className="h-4 w-4 text-primary" />
+                                ) : null}
+                              </button>
+                            );
+                          })}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
 
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={handleSubmit}
-                  disabled={isSubmitted || answeredCount !== totalQuestionCount || totalQuestionCount === 0}
-                >
-                  Nộp bài
-                </Button>
-                {isSubmitted && (
+                        {isSubmitted && (
+                          <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                            Giải thích: {question.explanation?.trim() || "Giáo viên chưa thêm lời giải cho câu hỏi này."}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="flex items-center gap-2">
                   <Button
-                    variant="outline"
-                    onClick={() => {
-                      setSelectedAnswers({});
-                      setIsSubmitted(false);
-                      setScore(null);
-                    }}
+                    onClick={handleSubmit}
+                    disabled={isSubmitted || answeredCount !== totalQuestionCount || totalQuestionCount === 0}
                   >
-                    Làm lại
+                    Nộp bài
                   </Button>
-                )}
-              </div>
-            </>
-          ) : assignment && canAssignWork ? (
-            <p className="text-sm text-muted-foreground">
-              Bạn đang ở vai trò giảng viên/admin. Học sinh sẽ làm bài tại trang này, còn bạn giao bài tập từ màn hình chi tiết khóa học.
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              {canAssignWork
-                ? "Lesson này chưa có bài tập. Hãy quay lại khóa học để tạo assignment cho lesson này."
-                : "Giáo viên hoặc admin cần tạo assignment cho lesson này trước khi học sinh có thể truy cập trang làm bài."}
-            </p>
-          )}
-          <Button asChild variant="outline">
-            <Link href={course ? `/courses/${course.slug}` : courseSlug ? `/courses/${courseSlug}` : "/courses"}>Quay về nội dung khóa học</Link>
-          </Button>
-        </CardContent>
-      </Card>
+                  {isSubmitted && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedAnswers({});
+                        setIsSubmitted(false);
+                        setScore(null);
+                      }}
+                    >
+                      Làm lại
+                    </Button>
+                  )}
+                </div>
+              </>
+            ) : assignment && canAssignWork ? (
+              <p className="text-sm text-muted-foreground">
+                Bạn đang ở vai trò giảng viên/admin. Học sinh sẽ làm bài tại trang này, còn bạn giao bài tập từ màn hình chi tiết khóa học.
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {canAssignWork
+                  ? "Lesson này chưa có bài tập. Hãy quay lại khóa học để tạo assignment cho lesson này."
+                  : "Giáo viên hoặc admin cần tạo assignment cho lesson này trước khi học sinh có thể truy cập trang làm bài."}
+              </p>
+            )}
+            <Button asChild variant="outline">
+              <Link href={course ? `/courses/${course.slug}` : courseSlug ? `/courses/${courseSlug}` : "/courses"}>Quay về nội dung khóa học</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
+        {assignment && (
+          <aside className="min-h-[560px] xl:sticky xl:top-6 xl:h-[calc(100vh-8rem)]">
+            <ChatWindow
+              mode="assignment"
+              courseId={course?.id || courseId || undefined}
+              lessonId={lesson.id}
+              lessonTitle={lesson.title}
+              assignmentId={assignment.id}
+              assignmentTitle={assignment.title}
+              fitContainer={true}
+              className="h-full"
+            />
+          </aside>
+        )}
+      </div>
     </div>
   );
 }
