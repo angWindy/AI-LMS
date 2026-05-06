@@ -1215,10 +1215,21 @@ client.enroll_course(course_id)
 - `GET /api/v1/materials/{material_id}` - Get material
 - `DELETE /api/v1/materials/{material_id}` - Delete material
 
-### AI Chatbot (Future)
-- `POST /api/v1/ai/conversations` - Start conversation
-- `POST /api/v1/ai/conversations/{id}/messages` - Send message
-- `GET /api/v1/ai/conversations/{id}` - Get conversation history
+### AI Chatbot
+
+The backend now exposes LMS-aware chatbot endpoints for both lesson video rooms and assignment support:
+
+- `POST /api/v1/chatbot/ask` - General lesson/video classroom chatbot
+- `POST /api/v1/chatbot/assignment/preload` - Warm and validate sanitized assignment context
+- `POST /api/v1/chatbot/assignment/ask` - Guided assignment helper that uses assignment content only
+- `GET /api/v1/chatbot/conversations` - List chatbot conversations for the current user
+- `GET /api/v1/chatbot/conversations/{conversation_id}/messages` - Get conversation history
+
+Important notes:
+
+- Assignment chatbot context is intentionally limited to course title, lesson title, and the visible assignment questions/options.
+- Answer keys and explanations are not sent to the model.
+- Lesson/video chatbot can still use course/lesson scoped RAG and teaching images.
 
 ---
 

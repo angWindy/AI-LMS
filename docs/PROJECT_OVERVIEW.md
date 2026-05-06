@@ -9,7 +9,7 @@ AI-LMS is a Learning Management System built with:
 
 ## 🎯 Project Status
 
-### ✅ Completed (95%)
+### ✅ Completed (97%)
 
 **Backend Infrastructure**
 - FastAPI API with 49+ endpoints
@@ -25,6 +25,8 @@ AI-LMS is a Learning Management System built with:
 - Lesson management: Create, Edit, Video playback (YouTube/Vimeo)
 - Materials: Upload/Download for teachers, View for students
 - Progress tracking: Video position saved automatically
+- Lesson video room with responsive chatbot sidebar and fullscreen split-view
+- Assignment page with a dedicated learner helper chatbot
 - Responsive UI with shadcn/ui components
 
 **Core Features**
@@ -34,9 +36,10 @@ AI-LMS is a Learning Management System built with:
 - Course Management: Full CRUD with enrollment/unenrollment
 - Lessons: CRUD + materials (upload/download) + video embed
 - Assignments: CRUD + submissions + grading
+- AI support chat for lesson videos and assignment help
 - Progress Tracking: Per-lesson and course-wide
 
-**API Endpoints**: 49/70 (70%)
+**API Endpoints**: 51+/70
 - Authentication (7/7) ✅
 - Users (8/8) ✅
 - Courses (12/12) ✅
@@ -44,11 +47,11 @@ AI-LMS is a Learning Management System built with:
 - Materials (3/3) ✅
 - Assignments (6/6) ✅
 - Submissions (5/5) ✅
+- Chatbot (3+ endpoints) ✅
 
 ### 🔄 In Progress
 
-**AI Features**: 0% (Phase 3)
-- Chatbot assistant
+**AI Features**: in progress
 - Personalized recommendations
 - Progress analytics
 
@@ -158,8 +161,8 @@ Via Swagger UI at `/api/docs`:
 ## 📋 Next Steps (Phase 3)
 
 1. Admin panel (full user management)
-2. AI chatbot integration
-3. Assignment submission UI
+2. Assignment submission UI
+3. Personalized recommendations
 4. Progress analytics dashboard
 5. Performance optimization
 6. Unit tests
@@ -187,5 +190,5 @@ Via Swagger UI at `/api/docs`:
 
 ---
 
-**Status**: Phase 2 Complete (95%)  
-**Last Updated**: 2026-03-31
+**Status**: Phase 2 Complete (97%)  
+**Last Updated**: 2026-05-06

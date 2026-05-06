@@ -71,7 +71,7 @@ npm run dev
 | File Upload | ✅ 100% | Videos, docs, images |
 | **Frontend** | ✅ **100%** | **Next.js 14 + shadcn/ui** |
 | Testing | ⚠️ 30% | Manual tested |
-| AI Features | ❌ 0% | Phase 2 |
+| AI Features | ✅ Partially delivered | Lesson/video chatbot + assignment helper |
 
 ## 👥 Documentation by Role
 
@@ -94,5 +94,5 @@ docs/
 
 ---
 
-**Last Updated**: 2026-03-31  
-**Status**: MVP Phase 1 (85% complete) - Frontend Complete! 🎉
+**Last Updated**: 2026-05-06  
+**Status**: MVP Phase 1 (updated) - AI helpers partially delivered

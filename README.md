@@ -17,7 +17,12 @@ A scalable Learning Management System built with FastAPI, Next.js, and PostgreSQ
 - ✅ Frontend with Next.js + shadcn/ui
 - ✅ **RAG System** — PDF ingestion, Vietnamese semantic search, Gemini embeddings, automatic LMS material indexing
 
-### Phase 2 (Planned)
+### AI Features
+- Lesson video chatbot with lesson/course-scoped context and teaching-image support
+- Assignment helper chatbot with sanitized assignment context and session tracking
+- RAG-backed lesson support for indexed course and lesson materials
+
+### Still Planned
 - Video streaming optimization
 - Analytics dashboard
 - Notification system
@@ -134,6 +139,8 @@ make migrate
 | Dashboard | `/dashboard` | Role-based dashboard |
 | Courses | `/courses` | Browse all courses |
 | Course Detail | `/courses/[slug]` | View course with lessons |
+| Lesson Video Room | `/lessons/[id]/video` | Watch lesson video with side chatbot |
+| Lesson Assignment | `/lessons/[id]/assignment` | Work on homework with guided chatbot |
 | Create Course | `/courses/create` | Instructor: create course |
 | My Courses | `/courses/my` | Instructor: manage courses |
 | Enrolled | `/courses/enrolled` | Learner: enrolled courses |
@@ -388,4 +395,4 @@ See [PROGRESS_TRACKING.md](./PROGRESS_TRACKING.md) for detailed progress trackin
 ---
 
 **Built with ❤️ for online education**  
-**Version**: 1.0.0-beta | **Last Updated**: 2026-04-28
+**Version**: 1.0.0-beta | **Last Updated**: 2026-05-06

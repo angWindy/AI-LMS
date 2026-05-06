@@ -48,23 +48,39 @@ python scripts/test_google_ai_studio.py --question "Hay tra loi ngan gon: thu do
 ## API chatbot
 
 - Endpoint: `POST /api/v1/chatbot/ask`
+- Endpoint: `POST /api/v1/chatbot/assignment/preload`
+- Endpoint: `POST /api/v1/chatbot/assignment/ask`
 - Endpoint: `GET /api/v1/chatbot/conversations`
 - Endpoint: `GET /api/v1/chatbot/conversations/{conversation_id}/messages`
 - Yêu cầu đăng nhập (Bearer token)
 - Google provider dùng SDK chính thức `google-genai`
 - Thiết kế theo provider abstraction để sau này có thể mở rộng sang vLLM/OpenAI và tích hợp RAG.
-- Hỗ trợ `conversation_id` để tiếp tục hội thoại theo từng user (mỗi học sinh một thread).
-- Hỗ trợ `teaching_images` (base64 + mime_type) để gửi ảnh màn hình bài giảng trước khi LLM trả lời.
+- Hỗ trợ `conversation_id` để tiếp tục hội thoại theo từng user.
+- Hỗ trợ `teaching_images` (base64 + mime_type) cho chatbot phòng học video.
 - Response trả về `context.image_contexts` để hiển thị thông tin ảnh đã dùng trong lượt chat.
 
-### RAG trong phòng học
+### Chatbot phòng học video
 
-Khi request có `course_id` / `lesson_id`, backend tự truy xuất RAG và ghép vào prompt:
+Luồng này dùng cho trang học video online:
 
-- Nếu lesson có tài liệu PDF đã index: dùng `CONTEXT_CHINH_LESSON` làm context chính.
-- Nếu course có tài liệu cấp course: dùng `CONTEXT_PHU_COURSE` làm context phụ, chỉ lấy tài liệu có `lesson_id IS NULL`.
-- Nếu lesson chưa có tài liệu: tài liệu cấp course được đánh dấu `CONTEXT_CHINH_COURSE`.
+- Backend tự ghép `course_id` / `lesson_id` vào prompt và context.
+- Khi request có `course_id` / `lesson_id`, backend tự truy xuất RAG theo lesson trước, course sau.
+- Nếu lesson có tài liệu PDF đã index: dùng `PRIMARY_LESSON_CONTEXT` làm context chính.
+- Nếu course có tài liệu cấp course: dùng `SUPPORTING_COURSE_CONTEXT` làm context phụ.
+- Nếu lesson chưa có tài liệu: course-level context được đánh dấu `PRIMARY_COURSE_CONTEXT`.
 - System prompt luôn có tên khóa học, tên bài học/phòng học và vai trò trợ giảng.
+
+### Chatbot hỗ trợ làm bài tập
+
+Luồng này dùng cho trang làm bài của học sinh:
+
+- Frontend gửi `assignment_id` và câu hỏi hiện tại.
+- Backend preload và cache context bài tập khi học sinh vào trang.
+- Mỗi lượt hỏi chỉ dùng dữ liệu bài tập đã lọc: tên khóa học, tên bài học, số thứ tự câu hỏi, nội dung câu hỏi, 4 lựa chọn.
+- Backend không gửi `is_correct`, `explanation`, hay prompt LMS chung vào LLM.
+- Phiên làm việc được khóa theo assignment để tránh trộn lịch sử giữa các bài khác nhau.
+
+### RAG trong phòng học
 
 Request mẫu:
 
