@@ -100,7 +100,14 @@ class GoogleGeminiProvider(LLMProvider):
         if response_mime_type:
             config_kwargs["response_mime_type"] = response_mime_type
 
-        thinking_config = self._build_thinking_config(request.thinking_level)
+        thinking_config = None
+        if model.lower().startswith("gemini"):
+            thinking_config = self._build_thinking_config(request.thinking_level)
+        elif request.thinking_level:
+            logger.debug(
+                "[Debug][Gemini] Ignoring thinking_level for model=%s (unsupported)",
+                model,
+            )
         if thinking_config is not None:
             config_kwargs["thinking_config"] = thinking_config
 

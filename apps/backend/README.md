@@ -30,7 +30,12 @@ Nguyên tắc tổ chức:
 LLM_PROVIDER=google
 LLM_MODEL=gemini-3.1-flash-lite-preview
 LLM_TEMPERATURE=0.1
-LLM_THINKING_LEVEL=low
+LLM_MAX_OUTPUT_TOKENS=512
+# LLM_THINKING_LEVEL chỉ áp dụng cho Gemini models
+# - gemini-3.1-flash-lite-preview
+# - gemini-2.5-flash
+# Với gemma-4-31b-it thì để trống
+# LLM_THINKING_LEVEL=low
 GOOGLE_AI_API_KEY=your_google_ai_studio_key
 ```
 

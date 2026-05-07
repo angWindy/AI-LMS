@@ -200,6 +200,19 @@ DB_NAME=ailms
 API_HOST=0.0.0.0
 API_PORT=8000
 SECRET_KEY=your-secret-key
+
+# LLM (Google Gemini)
+LLM_PROVIDER=google
+LLM_MODEL=gemini-3.1-flash-lite-preview
+LLM_TEMPERATURE=0.1
+LLM_MAX_OUTPUT_TOKENS=512
+# LLM_THINKING_LEVEL applies to Gemini models only
+# - gemini-3.1-flash-lite-preview
+# - gemini-2.5-flash
+# Leave empty for gemma-4-31b-it
+# LLM_THINKING_LEVEL=low
+GOOGLE_AI_API_KEY=your_google_ai_studio_key
+GOOGLE_AI_ENDPOINT=https://generativelanguage.googleapis.com/v1beta
 ```
 
 ---
