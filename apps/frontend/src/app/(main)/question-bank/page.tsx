@@ -245,8 +245,8 @@ export default function QuestionBankPage() {
       alert("Vui lòng chọn khóa học và buổi học để tạo câu hỏi.");
       return;
     }
-    if (generateCount < 1 || generateCount > 20) {
-      alert("Số lượng câu hỏi cần nằm trong khoảng từ 1 đến 20.");
+    if (generateCount < 1 || generateCount > 100) {
+      alert("Số lượng câu hỏi cần nằm trong khoảng từ 1 đến 100.");
       return;
     }
 
@@ -488,7 +488,7 @@ export default function QuestionBankPage() {
                 <Input
                   type="number"
                   min={1}
-                  max={20}
+                  max={100}
                   value={generateCount}
                   onChange={(event) => setGenerateCount(Number(event.target.value))}
                 />
@@ -529,7 +529,7 @@ export default function QuestionBankPage() {
             <Button variant="outline" onClick={() => setShowGenerateDialog(false)} disabled={isGenerating}>
               Hủy
             </Button>
-            <Button onClick={generateQuestions} disabled={isGenerating || !generateLessonId || generateCount < 1 || generateCount > 20}>
+            <Button onClick={generateQuestions} disabled={isGenerating || !generateLessonId || generateCount < 1 || generateCount > 100}>
               {isGenerating ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

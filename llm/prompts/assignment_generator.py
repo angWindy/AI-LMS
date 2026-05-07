@@ -32,9 +32,10 @@ Strict output rules:
 6. correct_answer must exactly match one and only one option string.
 7. explanation must be present for every question.
 8. explanation must be concise and direct, focused on key knowledge to help students understand.
-9. type must always be "text".
-10. Questions should align with the lesson and course context below.
-11. Avoid duplicate questions and avoid ambiguous answer keys.
+9. Questions must be short and direct, avoiding filler or verbosity.
+10. type must always be "text".
+11. Questions should align with the lesson and course context below.
+12. Avoid duplicate questions and avoid ambiguous answer keys.
 
 Course context:
 {course_context}

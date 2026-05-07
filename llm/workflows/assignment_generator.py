@@ -45,10 +45,8 @@ class AssignmentGeneratorWorkflow:
             course_context=course_context,
             lesson_context=lesson_context,
         )
-        token_budget = max_output_tokens
-        if token_budget is None:
-            # Assignment JSON with 5+ questions can easily exceed 512 output tokens.
-            token_budget = min(max(self.config.max_output_tokens, question_count * 650, 3000), 8192)
+        # Disable output token caps for question generation unless explicitly overridden.
+        token_budget = None if max_output_tokens is None else max_output_tokens
 
         metadata = (
             {"response_mime_type": "application/json"}

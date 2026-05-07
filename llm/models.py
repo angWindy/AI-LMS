@@ -28,7 +28,7 @@ class LLMRequest:
     messages: list[ChatMessage]
     system_prompt: str | None = None
     temperature: float = 0.1
-    max_output_tokens: int = 512
+    max_output_tokens: int | None = 512
     thinking_level: str | None = None
     images: list[ImageInput] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)

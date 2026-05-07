@@ -92,9 +92,10 @@ class GoogleGeminiProvider(LLMProvider):
 
         config_kwargs: dict = {
             "temperature": request.temperature,
-            "max_output_tokens": request.max_output_tokens,
             "system_instruction": request.system_prompt,
         }
+        if request.max_output_tokens is not None:
+            config_kwargs["max_output_tokens"] = request.max_output_tokens
 
         response_mime_type = request.metadata.get("response_mime_type")
         if response_mime_type:
