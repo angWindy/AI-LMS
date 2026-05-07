@@ -112,6 +112,6 @@ class QuestionBankGenerateRequest(BaseModel):
 
     course_id: uuid.UUID
     lesson_id: uuid.UUID
-    question_count: int = Field(..., ge=1, le=20)
+    question_count: int = Field(..., ge=1, le=100)
     difficulty: QuestionDifficulty = QuestionDifficulty.EASY
     purpose_type: QuestionPurposeType = QuestionPurposeType.SHARED

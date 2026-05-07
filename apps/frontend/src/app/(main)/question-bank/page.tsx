@@ -42,6 +42,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 const ALL_LESSONS_VALUE = "all";
+const MAX_GENERATE_COUNT = 100;
 
 const difficultyLabels: Record<QuestionDifficulty, string> = {
   [QuestionDifficulty.EASY]: "Dễ",
@@ -245,8 +246,8 @@ export default function QuestionBankPage() {
       alert("Vui lòng chọn khóa học và buổi học để tạo câu hỏi.");
       return;
     }
-    if (generateCount < 1 || generateCount > 100) {
-      alert("Số lượng câu hỏi cần nằm trong khoảng từ 1 đến 100.");
+    if (generateCount < 1 || generateCount > MAX_GENERATE_COUNT) {
+      alert(`Số lượng câu hỏi cần nằm trong khoảng từ 1 đến ${MAX_GENERATE_COUNT}.`);
       return;
     }
 
@@ -488,7 +489,7 @@ export default function QuestionBankPage() {
                 <Input
                   type="number"
                   min={1}
-                  max={100}
+                  max={MAX_GENERATE_COUNT}
                   value={generateCount}
                   onChange={(event) => setGenerateCount(Number(event.target.value))}
                 />
@@ -529,7 +530,10 @@ export default function QuestionBankPage() {
             <Button variant="outline" onClick={() => setShowGenerateDialog(false)} disabled={isGenerating}>
               Hủy
             </Button>
-            <Button onClick={generateQuestions} disabled={isGenerating || !generateLessonId || generateCount < 1 || generateCount > 100}>
+            <Button
+              onClick={generateQuestions}
+              disabled={isGenerating || !generateLessonId || generateCount < 1 || generateCount > MAX_GENERATE_COUNT}
+            >
               {isGenerating ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

@@ -31,7 +31,7 @@ class AssignmentGenerationServiceResult:
 class AssignmentGeneratorService:
     """Build prompt context and normalize generated assignment questions."""
 
-    MAX_QUESTION_COUNT = 20
+    MAX_QUESTION_COUNT = 100
     RETRY_MAX_OUTPUT_TOKENS = 8192
 
     def __init__(self, workflow: AssignmentGeneratorWorkflow | None = None) -> None:
