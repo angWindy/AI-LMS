@@ -366,11 +366,14 @@ export default function QuestionBankPage() {
       {error && <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       <div className="rounded-lg border bg-white">
-        <div className="grid grid-cols-[40px_minmax(0,1fr)] gap-3 border-b px-4 py-3 text-xs font-medium uppercase text-muted-foreground md:grid-cols-[48px_minmax(0,1fr)_140px_180px]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
+          <p className="text-sm font-medium text-slate-900">Danh sách câu hỏi</p>
+          <Badge variant="outline">{questions.length} câu hỏi</Badge>
+        </div>
+        <div className="grid grid-cols-[40px_minmax(0,1fr)] gap-3 border-b px-4 py-3 text-xs font-medium uppercase text-muted-foreground md:grid-cols-[48px_minmax(0,1fr)_140px]">
           <span />
           <span>Câu hỏi</span>
           <span className="hidden md:block">Mức độ</span>
-          <span className="hidden md:block">Buổi học</span>
         </div>
 
         {isLoading || isQuestionsLoading ? (
@@ -386,16 +389,13 @@ export default function QuestionBankPage() {
               const isExpanded = expandedQuestionIds.has(question.id);
               return (
                 <div key={question.id}>
-                  <div className="grid grid-cols-[40px_minmax(0,1fr)] gap-3 px-4 py-3 md:grid-cols-[48px_minmax(0,1fr)_140px_180px]">
+                  <div className="grid grid-cols-[40px_minmax(0,1fr)] gap-3 px-4 py-3 md:grid-cols-[48px_minmax(0,1fr)_140px]">
                     <Button variant="ghost" size="icon" onClick={() => toggleExpanded(question.id)} aria-label="Mở chi tiết câu hỏi">
                       {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                     </Button>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-slate-900">{question.question_text}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {question.course_title}
-                        <span className="md:hidden"> · {question.lesson_title || "Chung khóa học"}</span>
-                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">{question.course_title}</p>
                       <div className="mt-2 flex md:hidden">
                         <Badge variant={question.difficulty === QuestionDifficulty.HARD ? "destructive" : "secondary"}>
                           {difficultyLabels[question.difficulty]}
@@ -407,7 +407,6 @@ export default function QuestionBankPage() {
                         {difficultyLabels[question.difficulty]}
                       </Badge>
                     </div>
-                    <p className="hidden text-sm text-muted-foreground md:block">{question.lesson_title || "Chung khóa học"}</p>
                   </div>
 
                   {isExpanded && (
@@ -432,6 +431,10 @@ export default function QuestionBankPage() {
                           </div>
                         </div>
                         <div className="space-y-3">
+                          <div>
+                            <p className="text-xs font-medium uppercase text-muted-foreground">Buổi học</p>
+                            <p className="mt-1 text-sm text-slate-700">{question.lesson_title || "Chung khóa học"}</p>
+                          </div>
                           <div className="flex flex-wrap gap-2">
                             <Badge variant="outline">{purposeLabels[question.purpose_type]}</Badge>
                             <Badge variant="outline">{difficultyLabels[question.difficulty]}</Badge>
