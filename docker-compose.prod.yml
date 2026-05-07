@@ -28,7 +28,7 @@ services:
     environment:
       - DATABASE_URL=postgresql://${DB_USER:-lms_user}:${DB_PASSWORD:-lms_password}@db:5432/${DB_NAME:-lms_db}
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
-      - CORS_ORIGINS=http://localhost,http://localhost:80,http://nginx
+      - CORS_ORIGINS=http://localhost,http://localhost:80,http://localhost:3000,http://nginx
       - STORAGE_PATH=/app/storage
       - MAX_DOCUMENT_SIZE_MB=${MAX_DOCUMENT_SIZE_MB:-100}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}

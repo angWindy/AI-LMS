@@ -2,9 +2,10 @@
 Assignment models.
 """
 import uuid
+import enum
 from typing import TYPE_CHECKING, List
 
-from sqlalchemy import String, Boolean, Text, Integer, ForeignKey
+from sqlalchemy import String, Boolean, Text, Integer, ForeignKey, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -15,6 +16,22 @@ if TYPE_CHECKING:
     from app.models.course import Course
     from app.models.lesson import Lesson
     from app.models.submission import Submission
+
+
+class QuestionDifficulty(str, enum.Enum):
+    """Question difficulty levels."""
+
+    EASY = "easy"
+    MEDIUM = "medium"
+    HARD = "hard"
+
+
+class QuestionPurposeType(str, enum.Enum):
+    """Question intended usage type."""
+
+    PRACTICE = "practice"
+    ASSESSMENT = "assessment"
+    SHARED = "shared"
 
 
 class Assignment(Base, TimestampMixin):
@@ -82,6 +99,18 @@ class AssignmentQuestion(Base, TimestampMixin):
     )
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
     explanation: Mapped[str | None] = mapped_column(Text, nullable=True)
+    difficulty: Mapped[QuestionDifficulty] = mapped_column(
+        Enum(QuestionDifficulty),
+        default=QuestionDifficulty.EASY,
+        nullable=False,
+        index=True,
+    )
+    purpose_type: Mapped[QuestionPurposeType] = mapped_column(
+        Enum(QuestionPurposeType),
+        default=QuestionPurposeType.SHARED,
+        nullable=False,
+        index=True,
+    )
     order_index: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     assignment: Mapped["Assignment"] = relationship("Assignment", back_populates="questions")

@@ -80,6 +80,8 @@ def add_questions_to_assignment(db: DBSession, assignment: Assignment, questions
             assignment_id=assignment.id,
             question_text=question_data.question_text,
             explanation=question_data.explanation,
+            difficulty=question_data.difficulty,
+            purpose_type=question_data.purpose_type,
             order_index=question_index,
         )
         db.add(question)

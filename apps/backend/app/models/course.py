@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from app.models.material import Material
     from app.models.enrollment import Enrollment
     from app.models.assignment import Assignment
+    from app.models.question_bank import QuestionBankQuestion
 
 
 class CourseStatus(str, enum.Enum):
@@ -88,6 +89,13 @@ class Course(Base, TimestampMixin):
         back_populates="course",
         cascade="all, delete-orphan",
         order_by="Material.order_index",
+        lazy="selectin",
+    )
+    question_bank_questions: Mapped[List["QuestionBankQuestion"]] = relationship(
+        "QuestionBankQuestion",
+        back_populates="course",
+        cascade="all, delete-orphan",
+        order_by="QuestionBankQuestion.order_index",
         lazy="selectin",
     )
 

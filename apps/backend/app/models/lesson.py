@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from app.models.material import Material
     from app.models.lesson_progress import LessonProgress
     from app.models.assignment import Assignment
+    from app.models.question_bank import QuestionBankQuestion
 
 
 class Lesson(Base, TimestampMixin):
@@ -61,6 +62,11 @@ class Lesson(Base, TimestampMixin):
     )
     assignments: Mapped[List["Assignment"]] = relationship(
         "Assignment",
+        back_populates="lesson",
+        lazy="selectin",
+    )
+    question_bank_questions: Mapped[List["QuestionBankQuestion"]] = relationship(
+        "QuestionBankQuestion",
         back_populates="lesson",
         lazy="selectin",
     )

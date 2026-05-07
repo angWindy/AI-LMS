@@ -123,6 +123,8 @@ export interface AssignmentQuestion {
   assignment_id: string;
   question_text: string;
   explanation?: string | null;
+  difficulty: QuestionDifficulty;
+  purpose_type: QuestionPurposeType;
   order_index: number;
   options: AssignmentOption[];
   created_at: string;
@@ -135,6 +137,52 @@ export interface AssignmentOption {
   option_text: string;
   is_correct: boolean;
   order_index: number;
+  created_at: string;
+  updated_at: string;
+}
+
+// Question bank types
+export enum QuestionDifficulty {
+  EASY = "easy",
+  MEDIUM = "medium",
+  HARD = "hard",
+}
+
+export enum QuestionPurposeType {
+  PRACTICE = "practice",
+  ASSESSMENT = "assessment",
+  SHARED = "shared",
+}
+
+export interface QuestionBankCourse {
+  id: string;
+  title: string;
+  slug: string;
+  instructor_id: string;
+}
+
+export interface QuestionBankOption {
+  id: string;
+  question_id: string;
+  option_text: string;
+  is_correct: boolean;
+  order_index: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface QuestionBankQuestion {
+  id: string;
+  course_id: string;
+  lesson_id?: string | null;
+  question_text: string;
+  explanation?: string | null;
+  difficulty: QuestionDifficulty;
+  purpose_type: QuestionPurposeType;
+  order_index: number;
+  course_title: string;
+  lesson_title?: string | null;
+  options: QuestionBankOption[];
   created_at: string;
   updated_at: string;
 }

@@ -1203,6 +1203,12 @@ client.enroll_course(course_id)
 - `GET /api/v1/assignments/{assignment_id}` - Get assignment
 - `PUT /api/v1/assignments/{assignment_id}` - Update assignment
 - `DELETE /api/v1/assignments/{assignment_id}` - Delete assignment
+- `GET /api/v1/question-bank/courses` - List courses visible to the question bank
+- `GET /api/v1/question-bank/questions` - List reusable questions, filter by course/lesson
+- `POST /api/v1/question-bank/questions` - Create a reusable question manually
+- `POST /api/v1/question-bank/generate` - Generate reusable lesson questions with LLM
+- `PUT /api/v1/question-bank/questions/{question_id}` - Update reusable question details
+- `DELETE /api/v1/question-bank/questions/{question_id}` - Delete reusable question
 
 ### Submissions
 - `POST /api/v1/submissions` - Submit assignment

@@ -25,6 +25,12 @@ Welcome to the AI-LMS documentation! Quick links to get started.
 - Request/response formats
 - Error handling
 
+### 🧠 [QUESTION_BANK.md](QUESTION_BANK.md)
+**Question Bank**
+- Reusable course/lesson questions
+- Difficulty and purpose metadata
+- Follow-up notes for assignment/test reuse
+
 ### 🚢 [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
 **Deployment Instructions**
 - Development setup
@@ -88,11 +94,12 @@ docs/
 ├── README.md (you are here)
 ├── PROJECT_OVERVIEW.md
 ├── SETUP_GUIDE.md
+├── QUESTION_BANK.md
 ├── API_DOCUMENTATION.md
 └── DEPLOYMENT_GUIDE.md ✅ NEW
 ```
 
 ---
 
-**Last Updated**: 2026-05-06  
+**Last Updated**: 2026-05-07
 **Status**: MVP Phase 1 (updated) - AI helpers partially delivered

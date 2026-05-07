@@ -8,6 +8,8 @@ from app.models.material import Material, MaterialType
 from app.models.enrollment import Enrollment, EnrollmentStatus
 from app.models.lesson_progress import LessonProgress
 from app.models.assignment import Assignment, AssignmentQuestion, AssignmentOption
+from app.models.assignment import QuestionDifficulty, QuestionPurposeType
+from app.models.question_bank import QuestionBankQuestion, QuestionBankOption
 from app.models.submission import Submission, SubmissionStatus
 from app.models.ai_interaction import AIConversation, AIMessage
 from app.models.refresh_token import RefreshToken
@@ -34,6 +36,10 @@ __all__ = [
     "Assignment",
     "AssignmentQuestion",
     "AssignmentOption",
+    "QuestionDifficulty",
+    "QuestionPurposeType",
+    "QuestionBankQuestion",
+    "QuestionBankOption",
     "Submission",
     "SubmissionStatus",
     "AIConversation",

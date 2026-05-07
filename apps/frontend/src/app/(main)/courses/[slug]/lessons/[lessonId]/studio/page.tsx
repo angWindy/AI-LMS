@@ -6,9 +6,7 @@ import Link from "next/link";
 import {
   ArrowLeft,
   ChevronRight,
-  ClipboardList,
   Eye,
-  FileText,
   Link2,
   Loader2,
   Plus,
@@ -86,11 +84,6 @@ export default function LessonStudioPage() {
   const [assignmentTitle, setAssignmentTitle] = useState("");
   const [assignmentQuestions, setAssignmentQuestions] = useState<AssignmentEditorQuestion[]>([]);
   const [isSavingAssignment, setIsSavingAssignment] = useState(false);
-
-  const [showGenerateAssignmentDialog, setShowGenerateAssignmentDialog] = useState(false);
-  const [assignmentDraftTitle, setAssignmentDraftTitle] = useState("");
-  const [assignmentQuestionCount, setAssignmentQuestionCount] = useState(5);
-  const [isGeneratingAssignment, setIsGeneratingAssignment] = useState(false);
 
   const [isPublishingAssignmentId, setIsPublishingAssignmentId] = useState<string | null>(null);
   const [deletingAssignmentId, setDeletingAssignmentId] = useState<string | null>(null);
@@ -480,31 +473,6 @@ export default function LessonStudioPage() {
     }
   };
 
-  const handleGenerateAssignmentDraft = async () => {
-    if (!course || !lesson) return;
-    if (assignmentQuestionCount < 1 || assignmentQuestionCount > 20) {
-      alert("Số lượng câu hỏi cần nằm trong khoảng từ 1 đến 20.");
-      return;
-    }
-
-    setIsGeneratingAssignment(true);
-    try {
-      const created = await assignmentApi.generateDraft(course.id, {
-        lesson_id: lesson.id,
-        question_count: assignmentQuestionCount,
-        title: assignmentDraftTitle.trim() || undefined,
-      });
-
-      setLessonAssignments((prev) => [...prev, created].sort((a, b) => a.order_index - b.order_index));
-      setShowGenerateAssignmentDialog(false);
-      handleOpenAssignmentDialog(created);
-    } catch (err: any) {
-      alert(err.response?.data?.detail || "Tạo assignment bằng AI thất bại");
-    } finally {
-      setIsGeneratingAssignment(false);
-    }
-  };
-
   const handlePublishAssignment = async (assignmentId: string) => {
     setIsPublishingAssignmentId(assignmentId);
     try {
@@ -671,14 +639,6 @@ export default function LessonStudioPage() {
                   <Button variant="outline" onClick={() => handleOpenAssignmentDialog()}>
                     <Plus className="h-4 w-4 mr-2" />
                     Tạo thủ công
-                  </Button>
-                  <Button onClick={() => {
-                    setAssignmentDraftTitle(`${lesson.title} - Bài tập AI`);
-                    setAssignmentQuestionCount(5);
-                    setShowGenerateAssignmentDialog(true);
-                  }}>
-                    <ClipboardList className="h-4 w-4 mr-2" />
-                    Tạo bằng AI
                   </Button>
                 </div>
               </div>
@@ -1000,68 +960,6 @@ export default function LessonStudioPage() {
                 <>
                   <Upload className="h-4 w-4 mr-2" />
                   Đăng tài liệu
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={showGenerateAssignmentDialog} onOpenChange={setShowGenerateAssignmentDialog}>
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Tạo Assignment bằng AI</DialogTitle>
-            <DialogDescription>Lesson: {lesson.title}</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="assignment-draft-title">Tiêu đề assignment</Label>
-              <Input
-                id="assignment-draft-title"
-                value={assignmentDraftTitle}
-                onChange={(e) => setAssignmentDraftTitle(e.target.value)}
-                placeholder="Ví dụ: Bài tập buổi 1"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="assignment-question-count">Số lượng câu hỏi (1-20)</Label>
-              <Input
-                id="assignment-question-count"
-                type="number"
-                min={1}
-                max={20}
-                value={assignmentQuestionCount}
-                onChange={(e) => {
-                  const nextValue = Number(e.target.value);
-                  setAssignmentQuestionCount(Number.isNaN(nextValue) ? 0 : nextValue);
-                }}
-              />
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowGenerateAssignmentDialog(false)}
-              disabled={isGeneratingAssignment}
-            >
-              Hủy
-            </Button>
-            <Button
-              onClick={handleGenerateAssignmentDraft}
-              disabled={isGeneratingAssignment || assignmentQuestionCount < 1 || assignmentQuestionCount > 20}
-            >
-              {isGeneratingAssignment ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Đang tạo bằng AI...
-                </>
-              ) : (
-                <>
-                  <ClipboardList className="h-4 w-4 mr-2" />
-                  Tạo assignment nháp
                 </>
               )}
             </Button>

@@ -7,6 +7,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.models.assignment import QuestionDifficulty, QuestionPurposeType
+
 
 class AssignmentOptionBase(BaseModel):
     """Option payload for a multiple-choice question."""
@@ -36,6 +38,8 @@ class AssignmentQuestionBase(BaseModel):
 
     question_text: str
     explanation: Optional[str] = None
+    difficulty: QuestionDifficulty = QuestionDifficulty.EASY
+    purpose_type: QuestionPurposeType = QuestionPurposeType.SHARED
 
 
 class AssignmentQuestionCreate(AssignmentQuestionBase):
