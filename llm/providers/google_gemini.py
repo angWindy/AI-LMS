@@ -4,6 +4,7 @@ import logging
 import time
 
 from google import genai
+from google.genai import errors as genai_errors
 from google.genai import types
 
 from llm.config import LLMConfig
@@ -16,6 +17,8 @@ logger = logging.getLogger(__name__)
 
 class GoogleGeminiProvider(LLMProvider):
     """Google AI Studio provider implementation."""
+
+    MAX_RETRIES = 2
 
     def __init__(self, config: LLMConfig) -> None:
         self.config = config
@@ -83,6 +86,16 @@ class GoogleGeminiProvider(LLMProvider):
             return None
         return types.ThinkingConfig(thinking_level=thinking_level)
 
+    @staticmethod
+    def _is_retryable_error(exc: Exception) -> bool:
+        if isinstance(exc, genai_errors.ServerError):
+            return True
+        status_code = getattr(exc, "status_code", None)
+        if status_code and int(status_code) >= 500:
+            return True
+        message = str(exc).upper()
+        return "INTERNAL" in message or "UNAVAILABLE" in message or "TIMEOUT" in message
+
     def generate(self, request: LLMRequest) -> LLMResponse:
         if not self.config.google_api_key:
             logger.error("[Error][Gemini] GOOGLE_AI_API_KEY is not configured")
@@ -137,27 +150,39 @@ class GoogleGeminiProvider(LLMProvider):
             response_mime_type,
         )
 
-        start_time = time.monotonic()
-        try:
-            response = client.models.generate_content(
-                model=model,
-                contents=contents,
-                config=config,
-            )
-        except Exception as exc:
-            elapsed_ms = int((time.monotonic() - start_time) * 1000)
-            logger.exception(
-                "[Error][Gemini] Request failed model=%s messages=%s images=%s temperature=%s max_output_tokens=%s thinking_level=%s duration_ms=%s error=%s",
-                model,
-                len(request.messages),
-                len(request.images),
-                request.temperature,
-                request.max_output_tokens,
-                request.thinking_level,
-                elapsed_ms,
-                exc,
-            )
-            raise RuntimeError(f"Google AI Studio request failed: {exc}") from exc
+        response = None
+        request_start = time.monotonic()
+        for attempt in range(self.MAX_RETRIES + 1):
+            attempt_start = time.monotonic()
+            try:
+                response = client.models.generate_content(
+                    model=model,
+                    contents=contents,
+                    config=config,
+                )
+                break
+            except Exception as exc:
+                attempt_ms = int((time.monotonic() - attempt_start) * 1000)
+                retryable = attempt < self.MAX_RETRIES and self._is_retryable_error(exc)
+                logger.exception(
+                    "[Error][Gemini] Request failed model=%s messages=%s images=%s temperature=%s max_output_tokens=%s thinking_level=%s duration_ms=%s attempt=%s retryable=%s error=%s",
+                    model,
+                    len(request.messages),
+                    len(request.images),
+                    request.temperature,
+                    request.max_output_tokens,
+                    request.thinking_level,
+                    attempt_ms,
+                    attempt + 1,
+                    retryable,
+                    exc,
+                )
+                if not retryable:
+                    raise RuntimeError(f"Google AI Studio request failed: {exc}") from exc
+                time.sleep(min(2 ** attempt, 8))
+
+        if response is None:
+            raise RuntimeError("Google AI Studio request failed: empty response after retries.")
 
         text = (response.text or "").strip()
         candidates = response.candidates or []
@@ -174,7 +199,7 @@ class GoogleGeminiProvider(LLMProvider):
             "total_tokens": int(getattr(usage_metadata, "total_token_count", 0) or 0),
         }
 
-        elapsed_ms = int((time.monotonic() - start_time) * 1000)
+        elapsed_ms = int((time.monotonic() - request_start) * 1000)
         logger.info(
             "[Success][Gemini] Response model=%s finish_reason=%s prompt_tokens=%s completion_tokens=%s total_tokens=%s duration_ms=%s has_image_input=%s image_input_count=%s",
             model,
