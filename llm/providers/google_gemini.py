@@ -1,6 +1,7 @@
 """Google Gemini provider via the official google-genai SDK."""
 
 import logging
+import time
 
 from google import genai
 from google.genai import types
@@ -87,7 +88,17 @@ class GoogleGeminiProvider(LLMProvider):
             logger.error("[Error][Gemini] GOOGLE_AI_API_KEY is not configured")
             raise ValueError("GOOGLE_AI_API_KEY is not configured.")
 
-        client = genai.Client(api_key=self.config.google_api_key)
+        timeout_seconds = request.metadata.get("request_timeout_seconds")
+        if timeout_seconds is None:
+            timeout_seconds = self.config.request_timeout_seconds
+
+        http_options = None
+        if timeout_seconds is not None:
+            safe_seconds = max(float(timeout_seconds), 10.0)
+            timeout_ms = int(safe_seconds * 1000)
+            http_options = types.HttpOptions(timeout=timeout_ms)
+
+        client = genai.Client(api_key=self.config.google_api_key, http_options=http_options)
         model = self.config.model
 
         config_kwargs: dict = {
@@ -126,6 +137,7 @@ class GoogleGeminiProvider(LLMProvider):
             response_mime_type,
         )
 
+        start_time = time.monotonic()
         try:
             response = client.models.generate_content(
                 model=model,
@@ -133,14 +145,16 @@ class GoogleGeminiProvider(LLMProvider):
                 config=config,
             )
         except Exception as exc:
+            elapsed_ms = int((time.monotonic() - start_time) * 1000)
             logger.exception(
-                "[Error][Gemini] Request failed model=%s messages=%s images=%s temperature=%s max_output_tokens=%s thinking_level=%s error=%s",
+                "[Error][Gemini] Request failed model=%s messages=%s images=%s temperature=%s max_output_tokens=%s thinking_level=%s duration_ms=%s error=%s",
                 model,
                 len(request.messages),
                 len(request.images),
                 request.temperature,
                 request.max_output_tokens,
                 request.thinking_level,
+                elapsed_ms,
                 exc,
             )
             raise RuntimeError(f"Google AI Studio request failed: {exc}") from exc
@@ -160,13 +174,15 @@ class GoogleGeminiProvider(LLMProvider):
             "total_tokens": int(getattr(usage_metadata, "total_token_count", 0) or 0),
         }
 
+        elapsed_ms = int((time.monotonic() - start_time) * 1000)
         logger.info(
-            "[Success][Gemini] Response model=%s finish_reason=%s prompt_tokens=%s completion_tokens=%s total_tokens=%s has_image_input=%s image_input_count=%s",
+            "[Success][Gemini] Response model=%s finish_reason=%s prompt_tokens=%s completion_tokens=%s total_tokens=%s duration_ms=%s has_image_input=%s image_input_count=%s",
             model,
             finish_reason,
             usage["prompt_tokens"],
             usage["completion_tokens"],
             usage["total_tokens"],
+            elapsed_ms,
             len(request.images or []) > 0,
             len(request.images or []),
         )

@@ -368,13 +368,17 @@ export default function QuestionBankPage() {
 
       <div className="rounded-lg border bg-white">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
-          <p className="text-sm font-medium text-slate-900">Danh sách câu hỏi</p>
+          <div>
+            <p className="text-sm font-medium text-slate-900">Danh sách câu hỏi</p>
+            <p className="text-xs text-muted-foreground">Đã lọc {questions.length} câu hỏi.</p>
+          </div>
           <Badge variant="outline">{questions.length} câu hỏi</Badge>
         </div>
-        <div className="grid grid-cols-[40px_minmax(0,1fr)] gap-3 border-b px-4 py-3 text-xs font-medium uppercase text-muted-foreground md:grid-cols-[48px_minmax(0,1fr)_140px]">
+        <div className="grid grid-cols-[40px_minmax(0,1fr)_72px] gap-3 border-b px-4 py-3 text-xs font-medium uppercase text-muted-foreground md:grid-cols-[48px_minmax(0,1fr)_140px_120px]">
           <span />
           <span>Câu hỏi</span>
           <span className="hidden md:block">Mức độ</span>
+          <span className="text-right">Thao tác</span>
         </div>
 
         {isLoading || isQuestionsLoading ? (
@@ -390,7 +394,7 @@ export default function QuestionBankPage() {
               const isExpanded = expandedQuestionIds.has(question.id);
               return (
                 <div key={question.id}>
-                  <div className="grid grid-cols-[40px_minmax(0,1fr)] gap-3 px-4 py-3 md:grid-cols-[48px_minmax(0,1fr)_140px]">
+                  <div className="grid grid-cols-[40px_minmax(0,1fr)_72px] gap-3 px-4 py-3 md:grid-cols-[48px_minmax(0,1fr)_140px_120px]">
                     <Button variant="ghost" size="icon" onClick={() => toggleExpanded(question.id)} aria-label="Mở chi tiết câu hỏi">
                       {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                     </Button>
@@ -407,6 +411,14 @@ export default function QuestionBankPage() {
                       <Badge variant={question.difficulty === QuestionDifficulty.HARD ? "destructive" : "secondary"}>
                         {difficultyLabels[question.difficulty]}
                       </Badge>
+                    </div>
+                    <div className="flex items-start justify-end gap-2">
+                      <Button variant="ghost" size="icon" onClick={() => openEditDialog(question)} aria-label="Sửa câu hỏi">
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => deleteQuestion(question)} aria-label="Xóa câu hỏi">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
 
@@ -440,16 +452,7 @@ export default function QuestionBankPage() {
                             <Badge variant="outline">{purposeLabels[question.purpose_type]}</Badge>
                             <Badge variant="outline">{difficultyLabels[question.difficulty]}</Badge>
                           </div>
-                          <div className="flex flex-wrap gap-2">
-                            <Button variant="outline" size="sm" onClick={() => openEditDialog(question)}>
-                              <Edit3 className="h-4 w-4 mr-2" />
-                              Sửa
-                            </Button>
-                            <Button variant="destructive" size="sm" onClick={() => deleteQuestion(question)}>
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              Xóa
-                            </Button>
-                          </div>
+                          <div className="flex flex-wrap gap-2" />
                         </div>
                       </div>
                     </div>

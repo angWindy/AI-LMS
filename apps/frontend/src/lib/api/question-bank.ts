@@ -55,7 +55,9 @@ export const questionBankApi = {
   },
 
   generateQuestions: async (data: QuestionBankGenerateData): Promise<QuestionBankQuestion[]> => {
-    const response = await apiClient.post("/question-bank/generate", data, { timeout: 120000 });
+    const response = await apiClient.post("/question-bank/generate", data, {
+      timeout: 30 * 60 * 1000,
+    });
     return response.data;
   },
 

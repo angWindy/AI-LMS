@@ -48,11 +48,9 @@ class AssignmentGeneratorWorkflow:
         # Disable output token caps for question generation unless explicitly overridden.
         token_budget = None if max_output_tokens is None else max_output_tokens
 
-        metadata = (
-            {"response_mime_type": "application/json"}
-            if self.provider.supports_json_mode
-            else {}
-        )
+        metadata = {"request_timeout_seconds": 1800}
+        if self.provider.supports_json_mode:
+            metadata["response_mime_type"] = "application/json"
         request = LLMRequest(
             messages=[
                 ChatMessage(

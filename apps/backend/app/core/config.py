@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     LLM_TEMPERATURE: float = 0.1
     LLM_MAX_OUTPUT_TOKENS: int = 512
     LLM_THINKING_LEVEL: str | None = None
+    LLM_REQUEST_TIMEOUT_SECONDS: int = 180
     GOOGLE_AI_API_KEY: str | None = None
     GOOGLE_AI_ENDPOINT: str = "https://generativelanguage.googleapis.com/v1beta"
 

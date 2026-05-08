@@ -39,7 +39,7 @@ export const assignmentApi = {
   generateDraft: async (courseId: string, data: AssignmentGenerateDraftData): Promise<Assignment> => {
     const response = await apiClient.post("/assignments/generate-draft", data, {
       params: { course_id: courseId },
-      timeout: 120000,
+      timeout: 30 * 60 * 1000,
     });
     return response.data;
   },

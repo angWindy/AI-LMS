@@ -41,6 +41,7 @@ class AssignmentGeneratorService:
             temperature=settings.LLM_TEMPERATURE,
             max_output_tokens=settings.LLM_MAX_OUTPUT_TOKENS,
             thinking_level=settings.LLM_THINKING_LEVEL,
+            request_timeout_seconds=settings.LLM_REQUEST_TIMEOUT_SECONDS,
             google_api_key=settings.GOOGLE_AI_API_KEY,
         )
         self.workflow = workflow or AssignmentGeneratorWorkflow(config=config)
