@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
     libmagic1 \
+    fonts-dejavu-core \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -24,7 +25,7 @@ COPY apps/backend /app
 COPY llm /app/llm
 
 # Create storage directories
-RUN mkdir -p /app/storage/videos /app/storage/documents /app/storage/submissions
+RUN mkdir -p /app/storage/videos /app/storage/documents /app/storage/submissions /app/storage/slides
 
 # Expose port
 EXPOSE 8000

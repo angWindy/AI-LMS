@@ -13,11 +13,12 @@ import {
   FileText,
   MessageSquare,
   ExternalLink,
+  Presentation,
 } from "lucide-react";
 
 import { Lesson } from "@/lib/api/lessons";
-import { assignmentApi, courseApi } from "@/lib/api";
-import { Assignment, CourseDetail } from "@/types";
+import { assignmentApi, courseApi, slideDeckApi } from "@/lib/api";
+import { Assignment, CourseDetail, SlideDeck } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChatWindow } from "@/components/chat/ChatWindow";
@@ -182,6 +183,7 @@ export default function LessonVideoRoomPage() {
   const [lesson, setLesson] = useState<VideoRoomLesson | null>(null);
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [lessonAssignments, setLessonAssignments] = useState<Assignment[]>([]);
+  const [lessonSlideDecks, setLessonSlideDecks] = useState<SlideDeck[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -437,9 +439,17 @@ export default function LessonVideoRoomPage() {
             } catch {
               setLessonAssignments([]);
             }
+
+            try {
+              const slideDecks = await slideDeckApi.listByCourse(courseData.id, false, lessonId);
+              setLessonSlideDecks(slideDecks.sort((a, b) => a.order_index - b.order_index));
+            } catch {
+              setLessonSlideDecks([]);
+            }
           } catch {
             // Optional for breadcrumb only.
             setLessonAssignments([]);
+            setLessonSlideDecks([]);
           }
 
           try {
@@ -451,6 +461,7 @@ export default function LessonVideoRoomPage() {
         }
         else {
           setLessonAssignments([]);
+          setLessonSlideDecks([]);
         }
 
         if (lessonData) {
@@ -702,6 +713,19 @@ export default function LessonVideoRoomPage() {
                       <ClipboardList className="h-4 w-4" />
                       {assignment.title || `Đi tới bài tập ${assignmentIndex + 1}`}
                     </Link>
+                  ))}
+                {lessonSlideDecks.length > 0 &&
+                  lessonSlideDecks.filter((slideDeck) => !!slideDeck.pdf_url).map((slideDeck, slideDeckIndex) => (
+                    <a
+                      key={slideDeck.id}
+                      href={slideDeck.pdf_url!}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full border rounded-md px-3 py-2 hover:bg-gray-50 flex items-center gap-2 text-sm"
+                    >
+                      <Presentation className="h-4 w-4" />
+                      {slideDeck.title || `Slide bài giảng ${slideDeckIndex + 1}`}
+                    </a>
                   ))}
                 {isMeetingVideoSource && lesson.video_url && (
                   <a

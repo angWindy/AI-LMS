@@ -1,47 +1,51 @@
 """
 Export all schemas.
 """
+from app.schemas.assignment import (
+    AssignmentCreate,
+    AssignmentOptionCreate,
+    AssignmentOptionResponse,
+    AssignmentQuestionCreate,
+    AssignmentQuestionResponse,
+    AssignmentResponse,
+    AssignmentUpdate,
+)
 from app.schemas.common import (
     Message,
-    PaginationParams,
     PaginatedResponse,
-    TokenResponse,
+    PaginationParams,
     RefreshTokenRequest,
-)
-from app.schemas.user import (
-    UserBase,
-    UserCreate,
-    UserUpdate,
-    UserResponse,
-    UserLogin,
-    PasswordChange,
+    TokenResponse,
 )
 from app.schemas.course import (
     CourseBase,
     CourseCreate,
-    CourseUpdate,
-    CourseResponse,
     CourseDetailResponse,
+    CourseResponse,
+    CourseUpdate,
 )
 from app.schemas.lesson import (
     LessonBase,
     LessonCreate,
-    LessonUpdate,
-    LessonResponse,
     LessonDetailResponse,
-    LessonProgressUpdate,
     LessonProgressResponse,
+    LessonProgressUpdate,
+    LessonResponse,
+    LessonUpdate,
     MaterialCreate,
     MaterialResponse,
 )
-from app.schemas.assignment import (
-    AssignmentCreate,
-    AssignmentUpdate,
-    AssignmentResponse,
-    AssignmentQuestionCreate,
-    AssignmentQuestionResponse,
-    AssignmentOptionCreate,
-    AssignmentOptionResponse,
+from app.schemas.slide_deck import (
+    SlideDeckGenerateDraftRequest,
+    SlideDeckResponse,
+)
+from app.schemas.user import (
+    PasswordChange,
+    UserBase,
+    UserCreate,
+    UserLogin,
+    UserResponse,
+    UserUpdate,
 )
 
 __all__ = [
@@ -77,4 +81,6 @@ __all__ = [
     "AssignmentQuestionResponse",
     "AssignmentOptionCreate",
     "AssignmentOptionResponse",
+    "SlideDeckGenerateDraftRequest",
+    "SlideDeckResponse",
 ]

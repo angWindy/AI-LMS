@@ -7,18 +7,20 @@ import {
   ArrowLeft,
   ChevronRight,
   Eye,
+  ExternalLink,
   Link2,
   Loader2,
   Plus,
+  Presentation,
   Save,
   Trash2,
   Upload,
   Video,
 } from "lucide-react";
 
-import { assignmentApi, courseApi, lessonApi, Lesson, Material } from "@/lib/api";
+import { assignmentApi, courseApi, lessonApi, Lesson, Material, slideDeckApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth/store";
-import { Assignment, CourseDetail, UserRole } from "@/types";
+import { Assignment, CourseDetail, SlideDeck, UserRole } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -60,6 +62,7 @@ export default function LessonStudioPage() {
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [lessonAssignments, setLessonAssignments] = useState<Assignment[]>([]);
+  const [lessonSlideDecks, setLessonSlideDecks] = useState<SlideDeck[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,6 +90,13 @@ export default function LessonStudioPage() {
 
   const [isPublishingAssignmentId, setIsPublishingAssignmentId] = useState<string | null>(null);
   const [deletingAssignmentId, setDeletingAssignmentId] = useState<string | null>(null);
+
+  const [showSlideDialog, setShowSlideDialog] = useState(false);
+  const [slideTitle, setSlideTitle] = useState("");
+  const [slideCount, setSlideCount] = useState(8);
+  const [isGeneratingSlides, setIsGeneratingSlides] = useState(false);
+  const [selectedSlideDeck, setSelectedSlideDeck] = useState<SlideDeck | null>(null);
+  const [deletingSlideDeckId, setDeletingSlideDeckId] = useState<string | null>(null);
 
   const fetchLessonStudioData = useCallback(async () => {
     setIsLoading(true);
@@ -123,6 +133,15 @@ export default function LessonStudioPage() {
       }
 
       setLessonAssignments(assignments);
+
+      let slideDecks: SlideDeck[] = [];
+      try {
+        slideDecks = await slideDeckApi.listByCourse(courseData.id, true, targetLesson.id);
+      } catch {
+        slideDecks = [];
+      }
+
+      setLessonSlideDecks(slideDecks.sort((a, b) => a.order_index - b.order_index));
     } catch (err: any) {
       setError(err.response?.data?.detail || "Không thể tải Lesson Studio");
     } finally {
@@ -509,6 +528,58 @@ export default function LessonStudioPage() {
     }
   };
 
+  const handleOpenSlideDialog = () => {
+    if (!lesson) return;
+    setSlideTitle(`${lesson.title} - Slide bài giảng`);
+    setSlideCount(8);
+    setShowSlideDialog(true);
+  };
+
+  const handleGenerateSlides = async () => {
+    if (!course || !lesson) return;
+
+    if (slideCount < 1 || slideCount > 50) {
+      alert("Số trang slide phải nằm trong khoảng 1 đến 50.");
+      return;
+    }
+
+    setIsGeneratingSlides(true);
+    try {
+      const created = await slideDeckApi.generateDraft(course.id, {
+        lesson_id: lesson.id,
+        slide_count: slideCount,
+        title: slideTitle.trim() || undefined,
+      });
+
+      setLessonSlideDecks((prev) => [...prev, created].sort((a, b) => a.order_index - b.order_index));
+      setSelectedSlideDeck(created);
+      setShowSlideDialog(false);
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Tạo slide bài giảng thất bại");
+    } finally {
+      setIsGeneratingSlides(false);
+    }
+  };
+
+  const handleDeleteSlideDeck = async (slideDeckId: string) => {
+    const confirmed = window.confirm("Bạn có chắc muốn xóa slide bài giảng này?");
+    if (!confirmed) return;
+
+    setDeletingSlideDeckId(slideDeckId);
+    try {
+      await slideDeckApi.delete(slideDeckId);
+      setLessonSlideDecks((prev) => prev.filter((item) => item.id !== slideDeckId));
+
+      if (selectedSlideDeck?.id === slideDeckId) {
+        setSelectedSlideDeck(null);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Xóa slide bài giảng thất bại");
+    } finally {
+      setDeletingSlideDeckId(null);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[300px]">
@@ -565,6 +636,7 @@ export default function LessonStudioPage() {
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{lessonDocuments.length} tài liệu</Badge>
             <Badge variant="outline">{lessonVideos.length} buổi trực tiếp</Badge>
+            <Badge variant="outline">{lessonSlideDecks.length} slide</Badge>
             <Badge variant="outline">{lessonAssignments.length} assignment</Badge>
             <Badge variant={lesson.is_published ? "default" : "secondary"}>
               {lesson.is_published ? "Đã xuất bản" : "Nháp"}
@@ -620,6 +692,79 @@ export default function LessonStudioPage() {
                             Xóa
                           </Button>
                         )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <CardTitle>Slide bài giảng</CardTitle>
+                  <CardDescription>Tạo slide từ nội dung khóa học và lesson bằng AI.</CardDescription>
+                </div>
+                <Button onClick={handleOpenSlideDialog}>
+                  <Presentation className="h-4 w-4 mr-2" />
+                  Tạo slide
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {lessonSlideDecks.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Chưa có slide bài giảng nào.</p>
+              ) : (
+                <div className="space-y-3">
+                  {lessonSlideDecks.map((slideDeck, index) => (
+                    <div key={slideDeck.id} className="rounded-lg border p-3 space-y-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-medium">{slideDeck.title || `Slide ${index + 1}`}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {slideDeck.slide_count} trang slide
+                            {slideDeck.model ? ` · ${slideDeck.model}` : ""}
+                          </p>
+                        </div>
+                        <Badge variant={slideDeck.is_published ? "default" : "secondary"}>
+                          {slideDeck.is_published ? "Đã xuất bản" : "Nháp"}
+                        </Badge>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" onClick={() => setSelectedSlideDeck(slideDeck)}>
+                          <ChevronRight className="h-4 w-4 mr-2" />
+                          Xem slide
+                        </Button>
+                        {slideDeck.pdf_url && (
+                          <Button variant="outline" size="sm" asChild>
+                            <a href={slideDeck.pdf_url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              Mở PDF
+                            </a>
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700"
+                          onClick={() => handleDeleteSlideDeck(slideDeck.id)}
+                          disabled={deletingSlideDeckId === slideDeck.id}
+                        >
+                          {deletingSlideDeckId === slideDeck.id ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Đang xóa...
+                            </>
+                          ) : (
+                            <>
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Xóa
+                            </>
+                          )}
+                        </Button>
                       </div>
                     </div>
                   ))}
@@ -964,6 +1109,106 @@ export default function LessonStudioPage() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showSlideDialog} onOpenChange={setShowSlideDialog}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Tạo slide bài giảng</DialogTitle>
+            <DialogDescription>Lesson: {lesson.title}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="slide-title">Tiêu đề slide</Label>
+              <Input
+                id="slide-title"
+                value={slideTitle}
+                onChange={(e) => setSlideTitle(e.target.value)}
+                placeholder="Ví dụ: Slide bài 1"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="slide-count">Số trang slide *</Label>
+              <Input
+                id="slide-count"
+                type="number"
+                min={1}
+                max={50}
+                value={slideCount}
+                onChange={(e) => setSlideCount(Number(e.target.value))}
+              />
+              <p className="text-xs text-muted-foreground">Hệ thống sẽ sinh đúng số trang slide đã nhập.</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSlideDialog(false)} disabled={isGeneratingSlides}>
+              Hủy
+            </Button>
+            <Button onClick={handleGenerateSlides} disabled={isGeneratingSlides || slideCount < 1 || slideCount > 50}>
+              {isGeneratingSlides ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Đang tạo slide...
+                </>
+              ) : (
+                <>
+                  <Presentation className="h-4 w-4 mr-2" />
+                  Tạo slide nháp
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!selectedSlideDeck} onOpenChange={(open) => !open && setSelectedSlideDeck(null)}>
+        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{selectedSlideDeck?.title || "Slide bài giảng"}</DialogTitle>
+            <DialogDescription>
+              {selectedSlideDeck?.slide_count || 0} trang slide
+              {selectedSlideDeck?.provider ? ` · ${selectedSlideDeck.provider}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {selectedSlideDeck?.pdf_url && (
+              <div className="rounded-lg border overflow-hidden">
+                <iframe
+                  src={selectedSlideDeck.pdf_url}
+                  title={selectedSlideDeck.title}
+                  className="h-[420px] w-full"
+                />
+              </div>
+            )}
+
+            {(selectedSlideDeck?.slides_json.slides || []).map((slide) => (
+              <div key={slide.id} className="rounded-lg border p-4 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-semibold uppercase text-muted-foreground">Slide {slide.id}</p>
+                    <h3 className="text-base font-semibold">{slide.title}</h3>
+                  </div>
+                  <Badge variant="outline">{slide.slide_type}</Badge>
+                </div>
+
+                <ul className="list-disc pl-5 text-sm space-y-1">
+                  {slide.content.map((item, itemIndex) => (
+                    <li key={itemIndex}>{item}</li>
+                  ))}
+                </ul>
+
+                <div className="rounded-md bg-slate-50 p-3 text-sm text-muted-foreground">
+                  <p className="font-medium text-slate-700">Speaker notes</p>
+                  <p className="mt-1">{slide.speaker_notes}</p>
+                </div>
+              </div>
+            ))}
+          </div>
         </DialogContent>
       </Dialog>
 

@@ -3,7 +3,17 @@ API v1 Router - aggregates all API endpoints.
 """
 from fastapi import APIRouter
 
-from app.api.v1 import auth, users, courses, lessons, assignments, question_bank, chatbot, rag
+from app.api.v1 import (
+    assignments,
+    auth,
+    chatbot,
+    courses,
+    lessons,
+    question_bank,
+    rag,
+    slides,
+    users,
+)
 
 api_router = APIRouter()
 
@@ -16,3 +26,4 @@ api_router.include_router(assignments.router)
 api_router.include_router(question_bank.router)
 api_router.include_router(chatbot.router)
 api_router.include_router(rag.router)
+api_router.include_router(slides.router)
