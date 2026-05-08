@@ -89,6 +89,7 @@ export default function QuestionBankPage() {
   const [generateDifficulty, setGenerateDifficulty] = useState<QuestionDifficulty>(QuestionDifficulty.EASY);
   const [generatePurpose, setGeneratePurpose] = useState<QuestionPurposeType>(QuestionPurposeType.SHARED);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isDeletingFiltered, setIsDeletingFiltered] = useState(false);
 
   const canManage = user?.role === UserRole.ADMIN || user?.role === UserRole.INSTRUCTOR;
 
@@ -281,6 +282,28 @@ export default function QuestionBankPage() {
     }
   };
 
+  const deleteFilteredQuestions = async () => {
+    if (questions.length === 0) {
+      alert("Không có câu hỏi nào để xóa.");
+      return;
+    }
+
+    const confirmed = window.confirm(`Bạn có chắc muốn xóa ${questions.length} câu hỏi đang được lọc?`);
+    if (!confirmed) return;
+
+    setIsDeletingFiltered(true);
+    try {
+      for (const question of questions) {
+        await questionBankApi.deleteQuestion(question.id);
+      }
+      await loadQuestions();
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Xóa câu hỏi thất bại");
+    } finally {
+      setIsDeletingFiltered(false);
+    }
+  };
+
   const toggleExpanded = (questionId: string) => {
     setExpandedQuestionIds((prev) => {
       const next = new Set(prev);
@@ -325,6 +348,23 @@ export default function QuestionBankPage() {
           >
             <Sparkles className="h-4 w-4 mr-2" />
             Tạo câu hỏi
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={deleteFilteredQuestions}
+            disabled={!selectedCourseId || questions.length === 0 || isDeletingFiltered}
+          >
+            {isDeletingFiltered ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Đang xóa...
+              </>
+            ) : (
+              <>
+                <Trash2 className="h-4 w-4 mr-2" />
+                Xóa đã lọc
+              </>
+            )}
           </Button>
         </div>
       </div>
