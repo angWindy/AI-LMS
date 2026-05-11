@@ -31,6 +31,12 @@ Welcome to the AI-LMS documentation! Quick links to get started.
 - Difficulty and purpose metadata
 - Follow-up notes for assignment/test reuse
 
+### 🖥️ [SLIDE_GENERATION.md](SLIDE_GENERATION.md)
+**Slide Generation**
+- Lesson-level AI lecture slide generation
+- Two-step context → IR → slides workflow
+- PDF generation and lesson display flow
+
 ### 🚢 [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
 **Deployment Instructions**
 - Development setup
@@ -95,11 +101,12 @@ docs/
 ├── PROJECT_OVERVIEW.md
 ├── SETUP_GUIDE.md
 ├── QUESTION_BANK.md
+├── SLIDE_GENERATION.md
 ├── API_DOCUMENTATION.md
 └── DEPLOYMENT_GUIDE.md ✅ NEW
 ```
 
 ---
 
-**Last Updated**: 2026-05-07
+**Last Updated**: 2026-05-11
 **Status**: MVP Phase 1 (updated) - AI helpers partially delivered
