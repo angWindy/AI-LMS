@@ -414,3 +414,24 @@ rtk npm run lint
 - There is no slide editor yet.
 - There is no background job progress tracking yet.
 - Duplicate slide deck detection is not enforced.
+- There is no retry/resume mechanism if the browser request is interrupted after the backend has started generation.
+- There is no partial result view while the LLM is still generating IR or slides.
+- There is no per-slide image generation, chart rendering, or visual asset pipeline yet.
+- There is no PowerPoint export.
+- There is no learner-facing in-app slide viewer beyond opening or embedding the generated PDF.
+- There is no version comparison between multiple generated decks for the same lesson.
+- There is no automated content quality grading beyond JSON structure validation.
+- Published slide decks are not automatically inserted into lesson order/navigation outside the current quick PDF links.
+
+## Not Done Yet
+
+The following items are intentionally not implemented in the current scope:
+
+- Background job queue for long-running slide generation.
+- Progress API or polling UI for slide generation status.
+- Editable slide canvas or drag-and-drop slide builder.
+- Theme selection, brand templates, or custom PDF layout controls.
+- Export to `.pptx`, image sequences, or HTML slides.
+- Automatic regeneration of only one slide inside an existing deck.
+- Automatic deduplication against previous slide decks.
+- Human approval workflow beyond the current publish/unpublish flag.

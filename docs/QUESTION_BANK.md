@@ -361,6 +361,36 @@ rtk npx tsc --noEmit
 rtk npm run lint
 ```
 
+## Known Limitations
+
+- Question Bank stores reusable questions, but assignments still keep their own copied question records.
+- There is no UI flow yet to select existing Question Bank questions when creating an assignment.
+- `purpose_type=assessment` is stored, but there is no separate assessment/test module using it yet.
+- There is no bulk import/export for questions.
+- There is no duplicate detection across generated or manually created questions.
+- There is no question tagging system beyond course, lesson, difficulty, and purpose type.
+- There is no version history for edited questions.
+- There is no review/approval workflow for AI-generated questions before they enter the bank; generated questions are saved immediately.
+- There is no background job progress tracking for long-running AI question generation.
+- There is no retry/resume mechanism if the browser request is interrupted while generation continues on the backend.
+- There is no automatic quality grading beyond option count and single-correct-answer validation.
+- Question options are currently fixed to exactly 4 options.
+
+## Not Done Yet
+
+The following items are intentionally not implemented in the current scope:
+
+- Reusing bank questions directly inside assignment creation.
+- Building dedicated tests/exams from bank questions.
+- Snapshot policy for attempts that use reusable bank questions.
+- Bulk CSV/Excel import and export.
+- Question deduplication and similarity search.
+- Tagging, topic hierarchy, and learning objective mapping.
+- Question analytics such as correctness rate or discrimination index.
+- Background job queue and progress API for AI generation.
+- Manual approval queue for generated questions.
+- Renaming `AssignmentGeneratorService` to a neutral shared question-generation service.
+
 ## Follow-Up Work
 
 The current implementation intentionally introduces the Question Bank first and keeps existing assignment behavior stable.
