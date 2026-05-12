@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: apps/backend/requirements-dev.txt
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-dejavu-core libmagic1
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r apps/backend/requirements-dev.txt
+
+      - name: Lint backend (advisory)
+        continue-on-error: true
+        working-directory: apps/backend
+        run: ruff check app/
+
+      - name: Test backend
+        env:
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/apps/backend
+          STORAGE_PATH: ${{ runner.temp }}/ai-lms-storage
+          LLM_PROVIDER: mock
+        run: python -m pytest tests -q
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Lint frontend (advisory)
+        continue-on-error: true
+        run: npm run lint
+
+      - name: Build frontend
+        run: npm run build
+
+  docker:
+    name: Docker Compose Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare compose environment
+        run: cp .env.example .env
+
+      - name: Validate production compose file
+        run: docker compose -f docker-compose.prod.yml config --quiet
+
+      - name: Build production images
+        env:
+          DOCKER_BUILDKIT: "1"
+        run: docker compose -f docker-compose.prod.yml build

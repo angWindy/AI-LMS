@@ -1,0 +1,131 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    branches:
+      - main
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch or tag to deploy
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  production:
+    name: Production
+    runs-on: ubuntu-latest
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (
+          github.event.workflow_run.conclusion == 'success' &&
+          vars.ENABLE_PRODUCTION_DEPLOY == 'true'
+        )
+      }}
+
+    env:
+      SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+      SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+      SSH_PORT: ${{ secrets.PRODUCTION_SSH_PORT || '22' }}
+      SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
+      PRODUCTION_ENV_FILE: ${{ secrets.PRODUCTION_ENV_FILE }}
+      APP_DIR: ${{ vars.PRODUCTION_APP_DIR || '/opt/ai-lms' }}
+      REPO_URL: ${{ vars.PRODUCTION_REPO_URL || format('{0}/{1}.git', github.server_url, github.repository) }}
+      DEPLOY_REF: ${{ inputs.ref || github.event.workflow_run.head_branch || 'main' }}
+      HEALTHCHECK_URL: ${{ vars.PRODUCTION_HEALTHCHECK_URL || 'http://localhost/health' }}
+
+    steps:
+      - name: Verify deployment configuration
+        run: |
+          missing=0
+          for name in SSH_HOST SSH_USER SSH_PRIVATE_KEY PRODUCTION_ENV_FILE; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is required"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+      - name: Configure SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          if [ -n "$SSH_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" > ~/.ssh/known_hosts
+          fi
+
+      - name: Update source on server
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "APP_DIR='$APP_DIR' REPO_URL='$REPO_URL' DEPLOY_REF='$DEPLOY_REF' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          command -v git >/dev/null
+          command -v docker >/dev/null
+          docker compose version >/dev/null
+
+          if [ -d "$APP_DIR" ] && [ ! -d "$APP_DIR/.git" ] && [ -n "$(ls -A "$APP_DIR")" ]; then
+            echo "APP_DIR exists but is not a git repository: $APP_DIR" >&2
+            exit 1
+          fi
+
+          if [ ! -d "$APP_DIR/.git" ]; then
+            mkdir -p "$(dirname "$APP_DIR")"
+            git clone "$REPO_URL" "$APP_DIR"
+          fi
+
+          cd "$APP_DIR"
+          git fetch --all --tags --prune
+          git checkout "$DEPLOY_REF" || git checkout -B "$DEPLOY_REF" "origin/$DEPLOY_REF"
+          git reset --hard "origin/$DEPLOY_REF" 2>/dev/null || git reset --hard "$DEPLOY_REF"
+          REMOTE
+
+      - name: Upload production environment
+        run: |
+          temp_env="$(mktemp)"
+          printf '%s' "$PRODUCTION_ENV_FILE" > "$temp_env"
+          scp -i ~/.ssh/deploy_key -P "$SSH_PORT" "$temp_env" "$SSH_USER@$SSH_HOST:$APP_DIR/.env"
+          rm -f "$temp_env"
+
+      - name: Build and restart application
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "APP_DIR='$APP_DIR' HEALTHCHECK_URL='$HEALTHCHECK_URL' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          cd "$APP_DIR"
+          docker compose -f docker-compose.prod.yml build
+          docker compose -f docker-compose.prod.yml up -d --remove-orphans
+          docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head
+
+          if [ -n "$HEALTHCHECK_URL" ]; then
+            for attempt in $(seq 1 30); do
+              if curl -fsS "$HEALTHCHECK_URL" >/dev/null; then
+                docker compose -f docker-compose.prod.yml ps
+                exit 0
+              fi
+              sleep 5
+            done
+
+            docker compose -f docker-compose.prod.yml ps
+            docker compose -f docker-compose.prod.yml logs --tail=120
+            exit 1
+          fi
+          REMOTE
