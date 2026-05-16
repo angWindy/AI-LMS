@@ -96,7 +96,6 @@ def serialize_question(question: QuestionBankQuestion) -> QuestionBankQuestionRe
         course_id=question.course_id,
         lesson_id=question.lesson_id,
         question_text=question.question_text,
-        explanation=question.explanation,
         difficulty=question.difficulty,
         purpose_type=question.purpose_type,
         order_index=question.order_index,
@@ -188,7 +187,6 @@ async def create_question(
         course_id=course.id,
         lesson_id=payload.lesson_id,
         question_text=payload.question_text,
-        explanation=payload.explanation,
         difficulty=payload.difficulty,
         purpose_type=payload.purpose_type,
         order_index=next_order,
@@ -270,7 +268,6 @@ async def generate_questions(
             course_id=course.id,
             lesson_id=lesson.id,
             question_text=generated_question.question_text,
-            explanation=generated_question.explanation,
             difficulty=payload.difficulty,
             purpose_type=payload.purpose_type,
             order_index=next_order + offset,
@@ -310,7 +307,6 @@ async def update_question(
 
     question.lesson_id = payload.lesson_id
     question.question_text = payload.question_text
-    question.explanation = payload.explanation
     question.difficulty = payload.difficulty
     question.purpose_type = payload.purpose_type
 

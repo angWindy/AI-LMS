@@ -59,7 +59,6 @@ const purposeLabels: Record<QuestionPurposeType, string> = {
 interface QuestionEditorState {
   lesson_id: string | null;
   question_text: string;
-  explanation: string;
   difficulty: QuestionDifficulty;
   purpose_type: QuestionPurposeType;
   options: string[];
@@ -102,7 +101,6 @@ export default function QuestionBankPage() {
     return {
       lesson_id: lessonId,
       question_text: "",
-      explanation: "",
       difficulty: QuestionDifficulty.EASY,
       purpose_type: QuestionPurposeType.SHARED,
       options: ["", "", "", ""],
@@ -193,7 +191,6 @@ export default function QuestionBankPage() {
     setEditor({
       lesson_id: question.lesson_id || null,
       question_text: question.question_text,
-      explanation: question.explanation || "",
       difficulty: question.difficulty,
       purpose_type: question.purpose_type,
       options: options.slice(0, 4),
@@ -214,7 +211,6 @@ export default function QuestionBankPage() {
       const payload = {
         lesson_id: editor.lesson_id,
         question_text: editor.question_text.trim(),
-        explanation: editor.explanation.trim() || null,
         difficulty: editor.difficulty,
         purpose_type: editor.purpose_type,
         options: editor.options.map((optionText, index) => ({
@@ -466,10 +462,6 @@ export default function QuestionBankPage() {
                     <div className="bg-slate-50 px-4 pb-4 md:pl-[64px]">
                       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_260px]">
                         <div className="space-y-3">
-                          <div>
-                            <p className="text-xs font-medium uppercase text-muted-foreground">Giải thích</p>
-                            <p className="mt-1 text-sm text-slate-700">{question.explanation || "Chưa có giải thích."}</p>
-                          </div>
                           <div className="space-y-2">
                             <p className="text-xs font-medium uppercase text-muted-foreground">Đáp án</p>
                             {[...question.options]
@@ -663,14 +655,6 @@ export default function QuestionBankPage() {
               <Textarea
                 value={editor.question_text}
                 onChange={(event) => setEditor((prev) => ({ ...prev, question_text: event.target.value }))}
-                rows={3}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Giải thích</Label>
-              <Textarea
-                value={editor.explanation}
-                onChange={(event) => setEditor((prev) => ({ ...prev, explanation: event.target.value }))}
                 rows={3}
               />
             </div>

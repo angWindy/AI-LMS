@@ -8,7 +8,6 @@ export interface AssignmentOptionInput {
 
 export interface AssignmentQuestionInput {
   question_text: string;
-  explanation?: string;
   options: AssignmentOptionInput[];
 }
 

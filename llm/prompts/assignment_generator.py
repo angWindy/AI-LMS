@@ -21,7 +21,6 @@ Strict output rules:
       "question": "...",
       "options": ["...", "...", "...", "..."],
       "correct_answer": "...",
-      "explanation": "...",
       "type": "text"
     }}
   ]
@@ -30,12 +29,10 @@ Strict output rules:
 4. id must start at 1 and increase sequentially.
 5. options must contain exactly 4 non-empty strings.
 6. correct_answer must exactly match one and only one option string.
-7. explanation must be present for every question.
-8. explanation must be concise and direct, focused on key knowledge to help students understand.
-9. Questions must be short and direct, avoiding filler or verbosity.
-10. type must always be "text".
-11. Questions should align with the lesson and course context below.
-12. Avoid duplicate questions and avoid ambiguous answer keys.
+7. type must always be "text".
+8. Questions should be clear and concise, avoiding unnecessary verbosity.
+9. Questions should align with the lesson and course context below.
+10. Avoid duplicate questions and avoid ambiguous answer keys.
 
 Course context:
 {course_context}

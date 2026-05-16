@@ -98,7 +98,6 @@ class AssignmentQuestion(Base, TimestampMixin):
         index=True,
     )
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
-    explanation: Mapped[str | None] = mapped_column(Text, nullable=True)
     difficulty: Mapped[QuestionDifficulty] = mapped_column(
         Enum(QuestionDifficulty),
         default=QuestionDifficulty.EASY,

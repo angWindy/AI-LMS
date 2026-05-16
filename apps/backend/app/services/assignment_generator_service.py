@@ -275,11 +275,6 @@ class AssignmentGeneratorService:
             if not question_text:
                 raise ValueError(f"Question #{index} has empty question text.")
 
-            explanation = str(raw_question.get("explanation", "")).strip()
-            if not explanation:
-                raise ValueError(f"Question #{index} has empty explanation.")
-            explanation = self._normalize_explanation(explanation)
-
             raw_options = raw_question.get("options")
             if not isinstance(raw_options, list) or len(raw_options) != 4:
                 raise ValueError(f"Question #{index} must include exactly 4 options.")
@@ -294,7 +289,6 @@ class AssignmentGeneratorService:
             normalized_questions.append(
                 AssignmentQuestionCreate(
                     question_text=question_text,
-                    explanation=explanation,
                     options=[
                         AssignmentOptionCreate(
                             option_text=option,
@@ -323,13 +317,6 @@ class AssignmentGeneratorService:
                 return index
 
         raise ValueError("correct_answer must match one of the 4 options exactly.")
-
-    @staticmethod
-    def _normalize_explanation(explanation: str) -> str:
-        compact = " ".join(explanation.split())
-        if len(compact) > 280:
-            compact = compact[:277].rstrip() + "..."
-        return compact
 
     @staticmethod
     def _extract_json_payload(raw_text: str) -> dict | list:
@@ -386,9 +373,6 @@ class AssignmentGeneratorService:
             questions.append(
                 AssignmentQuestionCreate(
                     question_text=f"Noi dung cau hoi {index} cho bai hoc {lesson_title}?",
-                    explanation=(
-                        f"Dap an dung la phuong an A. Can nho y chinh cua bai hoc {lesson_title}."
-                    ),
                     options=[
                         AssignmentOptionCreate(option_text=option, is_correct=option_index == 0)
                         for option_index, option in enumerate(options)

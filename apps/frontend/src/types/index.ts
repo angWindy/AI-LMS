@@ -122,7 +122,6 @@ export interface AssignmentQuestion {
   id: string;
   assignment_id: string;
   question_text: string;
-  explanation?: string | null;
   difficulty: QuestionDifficulty;
   purpose_type: QuestionPurposeType;
   order_index: number;
@@ -220,7 +219,6 @@ export interface QuestionBankQuestion {
   course_id: string;
   lesson_id?: string | null;
   question_text: string;
-  explanation?: string | null;
   difficulty: QuestionDifficulty;
   purpose_type: QuestionPurposeType;
   order_index: number;

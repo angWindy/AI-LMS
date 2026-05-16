@@ -39,7 +39,6 @@ interface MaterialUploadForm {
 
 interface AssignmentEditorQuestion {
   question_text: string;
-  explanation: string;
   options: string[];
   correctIndex: number;
 }
@@ -377,7 +376,6 @@ export default function LessonStudioPage() {
 
   const createDefaultQuestion = (): AssignmentEditorQuestion => ({
     question_text: "",
-    explanation: "",
     options: ["", "", "", ""],
     correctIndex: 0,
   });
@@ -397,7 +395,6 @@ export default function LessonStudioPage() {
 
         return {
           question_text: question.question_text,
-          explanation: question.explanation || "",
           options: options.slice(0, 4),
           correctIndex: correctIndex >= 0 && correctIndex < 4 ? correctIndex : 0,
         };
@@ -422,7 +419,7 @@ export default function LessonStudioPage() {
     setShowAssignmentDialog(true);
   };
 
-  const updateQuestionField = (index: number, key: "question_text" | "explanation", value: string) => {
+  const updateQuestionField = (index: number, key: "question_text", value: string) => {
     setAssignmentQuestions((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], [key]: value };
@@ -463,7 +460,6 @@ export default function LessonStudioPage() {
         title: assignmentTitle.trim(),
         questions: assignmentQuestions.map((question) => ({
           question_text: question.question_text.trim(),
-          explanation: question.explanation.trim() || undefined,
           options: question.options.map((optionText, index) => ({
             option_text: optionText.trim(),
             is_correct: index === question.correctIndex,
@@ -1262,16 +1258,6 @@ export default function LessonStudioPage() {
                     value={question.question_text}
                     onChange={(e) => updateQuestionField(questionIndex, "question_text", e.target.value)}
                     placeholder="Nhập câu hỏi"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Giải thích (tuỳ chọn)</Label>
-                  <Textarea
-                    rows={2}
-                    value={question.explanation}
-                    onChange={(e) => updateQuestionField(questionIndex, "explanation", e.target.value)}
-                    placeholder="Giải thích đáp án đúng"
                   />
                 </div>
 

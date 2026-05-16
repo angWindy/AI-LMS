@@ -46,7 +46,6 @@ class QuestionBankQuestionBase(BaseModel):
     """Question bank payload schema."""
 
     question_text: str
-    explanation: Optional[str] = None
     difficulty: QuestionDifficulty = QuestionDifficulty.EASY
     purpose_type: QuestionPurposeType = QuestionPurposeType.SHARED
 

@@ -15,7 +15,6 @@ export interface QuestionBankQuestionCreateData {
   course_id: string;
   lesson_id?: string | null;
   question_text: string;
-  explanation?: string | null;
   difficulty?: QuestionDifficulty;
   purpose_type?: QuestionPurposeType;
   options: QuestionBankOptionInput[];
@@ -24,7 +23,6 @@ export interface QuestionBankQuestionCreateData {
 export interface QuestionBankQuestionUpdateData {
   lesson_id?: string | null;
   question_text: string;
-  explanation?: string | null;
   difficulty: QuestionDifficulty;
   purpose_type: QuestionPurposeType;
   options?: QuestionBankOptionInput[];

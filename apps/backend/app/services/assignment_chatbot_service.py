@@ -138,7 +138,7 @@ class AssignmentChatbotService:
         return assignment
 
     def _build_assignment_context(self, assignment: Assignment) -> str:
-        """Format assignment questions and options without answer keys or explanations."""
+        """Format assignment questions and options without answer keys."""
         lines = [
             "ASSIGNMENT_CONTEXT:",
             "The following assignment questions and options are visible to the learner.",

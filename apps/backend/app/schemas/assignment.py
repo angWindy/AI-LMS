@@ -37,7 +37,6 @@ class AssignmentQuestionBase(BaseModel):
     """Question payload schema."""
 
     question_text: str
-    explanation: Optional[str] = None
     difficulty: QuestionDifficulty = QuestionDifficulty.EASY
     purpose_type: QuestionPurposeType = QuestionPurposeType.SHARED
 
