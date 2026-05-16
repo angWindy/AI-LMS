@@ -34,7 +34,7 @@ def test_assignment_generator_prompt_requires_difficulty_metadata() -> None:
         lesson_context="Title: Search",
     )
 
-    assert '"difficulty": "easy"' in prompt
+    assert '"difficulty": "..."' in prompt
     assert '4 "easy", 4 "medium", 2 "hard"' in prompt
     assert "Tests basic knowledge and recall" in prompt
     assert "Tests understanding and application" in prompt
