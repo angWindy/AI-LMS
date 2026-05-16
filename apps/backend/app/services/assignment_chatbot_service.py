@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models.ai_interaction import AIConversation
 from app.models.assignment import Assignment, AssignmentQuestion
-from app.models.enrollment import Enrollment, EnrollmentStatus
 from app.models.user import User, UserRole
 from app.services.chatbot_service import ChatbotService, ChatbotServiceResult
 from llm.models import ChatMessage
@@ -118,17 +117,6 @@ class AssignmentChatbotService:
             raise ValueError("Assignment not found.")
 
         if user.role == UserRole.LEARNER:
-            enrollment = (
-                db.query(Enrollment)
-                .filter(
-                    Enrollment.course_id == assignment.course_id,
-                    Enrollment.user_id == user.id,
-                    Enrollment.status == EnrollmentStatus.ACTIVE,
-                )
-                .first()
-            )
-            if not enrollment:
-                raise ValueError("You must be enrolled in this course.")
             if not assignment.is_published:
                 raise ValueError("Assignment is not published.")
 

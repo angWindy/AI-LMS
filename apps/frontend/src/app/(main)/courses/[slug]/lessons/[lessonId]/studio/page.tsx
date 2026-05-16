@@ -13,6 +13,7 @@ import {
   Plus,
   Presentation,
   Save,
+  Shuffle,
   Trash2,
   Upload,
   Video,
@@ -20,7 +21,7 @@ import {
 
 import { assignmentApi, courseApi, lessonApi, Lesson, Material, slideDeckApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth/store";
-import { Assignment, CourseDetail, SlideDeck, UserRole } from "@/types";
+import { Assignment, CourseDetail, QuestionDifficulty, QuestionPurposeType, SlideDeck, UserRole } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,6 +40,8 @@ interface MaterialUploadForm {
 
 interface AssignmentEditorQuestion {
   question_text: string;
+  difficulty: QuestionDifficulty;
+  purpose_type: QuestionPurposeType;
   options: string[];
   correctIndex: number;
 }
@@ -86,6 +89,10 @@ export default function LessonStudioPage() {
   const [assignmentTitle, setAssignmentTitle] = useState("");
   const [assignmentQuestions, setAssignmentQuestions] = useState<AssignmentEditorQuestion[]>([]);
   const [isSavingAssignment, setIsSavingAssignment] = useState(false);
+  const [showQuestionBankAssignmentDialog, setShowQuestionBankAssignmentDialog] = useState(false);
+  const [bankAssignmentTitle, setBankAssignmentTitle] = useState("");
+  const [bankAssignmentCount, setBankAssignmentCount] = useState(10);
+  const [isGeneratingBankAssignment, setIsGeneratingBankAssignment] = useState(false);
 
   const [isPublishingAssignmentId, setIsPublishingAssignmentId] = useState<string | null>(null);
   const [deletingAssignmentId, setDeletingAssignmentId] = useState<string | null>(null);
@@ -376,6 +383,8 @@ export default function LessonStudioPage() {
 
   const createDefaultQuestion = (): AssignmentEditorQuestion => ({
     question_text: "",
+    difficulty: QuestionDifficulty.EASY,
+    purpose_type: QuestionPurposeType.SHARED,
     options: ["", "", "", ""],
     correctIndex: 0,
   });
@@ -395,6 +404,8 @@ export default function LessonStudioPage() {
 
         return {
           question_text: question.question_text,
+          difficulty: question.difficulty,
+          purpose_type: question.purpose_type,
           options: options.slice(0, 4),
           correctIndex: correctIndex >= 0 && correctIndex < 4 ? correctIndex : 0,
         };
@@ -460,6 +471,8 @@ export default function LessonStudioPage() {
         title: assignmentTitle.trim(),
         questions: assignmentQuestions.map((question) => ({
           question_text: question.question_text.trim(),
+          difficulty: question.difficulty,
+          purpose_type: question.purpose_type,
           options: question.options.map((optionText, index) => ({
             option_text: optionText.trim(),
             is_correct: index === question.correctIndex,
@@ -485,6 +498,38 @@ export default function LessonStudioPage() {
       alert(err.response?.data?.detail || (editingAssignment ? "Cập nhật bài tập thất bại" : "Tạo bài tập thất bại"));
     } finally {
       setIsSavingAssignment(false);
+    }
+  };
+
+  const handleOpenQuestionBankAssignmentDialog = () => {
+    if (!lesson) return;
+    setBankAssignmentTitle(`${lesson.title} - Bài tập ôn tập`);
+    setBankAssignmentCount(10);
+    setShowQuestionBankAssignmentDialog(true);
+  };
+
+  const handleGenerateQuestionBankAssignment = async () => {
+    if (!course || !lesson) return;
+
+    if (bankAssignmentCount < 1 || bankAssignmentCount > 100) {
+      alert("Số câu phải nằm trong khoảng 1 đến 100.");
+      return;
+    }
+
+    setIsGeneratingBankAssignment(true);
+    try {
+      const created = await assignmentApi.generateFromBank(course.id, {
+        lesson_id: lesson.id,
+        question_count: bankAssignmentCount,
+        title: bankAssignmentTitle.trim() || undefined,
+      });
+
+      setLessonAssignments((prev) => [...prev, created].sort((a, b) => a.order_index - b.order_index));
+      setShowQuestionBankAssignmentDialog(false);
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Tạo bài tập ôn tập từ ngân hàng câu hỏi thất bại");
+    } finally {
+      setIsGeneratingBankAssignment(false);
     }
   };
 
@@ -777,6 +822,10 @@ export default function LessonStudioPage() {
                   <CardDescription>Một lesson có thể có nhiều bài tập.</CardDescription>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Button variant="outline" onClick={handleOpenQuestionBankAssignmentDialog}>
+                    <Shuffle className="h-4 w-4 mr-2" />
+                    Tạo bài ôn tập
+                  </Button>
                   <Button variant="outline" onClick={() => handleOpenAssignmentDialog()}>
                     <Plus className="h-4 w-4 mr-2" />
                     Tạo thủ công
@@ -1205,6 +1254,61 @@ export default function LessonStudioPage() {
               </div>
             ))}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showQuestionBankAssignmentDialog} onOpenChange={setShowQuestionBankAssignmentDialog}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Tạo bài tập ôn tập</DialogTitle>
+            <DialogDescription>Hệ thống chọn ngẫu nhiên câu hỏi Luyện tập/Dùng chung theo tỉ lệ Dễ/Trung bình/Khó 40/40/20.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="bank-assignment-title">Tiêu đề bài tập</Label>
+              <Input
+                id="bank-assignment-title"
+                value={bankAssignmentTitle}
+                onChange={(event) => setBankAssignmentTitle(event.target.value)}
+                placeholder="Ví dụ: Bài tập ôn tập buổi 1"
+              />
+            </div>
+
+            <div className="max-w-40 space-y-2">
+              <Label htmlFor="bank-assignment-count">Số câu *</Label>
+              <Input
+                id="bank-assignment-count"
+                type="number"
+                min={1}
+                max={100}
+                value={bankAssignmentCount}
+                onChange={(event) => setBankAssignmentCount(Number(event.target.value))}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowQuestionBankAssignmentDialog(false)} disabled={isGeneratingBankAssignment}>
+              Hủy
+            </Button>
+            <Button
+              onClick={handleGenerateQuestionBankAssignment}
+              disabled={isGeneratingBankAssignment || bankAssignmentCount < 1 || bankAssignmentCount > 100}
+            >
+              {isGeneratingBankAssignment ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Đang tạo...
+                </>
+              ) : (
+                <>
+                  <Shuffle className="h-4 w-4 mr-2" />
+                  Tạo nháp
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

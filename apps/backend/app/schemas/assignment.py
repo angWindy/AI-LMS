@@ -98,6 +98,14 @@ class AssignmentGenerateDraftRequest(BaseModel):
     title: Optional[str] = None
 
 
+class AssignmentGenerateFromBankRequest(BaseModel):
+    """Payload for creating a review assignment from reusable question bank items."""
+
+    lesson_id: Optional[uuid.UUID] = None
+    question_count: int = Field(..., ge=1, le=100)
+    title: Optional[str] = None
+
+
 class AssignmentUpdate(BaseModel):
     """Assignment update schema."""
 

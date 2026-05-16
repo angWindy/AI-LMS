@@ -11,7 +11,6 @@ export const config = {
     "/dashboard/:path*",
     "/courses/create",
     "/courses/my",
-    "/courses/enrolled",
     "/users/:path*",
     "/profile/:path*",
     "/login",

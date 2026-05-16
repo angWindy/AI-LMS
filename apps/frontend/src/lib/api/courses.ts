@@ -27,12 +27,6 @@ export const courseApi = {
     return response.data;
   },
 
-  // Get enrolled courses (learner) - /courses/my/enrolled
-  getEnrolledCourses: async (): Promise<Course[]> => {
-    const response = await apiClient.get("/courses/my/enrolled");
-    return response.data;
-  },
-
   // Create course
   create: async (data: Partial<Course>): Promise<Course> => {
     const response = await apiClient.post("/courses", data);
@@ -59,22 +53,6 @@ export const courseApi = {
   // Archive course
   archive: async (id: string): Promise<Course> => {
     const response = await apiClient.post(`/courses/${id}/archive`);
-    return response.data;
-  },
-
-  // Enroll in course
-  enroll: async (id: string): Promise<void> => {
-    await apiClient.post(`/courses/${id}/enroll`);
-  },
-
-  // Unenroll from course
-  unenroll: async (id: string): Promise<void> => {
-    await apiClient.post(`/courses/${id}/unenroll`);
-  },
-
-  // Get enrollment status
-  getEnrollmentStatus: async (id: string): Promise<{ enrolled: boolean; status: string | null; progress?: number }> => {
-    const response = await apiClient.get(`/courses/${id}/enrollment-status`);
     return response.data;
   },
 

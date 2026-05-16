@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     from app.models.user import User
     from app.models.lesson import Lesson
     from app.models.material import Material
-    from app.models.enrollment import Enrollment
     from app.models.assignment import Assignment
     from app.models.question_bank import QuestionBankQuestion
     from app.models.slide_deck import SlideDeck
@@ -71,12 +70,6 @@ class Course(Base, TimestampMixin):
         back_populates="course",
         cascade="all, delete-orphan",
         order_by="Lesson.order_index",
-        lazy="selectin",
-    )
-    enrollments: Mapped[List["Enrollment"]] = relationship(
-        "Enrollment",
-        back_populates="course",
-        cascade="all, delete-orphan",
         lazy="selectin",
     )
     assignments: Mapped[List["Assignment"]] = relationship(

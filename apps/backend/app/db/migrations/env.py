@@ -17,7 +17,6 @@ from app.models import (
     Course,
     Lesson,
     Material,
-    Enrollment,
     LessonProgress,
     Assignment,
     Submission,

@@ -1,5 +1,5 @@
 import { apiClient } from "./client";
-import { Assignment } from "@/types";
+import { Assignment, QuestionDifficulty, QuestionPurposeType } from "@/types";
 
 export interface AssignmentOptionInput {
   option_text: string;
@@ -8,6 +8,8 @@ export interface AssignmentOptionInput {
 
 export interface AssignmentQuestionInput {
   question_text: string;
+  difficulty?: QuestionDifficulty;
+  purpose_type?: QuestionPurposeType;
   options: AssignmentOptionInput[];
 }
 
@@ -29,6 +31,12 @@ export interface AssignmentGenerateDraftData {
   title?: string;
 }
 
+export interface AssignmentGenerateFromBankData {
+  lesson_id?: string;
+  question_count: number;
+  title?: string;
+}
+
 export const assignmentApi = {
   create: async (courseId: string, data: AssignmentCreateData): Promise<Assignment> => {
     const response = await apiClient.post("/assignments", data, { params: { course_id: courseId } });
@@ -39,6 +47,13 @@ export const assignmentApi = {
     const response = await apiClient.post("/assignments/generate-draft", data, {
       params: { course_id: courseId },
       timeout: 30 * 60 * 1000,
+    });
+    return response.data;
+  },
+
+  generateFromBank: async (courseId: string, data: AssignmentGenerateFromBankData): Promise<Assignment> => {
+    const response = await apiClient.post("/assignments/generate-from-bank", data, {
+      params: { course_id: courseId },
     });
     return response.data;
   },

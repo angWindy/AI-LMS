@@ -70,7 +70,6 @@ export interface Course {
 export interface CourseDetail extends Course {
   instructor: User;
   lesson_count: number;
-  enrollment_count: number;
 }
 
 // Lesson types
@@ -250,24 +249,6 @@ export interface Submission {
   submitted_at: string;
   graded_at?: string | null;
   is_late: boolean;
-}
-
-// Enrollment types
-export enum EnrollmentStatus {
-  ACTIVE = "active",
-  COMPLETED = "completed",
-  DROPPED = "dropped",
-}
-
-export interface Enrollment {
-  id: string;
-  user_id: string;
-  course_id: string;
-  status: EnrollmentStatus;
-  progress: number;
-  enrolled_at: string;
-  completed_at?: string | null;
-  last_accessed_at?: string | null;
 }
 
 // API Response types

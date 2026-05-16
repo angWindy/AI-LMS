@@ -10,7 +10,6 @@ from app.models.assignment import (
     QuestionPurposeType,
 )
 from app.models.course import Course, CourseStatus
-from app.models.enrollment import Enrollment, EnrollmentStatus
 from app.models.lesson import Lesson
 from app.models.lesson_progress import LessonProgress
 from app.models.material import Material, MaterialType
@@ -36,8 +35,6 @@ __all__ = [
     "Lesson",
     "Material",
     "MaterialType",
-    "Enrollment",
-    "EnrollmentStatus",
     "LessonProgress",
     "Assignment",
     "AssignmentQuestion",

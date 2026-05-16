@@ -6,18 +6,17 @@ import logging
 from typing import List, Optional
 import uuid
 
-from fastapi import APIRouter, HTTPException, status, Query, Depends, UploadFile, File, Form
+from fastapi import APIRouter, status, Query, Depends, UploadFile, File, Form
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 from slugify import slugify
 
-from app.core.dependencies import DBSession, CurrentUser, InstructorUser, get_current_user_optional
+from app.core.dependencies import DBSession, InstructorUser, get_current_user_optional
 from app.core.exceptions import NotFoundException, ForbiddenException
 from app.models.user import User, UserRole
 from app.models.course import Course, CourseStatus
 from app.models.lesson import Lesson
 from app.models.material import Material
-from app.models.enrollment import Enrollment, EnrollmentStatus
 from app.schemas.lesson import MaterialResponse
 from app.schemas.course import (
     CourseCreate,
@@ -94,10 +93,6 @@ async def list_courses(
             Lesson.course_id == course.id,
             Lesson.is_published == True
         ).scalar()
-        enrollment_count = db.query(func.count(Enrollment.id)).filter(
-            Enrollment.course_id == course.id
-        ).scalar()
-
         items.append(CourseListResponse(
             id=course.id,
             title=course.title,
@@ -108,7 +103,6 @@ async def list_courses(
             level=course.level,
             instructor=course.instructor,
             lesson_count=lesson_count,
-            enrollment_count=enrollment_count,
         ))
 
     return PaginatedResponse(
@@ -171,10 +165,6 @@ async def get_course(
         Lesson.course_id == course.id,
         Lesson.is_published == True
     ).scalar()
-    enrollment_count = db.query(func.count(Enrollment.id)).filter(
-        Enrollment.course_id == course.id
-    ).scalar()
-
     return CourseDetailResponse(
         id=course.id,
         title=course.title,
@@ -194,7 +184,6 @@ async def get_course(
         instructor_id=course.instructor_id,
         instructor=course.instructor,
         lesson_count=lesson_count,
-        enrollment_count=enrollment_count,
     )
 
 
@@ -213,10 +202,6 @@ async def get_course_by_slug(
         Lesson.course_id == course.id,
         Lesson.is_published == True
     ).scalar()
-    enrollment_count = db.query(func.count(Enrollment.id)).filter(
-        Enrollment.course_id == course.id
-    ).scalar()
-
     return CourseDetailResponse(
         id=course.id,
         title=course.title,
@@ -236,7 +221,6 @@ async def get_course_by_slug(
         instructor_id=course.instructor_id,
         instructor=course.instructor,
         lesson_count=lesson_count,
-        enrollment_count=enrollment_count,
     )
 
 
@@ -394,129 +378,6 @@ async def archive_course(
     return course
 
 
-@router.post("/{course_id}/enroll", response_model=Message)
-async def enroll_in_course(
-    course_id: uuid.UUID,
-    db: DBSession,
-    current_user: CurrentUser,
-):
-    """Enroll current user in a course."""
-    course = db.query(Course).filter(Course.id == course_id).first()
-
-    if not course:
-        raise NotFoundException("Course not found")
-
-    if course.status != CourseStatus.PUBLISHED:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Cannot enroll in unpublished course"
-        )
-
-    # Check if already enrolled
-    existing = db.query(Enrollment).filter(
-        Enrollment.user_id == current_user.id,
-        Enrollment.course_id == course_id,
-    ).first()
-
-    if existing:
-        # If previously dropped, re-activate enrollment
-        if existing.status == EnrollmentStatus.DROPPED:
-            existing.status = EnrollmentStatus.ACTIVE
-            existing.enrolled_at = datetime.now(timezone.utc)
-            db.commit()
-            logger.info(
-                "[Success] Course re-enrollment succeeded course_id=%s user=%s role=%s",
-                course_id,
-                current_user.email,
-                current_user.role,
-            )
-            return Message(message="Successfully re-enrolled in course")
-        else:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Already enrolled in this course"
-            )
-
-    enrollment = Enrollment(
-        user_id=current_user.id,
-        course_id=course_id,
-    )
-
-    db.add(enrollment)
-    db.commit()
-
-    logger.info(
-        "[Success] Course enrollment succeeded course_id=%s user=%s role=%s",
-        course_id,
-        current_user.email,
-        current_user.role,
-    )
-
-    return Message(message="Successfully enrolled in course")
-
-
-@router.post("/{course_id}/unenroll", response_model=Message)
-async def unenroll_from_course(
-    course_id: uuid.UUID,
-    db: DBSession,
-    current_user: CurrentUser,
-):
-    """Unenroll current user from a course."""
-    course = db.query(Course).filter(Course.id == course_id).first()
-
-    if not course:
-        raise NotFoundException("Course not found")
-
-    # Check if enrolled
-    enrollment = db.query(Enrollment).filter(
-        Enrollment.user_id == current_user.id,
-        Enrollment.course_id == course_id,
-        Enrollment.status == EnrollmentStatus.ACTIVE,
-    ).first()
-
-    if not enrollment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Not enrolled in this course"
-        )
-
-    # Update status to DROPPED instead of deleting
-    enrollment.status = EnrollmentStatus.DROPPED
-    db.commit()
-
-    logger.info(
-        "[Success] Course unenrollment succeeded course_id=%s user=%s role=%s",
-        course_id,
-        current_user.email,
-        current_user.role,
-    )
-
-    return Message(message="Successfully unenrolled from course")
-
-
-@router.get("/{course_id}/enrollment-status")
-async def get_enrollment_status(
-    course_id: uuid.UUID,
-    db: DBSession,
-    current_user: CurrentUser,
-):
-    """Get current user's enrollment status for a course."""
-    enrollment = db.query(Enrollment).filter(
-        Enrollment.user_id == current_user.id,
-        Enrollment.course_id == course_id,
-    ).first()
-
-    if not enrollment:
-        return {"enrolled": False, "status": None}
-
-    return {
-        "enrolled": enrollment.status == EnrollmentStatus.ACTIVE,
-        "status": enrollment.status.value,
-        "enrolled_at": enrollment.enrolled_at,
-        "progress": enrollment.progress,
-    }
-
-
 @router.get("/{course_id}/lessons", response_model=List)
 async def get_course_lessons(
     course_id: uuid.UUID,
@@ -568,17 +429,8 @@ async def get_course_materials(
         course.instructor_id == current_user.id
     )
 
-    if not is_owner:
-        if not current_user:
-            raise ForbiddenException("You must login to access course materials")
-
-        is_enrolled = db.query(Enrollment).filter(
-            Enrollment.course_id == course_id,
-            Enrollment.user_id == current_user.id,
-            Enrollment.status == EnrollmentStatus.ACTIVE,
-        ).first() is not None
-        if not is_enrolled:
-            raise ForbiddenException("You must be enrolled in this course")
+    if not is_owner and course.status != CourseStatus.PUBLISHED:
+        raise ForbiddenException("Only course instructor or admin can access unpublished course materials")
 
     return db.query(Material).filter(
         Material.course_id == course_id,
@@ -714,41 +566,3 @@ async def get_my_teaching_courses(
     ).order_by(Course.created_at.desc()).all()
 
     return courses
-
-
-@router.get("/my/enrolled", response_model=List[CourseListResponse])
-async def get_my_enrolled_courses(
-    db: DBSession,
-    current_user: CurrentUser,
-):
-    """Get courses the current user is enrolled in."""
-    enrollments = db.query(Enrollment).filter(
-        Enrollment.user_id == current_user.id,
-        Enrollment.status == EnrollmentStatus.ACTIVE,
-    ).all()
-
-    items = []
-    for enrollment in enrollments:
-        course = enrollment.course
-        lesson_count = db.query(func.count(Lesson.id)).filter(
-            Lesson.course_id == course.id,
-            Lesson.is_published == True
-        ).scalar()
-        enrollment_count = db.query(func.count(Enrollment.id)).filter(
-            Enrollment.course_id == course.id
-        ).scalar()
-
-        items.append(CourseListResponse(
-            id=course.id,
-            title=course.title,
-            slug=course.slug,
-            short_description=course.short_description,
-            thumbnail_url=course.thumbnail_url,
-            status=course.status,
-            level=course.level,
-            instructor=course.instructor,
-            lesson_count=lesson_count,
-            enrollment_count=enrollment_count,
-        ))
-
-    return items

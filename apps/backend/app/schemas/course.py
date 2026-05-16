@@ -3,10 +3,9 @@ Course schemas for API validation.
 """
 import uuid
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 
-from pydantic import BaseModel, ConfigDict, field_validator
-from slugify import slugify
+from pydantic import BaseModel, ConfigDict
 
 from app.models.course import CourseStatus
 from app.schemas.user import UserResponse
@@ -58,7 +57,6 @@ class CourseDetailResponse(CourseResponse):
     """Detailed course response with instructor info."""
     instructor: UserResponse
     lesson_count: int = 0
-    enrollment_count: int = 0
 
 
 class CourseListResponse(BaseModel):
@@ -74,4 +72,3 @@ class CourseListResponse(BaseModel):
     level: Optional[str] = None
     instructor: UserResponse
     lesson_count: int = 0
-    enrollment_count: int = 0

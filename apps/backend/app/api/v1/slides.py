@@ -9,7 +9,6 @@ from sqlalchemy.orm import joinedload
 from app.core.dependencies import CurrentUser, DBSession, InstructorUser
 from app.core.exceptions import ForbiddenException, NotFoundException
 from app.models.course import Course
-from app.models.enrollment import Enrollment, EnrollmentStatus
 from app.models.lesson import Lesson
 from app.models.slide_deck import SlideDeck
 from app.models.user import User, UserRole
@@ -34,21 +33,6 @@ def check_course_owner(db: DBSession, course_id: uuid.UUID, user: User) -> Cours
     return course
 
 
-def ensure_learner_enrolled(db: DBSession, course_id: uuid.UUID, user: User) -> None:
-    """Ensure learner is actively enrolled before accessing slide decks."""
-    if user.role != UserRole.LEARNER:
-        return
-
-    is_enrolled = db.query(Enrollment).filter(
-        Enrollment.course_id == course_id,
-        Enrollment.user_id == user.id,
-        Enrollment.status == EnrollmentStatus.ACTIVE,
-    ).first() is not None
-
-    if not is_enrolled:
-        raise ForbiddenException("You must be enrolled in this course")
-
-
 def check_slide_deck_access(
     db: DBSession,
     slide_deck_id: uuid.UUID,
@@ -69,9 +53,6 @@ def check_slide_deck_access(
 
     if not is_owner and not slide_deck.is_published:
         raise NotFoundException("Slide deck not found")
-
-    if user.role == UserRole.LEARNER:
-        ensure_learner_enrolled(db, slide_deck.course_id, user)
 
     return slide_deck
 
@@ -190,8 +171,6 @@ async def list_slide_decks(
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
         raise NotFoundException("Course not found")
-
-    ensure_learner_enrolled(db, course_id, current_user)
 
     query = db.query(SlideDeck).filter(SlideDeck.course_id == course_id)
     if lesson_id:

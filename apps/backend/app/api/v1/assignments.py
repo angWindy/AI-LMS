@@ -2,26 +2,35 @@
 Assignment API endpoints.
 """
 import logging
-from typing import List
+import random
 import uuid
 
 from fastapi import APIRouter, HTTPException, Query, status
+from llm.prompts.assignment_generator import difficulty_distribution
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
-from app.core.dependencies import DBSession, CurrentUser, InstructorUser
-from app.core.exceptions import NotFoundException, ForbiddenException
-from app.models.user import User, UserRole
+from app.core.dependencies import CurrentUser, DBSession, InstructorUser
+from app.core.exceptions import ForbiddenException, NotFoundException
+from app.models.assignment import (
+    Assignment,
+    AssignmentOption,
+    AssignmentQuestion,
+    QuestionDifficulty,
+    QuestionPurposeType,
+)
 from app.models.course import Course
 from app.models.lesson import Lesson
-from app.models.assignment import Assignment, AssignmentQuestion, AssignmentOption
-from app.models.enrollment import Enrollment, EnrollmentStatus
+from app.models.question_bank import QuestionBankQuestion
+from app.models.user import User, UserRole
 from app.schemas.assignment import (
     AssignmentCreate,
     AssignmentGenerateDraftRequest,
-    AssignmentUpdate,
-    AssignmentResponse,
+    AssignmentGenerateFromBankRequest,
+    AssignmentOptionCreate,
     AssignmentQuestionCreate,
+    AssignmentResponse,
+    AssignmentUpdate,
 )
 from app.schemas.common import Message
 from app.services.assignment_generator_service import AssignmentGeneratorService
@@ -58,22 +67,7 @@ def check_assignment_access(db: DBSession, assignment_id: uuid.UUID, user: User,
     return assignment
 
 
-def ensure_learner_enrolled(db: DBSession, course_id: uuid.UUID, user: User) -> None:
-    """Ensure learner is actively enrolled before accessing assignment data."""
-    if user.role != UserRole.LEARNER:
-        return
-
-    is_enrolled = db.query(Enrollment).filter(
-        Enrollment.course_id == course_id,
-        Enrollment.user_id == user.id,
-        Enrollment.status == EnrollmentStatus.ACTIVE,
-    ).first() is not None
-
-    if not is_enrolled:
-        raise ForbiddenException("You must be enrolled in this course")
-
-
-def add_questions_to_assignment(db: DBSession, assignment: Assignment, questions_data: List[AssignmentQuestionCreate]):
+def add_questions_to_assignment(db: DBSession, assignment: Assignment, questions_data: list[AssignmentQuestionCreate]):
     """Attach full question tree to assignment."""
     for question_index, question_data in enumerate(questions_data):
         question = AssignmentQuestion(
@@ -94,6 +88,66 @@ def add_questions_to_assignment(db: DBSession, assignment: Assignment, questions
                 order_index=option_index,
             )
             db.add(option)
+
+
+def build_assignment_question_from_bank(question: QuestionBankQuestion) -> AssignmentQuestionCreate:
+    """Clone one reusable question bank item into an assignment payload."""
+    return AssignmentQuestionCreate(
+        question_text=question.question_text,
+        difficulty=question.difficulty,
+        purpose_type=question.purpose_type,
+        options=[
+            AssignmentOptionCreate(
+                option_text=option.option_text,
+                is_correct=option.is_correct,
+            )
+            for option in sorted(question.options, key=lambda option: option.order_index)
+        ],
+    )
+
+
+def select_review_questions_from_bank(
+    db: DBSession,
+    course_id: uuid.UUID,
+    question_count: int,
+) -> list[QuestionBankQuestion]:
+    """Randomly select practice/shared bank questions with a 40/40/20 difficulty distribution."""
+    expected_counts = difficulty_distribution(question_count)
+    selected_questions: list[QuestionBankQuestion] = []
+    shortages: list[str] = []
+
+    for difficulty_value, expected_count in expected_counts.items():
+        if expected_count == 0:
+            continue
+
+        candidates = (
+            db.query(QuestionBankQuestion)
+            .options(joinedload(QuestionBankQuestion.options))
+            .filter(
+                QuestionBankQuestion.course_id == course_id,
+                QuestionBankQuestion.difficulty == QuestionDifficulty(difficulty_value),
+                QuestionBankQuestion.purpose_type.in_([
+                    QuestionPurposeType.PRACTICE,
+                    QuestionPurposeType.SHARED,
+                ]),
+            )
+            .all()
+        )
+
+        if len(candidates) < expected_count:
+            shortages.append(f"{difficulty_value}: cần {expected_count}, hiện có {len(candidates)}")
+            continue
+
+        selected_questions.extend(random.sample(candidates, expected_count))
+
+    if shortages:
+        raise ValueError(
+            "Ngân hàng câu hỏi chưa đủ câu Luyện tập/Dùng chung theo tỉ lệ 40/40/20: "
+            + "; ".join(shortages)
+        )
+
+    random.shuffle(selected_questions)
+    return selected_questions
 
 
 @router.post("", response_model=AssignmentResponse, status_code=status.HTTP_201_CREATED)
@@ -239,7 +293,74 @@ async def generate_assignment_draft(
     return assignment
 
 
-@router.get("", response_model=List[AssignmentResponse])
+@router.post("/generate-from-bank", response_model=AssignmentResponse, status_code=status.HTTP_201_CREATED)
+async def generate_assignment_from_question_bank(
+    db: DBSession,
+    current_user: InstructorUser,
+    course_id: uuid.UUID,
+    payload: AssignmentGenerateFromBankRequest,
+):
+    """Generate an unpublished review assignment from random practice/shared question bank items."""
+    check_course_owner(db, course_id, current_user)
+
+    lesson = None
+    if payload.lesson_id:
+        lesson = db.query(Lesson).filter(
+            Lesson.id == payload.lesson_id,
+            Lesson.course_id == course_id,
+        ).first()
+        if not lesson:
+            raise NotFoundException("Lesson not found in this course")
+
+    try:
+        selected_questions = select_review_questions_from_bank(
+            db=db,
+            course_id=course_id,
+            question_count=payload.question_count,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+    max_order = db.query(func.max(Assignment.order_index)).filter(
+        Assignment.course_id == course_id
+    ).scalar()
+    next_order = (max_order or 0) + 1
+
+    title_prefix = lesson.title if lesson else "Bài tập ôn tập"
+    assignment_title = (payload.title or "").strip() or f"{title_prefix} - Bài tập ôn tập"
+    assignment = Assignment(
+        course_id=course_id,
+        lesson_id=payload.lesson_id,
+        title=assignment_title,
+        is_published=False,
+        order_index=next_order,
+    )
+    db.add(assignment)
+    db.flush()
+
+    assignment_questions = [build_assignment_question_from_bank(question) for question in selected_questions]
+    add_questions_to_assignment(db, assignment, assignment_questions)
+
+    db.commit()
+    db.refresh(assignment)
+
+    logger.info(
+        "[Success] Assignment draft generated from question bank assignment_id=%s course_id=%s lesson_id=%s title=%s created_by=%s question_count=%s",
+        assignment.id,
+        assignment.course_id,
+        assignment.lesson_id,
+        assignment.title,
+        current_user.email,
+        len(assignment_questions),
+    )
+
+    return assignment
+
+
+@router.get("", response_model=list[AssignmentResponse])
 async def list_assignments(
     db: DBSession,
     course_id: uuid.UUID,
@@ -255,10 +376,8 @@ async def list_assignments(
         joinedload(Assignment.questions).joinedload(AssignmentQuestion.options),
     ).filter(Assignment.course_id == course_id)
 
-    ensure_learner_enrolled(db, course_id, current_user)
-
     if current_user.role == UserRole.LEARNER or not include_unpublished:
-        query = query.filter(Assignment.is_published == True)
+        query = query.filter(Assignment.is_published.is_(True))
 
     return query.order_by(Assignment.order_index).all()
 
@@ -273,7 +392,6 @@ async def get_assignment(
     assignment = check_assignment_access(db, assignment_id, current_user)
 
     if current_user.role == UserRole.LEARNER:
-        ensure_learner_enrolled(db, assignment.course_id, current_user)
         if not assignment.is_published:
             raise NotFoundException("Assignment not found")
         return assignment

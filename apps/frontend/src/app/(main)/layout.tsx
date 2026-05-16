@@ -7,7 +7,7 @@ import {
   BookOpen, 
   ChevronsLeft,
   ChevronsRight,
-  GraduationCap, 
+  GraduationCap,
   Home, 
   Library,
   LogOut, 
@@ -49,7 +49,6 @@ const navItems: NavItem[] = [
   { title: "Khóa học của tôi", href: "/courses/my", icon: FolderOpen, roles: [UserRole.INSTRUCTOR, UserRole.ADMIN] },
   { title: "Ngân hàng câu hỏi", href: "/question-bank", icon: Library, roles: [UserRole.INSTRUCTOR, UserRole.ADMIN] },
   { title: "Tạo khóa học", href: "/courses/create", icon: PlusCircle, roles: [UserRole.INSTRUCTOR, UserRole.ADMIN] },
-  { title: "Đã đăng ký", href: "/courses/enrolled", icon: GraduationCap, roles: [UserRole.LEARNER] },
   { title: "Quản lý Users", href: "/users", icon: Users, roles: [UserRole.ADMIN] },
 ];
 

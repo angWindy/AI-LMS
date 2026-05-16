@@ -6,7 +6,6 @@ import Link from "next/link";
 import { 
   BookOpen, 
   Clock, 
-  Users, 
   ChevronRight,
   ChevronDown,
   ChevronUp,
@@ -21,7 +20,6 @@ import {
   Eye,
   EyeOff,
   Loader2,
-  X,
   Upload
 } from "lucide-react";
 
@@ -91,9 +89,6 @@ export default function CourseDetailPage() {
   const [courseMaterials, setCourseMaterials] = useState<Material[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isEnrolling, setIsEnrolling] = useState(false);
-  const [isUnenrolling, setIsUnenrolling] = useState(false);
-  const [enrollmentStatus, setEnrollmentStatus] = useState<{ enrolled: boolean; status: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Lesson management state
@@ -165,13 +160,6 @@ export default function CourseDetailPage() {
         setAssignments([]);
       }
       
-      // Check enrollment status
-      try {
-        const status = await courseApi.getEnrollmentStatus(courseData.id);
-        setEnrollmentStatus(status);
-      } catch {
-        setEnrollmentStatus({ enrolled: false, status: null });
-      }
     } catch (err: any) {
       setError(err.response?.data?.detail || "Không thể tải khóa học");
     } finally {
@@ -184,36 +172,6 @@ export default function CourseDetailPage() {
       fetchCourseData();
     }
   }, [slug, fetchCourseData]);
-
-  const handleEnroll = async () => {
-    if (!course) return;
-
-    setIsEnrolling(true);
-    try {
-      await courseApi.enroll(course.id);
-      setEnrollmentStatus({ enrolled: true, status: "active" });
-      alert("Đăng ký thành công!");
-    } catch (err: any) {
-      alert(err.response?.data?.detail || "Đăng ký thất bại");
-    } finally {
-      setIsEnrolling(false);
-    }
-  };
-
-  const handleUnenroll = async () => {
-    if (!course) return;
-
-    setIsUnenrolling(true);
-    try {
-      await courseApi.unenroll(course.id);
-      setEnrollmentStatus({ enrolled: false, status: "dropped" });
-      alert("Đã hủy đăng ký");
-    } catch (err: any) {
-      alert(err.response?.data?.detail || "Hủy đăng ký thất bại");
-    } finally {
-      setIsUnenrolling(false);
-    }
-  };
 
   const handleOpenLessonDialog = (lesson?: Lesson) => {
     if (lesson) {
@@ -726,7 +684,6 @@ export default function CourseDetailPage() {
   const isInstructor = user?.id === course.instructor_id;
   const isAdmin = user?.role === UserRole.ADMIN;
   const canEdit = isInstructor || isAdmin;
-  const isEnrolled = enrollmentStatus?.enrolled;
   const filteredLessons = lessons.filter((lesson) => lessonMatchesFilter(lesson, learningFilter));
   const activeFilterLabel = learningFilterOptions.find((option) => option.value === learningFilter)?.label || "Home";
   const lessonCountDescription =
@@ -769,11 +726,6 @@ export default function CourseDetailPage() {
                   </Badge>
                   {course.level && <Badge variant="outline">{course.level}</Badge>}
                   {course.category && <Badge variant="outline">{course.category}</Badge>}
-                  {isEnrolled && (
-                    <Badge variant="default" className="bg-green-600">
-                      Đã đăng ký
-                    </Badge>
-                  )}
                 </div>
               </div>
 
@@ -997,20 +949,16 @@ export default function CourseDetailPage() {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Enroll Card */}
+          {/* Course Summary Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Tham gia khóa học</CardTitle>
+              <CardTitle>Tổng quan khóa học</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <BookOpen className="h-4 w-4 text-muted-foreground" />
                   <span>{lessons.length} bài học</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                  <span>{course.enrollment_count} học viên</span>
                 </div>
                 {course.estimated_duration && (
                   <div className="flex items-center gap-2">
@@ -1019,37 +967,6 @@ export default function CourseDetailPage() {
                   </div>
                 )}
               </div>
-
-              {user?.role === UserRole.LEARNER && !isEnrolled && (
-                <Button 
-                  className="w-full" 
-                  onClick={handleEnroll}
-                  disabled={isEnrolling}
-                >
-                  {isEnrolling ? "Đang đăng ký..." : "Đăng ký ngay"}
-                </Button>
-              )}
-
-              {user?.role === UserRole.LEARNER && isEnrolled && (
-                <Button 
-                  className="w-full" 
-                  variant="outline"
-                  onClick={handleUnenroll}
-                  disabled={isUnenrolling}
-                >
-                  {isUnenrolling ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Đang hủy...
-                    </>
-                  ) : (
-                    <>
-                      <X className="h-4 w-4 mr-2" />
-                      Hủy đăng ký
-                    </>
-                  )}
-                </Button>
-              )}
 
               {canEdit && (
                 <Button className="w-full" variant="outline" onClick={() => handleOpenLessonDialog()}>

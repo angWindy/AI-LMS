@@ -42,6 +42,8 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 
 const ALL_LESSONS_VALUE = "all";
+const ALL_DIFFICULTIES_VALUE = "all";
+const ALL_PURPOSES_VALUE = "all";
 const MAX_GENERATE_COUNT = 100;
 
 const difficultyLabels: Record<QuestionDifficulty, string> = {
@@ -54,6 +56,12 @@ const purposeLabels: Record<QuestionPurposeType, string> = {
   [QuestionPurposeType.PRACTICE]: "Luyện tập",
   [QuestionPurposeType.ASSESSMENT]: "Kiểm tra",
   [QuestionPurposeType.SHARED]: "Dùng chung",
+};
+
+const difficultyBadgeClasses: Record<QuestionDifficulty, string> = {
+  [QuestionDifficulty.EASY]: "border-green-200 bg-green-50 text-green-700 hover:bg-green-50",
+  [QuestionDifficulty.MEDIUM]: "border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-50",
+  [QuestionDifficulty.HARD]: "border-red-200 bg-red-50 text-red-700 hover:bg-red-50",
 };
 
 interface QuestionEditorState {
@@ -72,6 +80,8 @@ export default function QuestionBankPage() {
   const [questions, setQuestions] = useState<QuestionBankQuestion[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState("");
   const [selectedLessonId, setSelectedLessonId] = useState(ALL_LESSONS_VALUE);
+  const [selectedDifficulty, setSelectedDifficulty] = useState(ALL_DIFFICULTIES_VALUE);
+  const [selectedPurpose, setSelectedPurpose] = useState(ALL_PURPOSES_VALUE);
   const [expandedQuestionIds, setExpandedQuestionIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isQuestionsLoading, setIsQuestionsLoading] = useState(false);
@@ -142,6 +152,8 @@ export default function QuestionBankPage() {
       const questionData = await questionBankApi.listQuestions({
         course_id: selectedCourseId || undefined,
         lesson_id: selectedLessonId === ALL_LESSONS_VALUE ? undefined : selectedLessonId,
+        difficulty: selectedDifficulty === ALL_DIFFICULTIES_VALUE ? undefined : (selectedDifficulty as QuestionDifficulty),
+        purpose_type: selectedPurpose === ALL_PURPOSES_VALUE ? undefined : (selectedPurpose as QuestionPurposeType),
       });
       setQuestions(questionData);
     } catch (err: any) {
@@ -149,7 +161,7 @@ export default function QuestionBankPage() {
     } finally {
       setIsQuestionsLoading(false);
     }
-  }, [selectedCourseId, selectedLessonId]);
+  }, [selectedCourseId, selectedLessonId, selectedDifficulty, selectedPurpose]);
 
   useEffect(() => {
     if (canManage) {
@@ -168,7 +180,7 @@ export default function QuestionBankPage() {
     if (selectedCourseId) {
       loadQuestions();
     }
-  }, [selectedCourseId, selectedLessonId, loadQuestions]);
+  }, [selectedCourseId, selectedLessonId, selectedDifficulty, selectedPurpose, loadQuestions]);
 
   const openCreateDialog = () => {
     const scopedLessonId = selectedLessonId === ALL_LESSONS_VALUE ? null : selectedLessonId;
@@ -361,7 +373,7 @@ export default function QuestionBankPage() {
         </div>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <div className="space-y-2">
           <Label>Khóa học</Label>
           <Select value={selectedCourseId} onValueChange={setSelectedCourseId} disabled={isLoading || courses.length === 0}>
@@ -389,6 +401,40 @@ export default function QuestionBankPage() {
               {lessons.map((lesson) => (
                 <SelectItem key={lesson.id} value={lesson.id}>
                   {lesson.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Mức độ</Label>
+          <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty} disabled={!selectedCourseId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Tất cả mức độ" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_DIFFICULTIES_VALUE}>Tất cả mức độ</SelectItem>
+              {Object.values(QuestionDifficulty).map((difficulty) => (
+                <SelectItem key={difficulty} value={difficulty}>
+                  {difficultyLabels[difficulty]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Mục đích</Label>
+          <Select value={selectedPurpose} onValueChange={setSelectedPurpose} disabled={!selectedCourseId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Tất cả mục đích" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_PURPOSES_VALUE}>Tất cả mục đích</SelectItem>
+              {Object.values(QuestionPurposeType).map((purpose) => (
+                <SelectItem key={purpose} value={purpose}>
+                  {purposeLabels[purpose]}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -434,13 +480,13 @@ export default function QuestionBankPage() {
                       <p className="text-sm font-medium text-slate-900">{question.question_text}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{question.course_title}</p>
                       <div className="mt-2 flex md:hidden">
-                        <Badge variant={question.difficulty === QuestionDifficulty.HARD ? "destructive" : "secondary"}>
+                        <Badge variant="outline" className={difficultyBadgeClasses[question.difficulty]}>
                           {difficultyLabels[question.difficulty]}
                         </Badge>
                       </div>
                     </div>
                     <div className="hidden items-start md:flex">
-                      <Badge variant={question.difficulty === QuestionDifficulty.HARD ? "destructive" : "secondary"}>
+                      <Badge variant="outline" className={difficultyBadgeClasses[question.difficulty]}>
                         {difficultyLabels[question.difficulty]}
                       </Badge>
                     </div>
@@ -478,7 +524,9 @@ export default function QuestionBankPage() {
                           </div>
                           <div className="flex flex-wrap gap-2">
                             <Badge variant="outline">{purposeLabels[question.purpose_type]}</Badge>
-                            <Badge variant="outline">{difficultyLabels[question.difficulty]}</Badge>
+                            <Badge variant="outline" className={difficultyBadgeClasses[question.difficulty]}>
+                              {difficultyLabels[question.difficulty]}
+                            </Badge>
                           </div>
                           <div className="flex flex-wrap gap-2" />
                         </div>

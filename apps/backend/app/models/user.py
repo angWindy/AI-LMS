@@ -15,7 +15,6 @@ from app.db.base import Base, TimestampMixin
 
 if TYPE_CHECKING:
     from app.models.course import Course
-    from app.models.enrollment import Enrollment
     from app.models.submission import Submission
 
 
@@ -60,11 +59,6 @@ class User(Base, TimestampMixin):
     courses: Mapped[List["Course"]] = relationship(
         "Course",
         back_populates="instructor",
-        lazy="selectin",
-    )
-    enrollments: Mapped[List["Enrollment"]] = relationship(
-        "Enrollment",
-        back_populates="user",
         lazy="selectin",
     )
     submissions: Mapped[List["Submission"]] = relationship(

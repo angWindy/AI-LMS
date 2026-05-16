@@ -3,6 +3,8 @@ Export all schemas.
 """
 from app.schemas.assignment import (
     AssignmentCreate,
+    AssignmentGenerateDraftRequest,
+    AssignmentGenerateFromBankRequest,
     AssignmentOptionCreate,
     AssignmentOptionResponse,
     AssignmentQuestionCreate,
@@ -75,6 +77,8 @@ __all__ = [
     "MaterialCreate",
     "MaterialResponse",
     "AssignmentCreate",
+    "AssignmentGenerateDraftRequest",
+    "AssignmentGenerateFromBankRequest",
     "AssignmentUpdate",
     "AssignmentResponse",
     "AssignmentQuestionCreate",

@@ -40,7 +40,12 @@ export const questionBankApi = {
     return response.data;
   },
 
-  listQuestions: async (params?: { course_id?: string; lesson_id?: string }): Promise<QuestionBankQuestion[]> => {
+  listQuestions: async (params?: {
+    course_id?: string;
+    lesson_id?: string;
+    difficulty?: QuestionDifficulty;
+    purpose_type?: QuestionPurposeType;
+  }): Promise<QuestionBankQuestion[]> => {
     const response = await apiClient.get("/question-bank/questions", { params });
     return response.data;
   },

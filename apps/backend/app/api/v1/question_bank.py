@@ -191,8 +191,10 @@ async def list_questions(
     current_user: InstructorUser,
     course_id: uuid.UUID | None = Query(None),
     lesson_id: uuid.UUID | None = Query(None),
+    difficulty: QuestionDifficulty | None = Query(None),
+    purpose_type: QuestionPurposeType | None = Query(None),
 ):
-    """List reusable questions for accessible courses, optionally filtered by course and lesson."""
+    """List reusable questions for accessible courses with optional filters."""
     query = db.query(QuestionBankQuestion).options(
         joinedload(QuestionBankQuestion.course),
         joinedload(QuestionBankQuestion.lesson),
@@ -215,6 +217,12 @@ async def list_questions(
         else:
             ensure_lesson_in_course(db, course_id, lesson_id)
         query = query.filter(QuestionBankQuestion.lesson_id == lesson_id)
+
+    if difficulty is not None:
+        query = query.filter(QuestionBankQuestion.difficulty == difficulty)
+
+    if purpose_type is not None:
+        query = query.filter(QuestionBankQuestion.purpose_type == purpose_type)
 
     questions = query.order_by(
         Course.title.asc(),

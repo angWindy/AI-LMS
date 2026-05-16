@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BookOpen, GraduationCap, Users, TrendingUp, Clock, Settings, Shield, Activity } from "lucide-react";
+import { BookOpen, GraduationCap, Users, Clock, Settings, Shield, Activity } from "lucide-react";
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,8 +31,9 @@ export default function DashboardPage() {
           setCourses(coursesResponse.items);
           setTotalCourses(coursesResponse.total);
         } else if (user?.role === UserRole.LEARNER) {
-          const enrolled = await courseApi.getEnrolledCourses();
-          setCourses(enrolled);
+          const coursesResponse = await courseApi.getAll();
+          setCourses(coursesResponse.items);
+          setTotalCourses(coursesResponse.total);
         } else if (user?.role === UserRole.INSTRUCTOR) {
           const myCourses = await courseApi.getMyCourses();
           setCourses(myCourses);
@@ -310,7 +311,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-2xl font-bold">{courses.length}</div>
             <p className="text-xs text-muted-foreground">
-              {user?.role === UserRole.LEARNER ? "Đang học" : "Đã tạo"}
+              {user?.role === UserRole.LEARNER ? "Có thể học" : "Đã tạo"}
             </p>
           </CardContent>
         </Card>
@@ -337,23 +338,13 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Tiến độ</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">--%</div>
-            <p className="text-xs text-muted-foreground">Hoàn thành trung bình</p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Recent Courses */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">
-            {user?.role === UserRole.LEARNER ? "Đang học" : "Khóa học gần đây"}
+            {user?.role === UserRole.LEARNER ? "Khóa học có thể học" : "Khóa học gần đây"}
           </h2>
           <Button variant="outline" asChild>
             <Link href="/courses">Xem tất cả</Link>
@@ -378,7 +369,7 @@ export default function DashboardPage() {
             <h3 className="text-lg font-medium mb-2">Chưa có khóa học nào</h3>
             <p className="text-muted-foreground mb-4">
               {user?.role === UserRole.LEARNER
-                ? "Hãy khám phá và đăng ký các khóa học mới!"
+                ? "Hiện chưa có khóa học công khai nào."
                 : "Bắt đầu tạo khóa học đầu tiên của bạn!"}
             </p>
             <Button asChild>
