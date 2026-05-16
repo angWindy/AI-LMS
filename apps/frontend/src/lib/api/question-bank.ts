@@ -32,8 +32,6 @@ export interface QuestionBankGenerateData {
   course_id: string;
   lesson_id: string;
   question_count: number;
-  difficulty?: QuestionDifficulty;
-  purpose_type?: QuestionPurposeType;
 }
 
 export const questionBankApi = {

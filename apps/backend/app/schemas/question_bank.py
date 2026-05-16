@@ -3,7 +3,6 @@ Question bank schemas for API validation.
 """
 import uuid
 from datetime import datetime
-from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -54,8 +53,8 @@ class QuestionBankQuestionCreate(QuestionBankQuestionBase):
     """Create a reusable question for a course."""
 
     course_id: uuid.UUID
-    lesson_id: Optional[uuid.UUID] = None
-    options: List[QuestionBankOptionCreate]
+    lesson_id: uuid.UUID | None = None
+    options: list[QuestionBankOptionCreate]
 
     @model_validator(mode="after")
     def validate_options(self):
@@ -72,8 +71,8 @@ class QuestionBankQuestionCreate(QuestionBankQuestionBase):
 class QuestionBankQuestionUpdate(QuestionBankQuestionBase):
     """Update details for an existing reusable question."""
 
-    lesson_id: Optional[uuid.UUID] = None
-    options: Optional[List[QuestionBankOptionCreate]] = None
+    lesson_id: uuid.UUID | None = None
+    options: list[QuestionBankOptionCreate] | None = None
 
     @model_validator(mode="after")
     def validate_options(self):
@@ -97,11 +96,11 @@ class QuestionBankQuestionResponse(QuestionBankQuestionBase):
 
     id: uuid.UUID
     course_id: uuid.UUID
-    lesson_id: Optional[uuid.UUID] = None
+    lesson_id: uuid.UUID | None = None
     order_index: int
     course_title: str
-    lesson_title: Optional[str] = None
-    options: List[QuestionBankOptionResponse]
+    lesson_title: str | None = None
+    options: list[QuestionBankOptionResponse]
     created_at: datetime
     updated_at: datetime
 
@@ -112,5 +111,3 @@ class QuestionBankGenerateRequest(BaseModel):
     course_id: uuid.UUID
     lesson_id: uuid.UUID
     question_count: int = Field(..., ge=1, le=100)
-    difficulty: QuestionDifficulty = QuestionDifficulty.EASY
-    purpose_type: QuestionPurposeType = QuestionPurposeType.SHARED

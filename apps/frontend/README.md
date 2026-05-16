@@ -1,112 +1,63 @@
 # AI-LMS Frontend
 
-Next.js 14 Frontend cho hệ thống AI-LMS.
+Next.js frontend for AI-LMS.
 
-## 🚀 Quick Start
+## Stack
+
+- Next.js 14 App Router.
+- TypeScript.
+- Tailwind CSS.
+- shadcn/ui components.
+- Zustand for auth state.
+- Axios API client with JWT handling.
+
+## Local Run
 
 ```bash
-# Install dependencies
 npm install
-
-# Setup environment
-cp .env.example .env.local
-
-# Run development server
 npm run dev
 ```
 
-Truy cập: http://localhost:3000
+Open:
 
-## 🛠️ Tech Stack
-
-- **Framework**: Next.js 14 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **UI Library**: shadcn/ui
-- **State**: Zustand (auth) + React Query (data fetching)
-- **Forms**: React Hook Form + Zod validation
-- **API Client**: Axios with JWT interceptors
-
-## 📁 Project Structure
-
-```
-src/
-├── app/                    # Next.js App Router
-│   ├── (auth)/             # Auth pages (login, register)
-│   ├── (main)/             # Protected pages
-│   │   ├── dashboard/      # Role-based dashboard
-│   │   ├── courses/        # Course pages
-│   │   ├── users/          # Admin: user management
-│   │   └── profile/        # User settings
-│   ├── layout.tsx
-│   └── page.tsx            # Landing page
-├── components/
-│   ├── ui/                 # shadcn/ui components
-│   ├── layout/             # Layout components
-│   └── shared/             # Shared components
-├── lib/
-│   ├── api/                # API client & services
-│   ├── auth/               # Auth store (Zustand)
-│   └── utils.ts            # Utility functions
-├── types/                  # TypeScript interfaces
-├── hooks/                  # Custom React hooks
-└── middleware.ts           # Route protection
+```text
+http://localhost:3000
 ```
 
-## 📱 Pages
+## Environment
 
-| Page | Route | Role | Description |
-|------|-------|------|-------------|
-| Landing | `/` | Public | Landing page |
-| Login | `/login` | Public | User login |
-| Register | `/register` | Public | New registration |
-| Dashboard | `/dashboard` | All | Role-based dashboard |
-| Courses | `/courses` | All | Browse courses |
-| Course Detail | `/courses/[slug]` | All | View course |
-| Create Course | `/courses/create` | Instructor/Admin | Create new course |
-| My Courses | `/courses/my` | Instructor/Admin | Manage courses |
-| Enrolled | `/courses/enrolled` | Learner | Enrolled courses |
-| Users | `/users` | Admin | User management |
-| Profile | `/profile` | All | Account settings |
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
 
-## 🔧 Commands
+## Structure
+
+```text
+src/app/          routes and layouts
+src/components/   UI and feature components
+src/lib/api/      API client modules
+src/lib/auth/     auth store
+src/types/        shared TypeScript types
+```
+
+## Main Routes
+
+- `/login`
+- `/register`
+- `/dashboard`
+- `/courses`
+- `/courses/my`
+- `/courses/enrolled`
+- `/question-bank`
+- `/users`
+- `/profile`
+
+## Commands
 
 ```bash
-npm run dev      # Development server
-npm run build    # Production build
-npm start        # Start production server
-npm run lint     # Run ESLint
-npm run type-check # TypeScript check
+npm run dev
+npm run build
+npm run lint
 ```
 
-## 🔐 Authentication
-
-JWT-based authentication với:
-- Access token (30 min expiry)
-- Refresh token (7 days)
-- Automatic token refresh via Axios interceptors
-- Persistent auth state với Zustand + localStorage
-
-## 📡 API Integration
-
-Backend API: `http://localhost:8000`
-
-Configured in `.env.local`:
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
-
-## 🎨 UI Components
-
-Using shadcn/ui components:
-- Button, Input, Textarea, Label
-- Card, Badge, Avatar
-- Select, Dropdown Menu
-- Dialog, Tabs (can be added)
-
-## 📋 Environment Variables
-
-```env
-# Required
-NEXT_PUBLIC_API_URL=http://localhost:8000
-```
+The Question Bank generation UI only asks for lesson and count. Difficulty and purpose metadata are allocated by backend generation logic.

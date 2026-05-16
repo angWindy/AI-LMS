@@ -85,8 +85,6 @@ export default function QuestionBankPage() {
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [generateLessonId, setGenerateLessonId] = useState("");
   const [generateCount, setGenerateCount] = useState(5);
-  const [generateDifficulty, setGenerateDifficulty] = useState<QuestionDifficulty>(QuestionDifficulty.EASY);
-  const [generatePurpose, setGeneratePurpose] = useState<QuestionPurposeType>(QuestionPurposeType.SHARED);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isDeletingFiltered, setIsDeletingFiltered] = useState(false);
 
@@ -254,8 +252,6 @@ export default function QuestionBankPage() {
         course_id: selectedCourseId,
         lesson_id: generateLessonId,
         question_count: generateCount,
-        difficulty: generateDifficulty,
-        purpose_type: generatePurpose,
       });
       await loadQuestions();
       setShowGenerateDialog(false);
@@ -518,47 +514,15 @@ export default function QuestionBankPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label>Số câu</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={MAX_GENERATE_COUNT}
-                  value={generateCount}
-                  onChange={(event) => setGenerateCount(Number(event.target.value))}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Mức độ</Label>
-                <Select value={generateDifficulty} onValueChange={(value) => setGenerateDifficulty(value as QuestionDifficulty)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.values(QuestionDifficulty).map((difficulty) => (
-                      <SelectItem key={difficulty} value={difficulty}>
-                        {difficultyLabels[difficulty]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Mục đích</Label>
-                <Select value={generatePurpose} onValueChange={(value) => setGeneratePurpose(value as QuestionPurposeType)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.values(QuestionPurposeType).map((purpose) => (
-                      <SelectItem key={purpose} value={purpose}>
-                        {purposeLabels[purpose]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className="max-w-40 space-y-2">
+              <Label>Số câu</Label>
+              <Input
+                type="number"
+                min={1}
+                max={MAX_GENERATE_COUNT}
+                value={generateCount}
+                onChange={(event) => setGenerateCount(Number(event.target.value))}
+              />
             </div>
           </div>
           <DialogFooter>

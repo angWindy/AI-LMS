@@ -1,19 +1,22 @@
 """Service for generating assignment questions from lesson context."""
+
 import json
 import logging
 import re
 from dataclasses import dataclass
 
-from app.core.config import settings
-from app.models.course import Course
-from app.models.lesson import Lesson
-from app.schemas.assignment import AssignmentOptionCreate, AssignmentQuestionCreate
 from llm.config import LLMConfig
+from llm.prompts.assignment_generator import difficulty_distribution
 from llm.workflows.assignment_generator import (
     AssignmentGeneratorResult,
     AssignmentGeneratorWorkflow,
 )
 
+from app.core.config import settings
+from app.models.assignment import QuestionDifficulty
+from app.models.course import Course
+from app.models.lesson import Lesson
+from app.schemas.assignment import AssignmentOptionCreate, AssignmentQuestionCreate
 
 logger = logging.getLogger(__name__)
 
@@ -166,6 +169,7 @@ class AssignmentGeneratorService:
             or "JSON" in message_upper
             or "QUESTION #" in message_upper
             or "EXPECTED EXACTLY" in message_upper
+            or "DIFFICULTY" in message_upper
         )
 
     def _retry_token_budget(self, question_count: int) -> int:
@@ -275,6 +279,8 @@ class AssignmentGeneratorService:
             if not question_text:
                 raise ValueError(f"Question #{index} has empty question text.")
 
+            difficulty = self._resolve_difficulty(raw_question.get("difficulty"), index)
+
             raw_options = raw_question.get("options")
             if not isinstance(raw_options, list) or len(raw_options) != 4:
                 raise ValueError(f"Question #{index} must include exactly 4 options.")
@@ -289,6 +295,7 @@ class AssignmentGeneratorService:
             normalized_questions.append(
                 AssignmentQuestionCreate(
                     question_text=question_text,
+                    difficulty=difficulty,
                     options=[
                         AssignmentOptionCreate(
                             option_text=option,
@@ -299,7 +306,55 @@ class AssignmentGeneratorService:
                 )
             )
 
+        self._validate_difficulty_distribution(normalized_questions, expected_count)
         return normalized_questions
+
+    @staticmethod
+    def _validate_difficulty_distribution(
+        questions: list[AssignmentQuestionCreate],
+        expected_count: int,
+    ) -> None:
+        expected = difficulty_distribution(expected_count)
+        actual = {
+            QuestionDifficulty.EASY.value: 0,
+            QuestionDifficulty.MEDIUM.value: 0,
+            QuestionDifficulty.HARD.value: 0,
+        }
+        for question in questions:
+            actual[question.difficulty.value] += 1
+
+        if actual != expected:
+            raise ValueError(
+                "LLM returned an invalid difficulty distribution. "
+                f"Expected {expected}, got {actual}."
+            )
+
+    @staticmethod
+    def _resolve_difficulty(value: object, question_index: int) -> QuestionDifficulty:
+        if value is None:
+            raise ValueError(
+                f"Question #{question_index} has missing difficulty. Expected easy, medium, or hard."
+            )
+
+        normalized = str(value).strip().lower()
+        difficulty_aliases = {
+            "easy": QuestionDifficulty.EASY,
+            "dễ": QuestionDifficulty.EASY,
+            "de": QuestionDifficulty.EASY,
+            "medium": QuestionDifficulty.MEDIUM,
+            "trung bình": QuestionDifficulty.MEDIUM,
+            "trung binh": QuestionDifficulty.MEDIUM,
+            "hard": QuestionDifficulty.HARD,
+            "khó": QuestionDifficulty.HARD,
+            "kho": QuestionDifficulty.HARD,
+        }
+        try:
+            return difficulty_aliases[normalized]
+        except KeyError as exc:
+            raise ValueError(
+                f"Question #{question_index} has invalid difficulty '{value}'. "
+                "Expected easy, medium, or hard."
+            ) from exc
 
     @staticmethod
     def _resolve_correct_index(correct_answer: str, options: list[str]) -> int:
@@ -362,6 +417,10 @@ class AssignmentGeneratorService:
     @staticmethod
     def _build_mock_questions(lesson_title: str, count: int) -> list[AssignmentQuestionCreate]:
         questions: list[AssignmentQuestionCreate] = []
+        difficulties = []
+        for difficulty, difficulty_count in difficulty_distribution(count).items():
+            difficulties.extend([QuestionDifficulty(difficulty)] * difficulty_count)
+
         for index in range(1, count + 1):
             base = f"{lesson_title} - Cau hoi {index}"
             options = [
@@ -373,6 +432,7 @@ class AssignmentGeneratorService:
             questions.append(
                 AssignmentQuestionCreate(
                     question_text=f"Noi dung cau hoi {index} cho bai hoc {lesson_title}?",
+                    difficulty=difficulties[index - 1],
                     options=[
                         AssignmentOptionCreate(option_text=option, is_correct=option_index == 0)
                         for option_index, option in enumerate(options)

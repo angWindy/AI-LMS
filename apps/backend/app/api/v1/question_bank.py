@@ -2,8 +2,9 @@
 Question bank API endpoints.
 """
 import logging
+import random
 import uuid
-from typing import List
+from collections import defaultdict
 
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlalchemy import func
@@ -11,6 +12,7 @@ from sqlalchemy.orm import joinedload
 
 from app.core.dependencies import DBSession, InstructorUser
 from app.core.exceptions import ForbiddenException, NotFoundException
+from app.models.assignment import QuestionDifficulty, QuestionPurposeType
 from app.models.course import Course
 from app.models.lesson import Lesson
 from app.models.question_bank import QuestionBankOption, QuestionBankQuestion
@@ -28,6 +30,60 @@ from app.services.assignment_generator_service import AssignmentGeneratorService
 
 router = APIRouter(prefix="/question-bank", tags=["Question Bank"])
 logger = logging.getLogger(__name__)
+
+
+PURPOSE_DISTRIBUTION_RATIOS = {
+    QuestionPurposeType.PRACTICE: 0.65,
+    QuestionPurposeType.SHARED: 0.15,
+    QuestionPurposeType.ASSESSMENT: 0.20,
+}
+
+
+def calculate_ratio_counts(
+    total: int,
+    ratios: dict[QuestionPurposeType, float],
+) -> dict[QuestionPurposeType, int]:
+    """Allocate an integer total by ratio using largest remainders."""
+    raw_counts = {key: total * ratio for key, ratio in ratios.items()}
+    counts = {key: int(value) for key, value in raw_counts.items()}
+    remaining = total - sum(counts.values())
+
+    sorted_keys = sorted(
+        ratios,
+        key=lambda key: (raw_counts[key] - counts[key], ratios[key]),
+        reverse=True,
+    )
+    for key in sorted_keys[:remaining]:
+        counts[key] += 1
+
+    return counts
+
+
+def assign_purposes_by_difficulty(
+    questions: list,
+) -> list[QuestionPurposeType]:
+    """Randomly assign purpose_type by 65/15/20 ratio within each difficulty group."""
+    grouped_indexes: dict[QuestionDifficulty, list[int]] = defaultdict(list)
+    for index, question in enumerate(questions):
+        grouped_indexes[question.difficulty].append(index)
+
+    assigned: list[QuestionPurposeType | None] = [None] * len(questions)
+    for indexes in grouped_indexes.values():
+        purpose_counts = calculate_ratio_counts(len(indexes), PURPOSE_DISTRIBUTION_RATIOS)
+        purposes: list[QuestionPurposeType] = []
+        for purpose_type, count in purpose_counts.items():
+            purposes.extend([purpose_type] * count)
+
+        random.shuffle(purposes)
+        shuffled_indexes = list(indexes)
+        random.shuffle(shuffled_indexes)
+        for index, purpose_type in zip(shuffled_indexes, purposes, strict=True):
+            assigned[index] = purpose_type
+
+    return [
+        purpose_type if purpose_type is not None else QuestionPurposeType.SHARED
+        for purpose_type in assigned
+    ]
 
 
 def ensure_course_access(db: DBSession, course_id: uuid.UUID, user: User) -> Course:
@@ -76,7 +132,7 @@ def get_question_for_update(db: DBSession, question_id: uuid.UUID, user: User) -
 def add_options_to_question(
     db: DBSession,
     question: QuestionBankQuestion,
-    options_data: List[QuestionBankOptionCreate],
+    options_data: list[QuestionBankOptionCreate],
 ) -> None:
     """Attach full option set to a question bank question."""
     for option_index, option_data in enumerate(options_data):
@@ -107,7 +163,7 @@ def serialize_question(question: QuestionBankQuestion) -> QuestionBankQuestionRe
     )
 
 
-@router.get("/courses", response_model=List[QuestionBankCourseResponse])
+@router.get("/courses", response_model=list[QuestionBankCourseResponse])
 async def list_question_bank_courses(
     db: DBSession,
     current_user: InstructorUser,
@@ -129,7 +185,7 @@ async def list_question_bank_courses(
     ]
 
 
-@router.get("/questions", response_model=List[QuestionBankQuestionResponse])
+@router.get("/questions", response_model=list[QuestionBankQuestionResponse])
 async def list_questions(
     db: DBSession,
     current_user: InstructorUser,
@@ -209,7 +265,7 @@ async def create_question(
     return serialize_question(question)
 
 
-@router.post("/generate", response_model=List[QuestionBankQuestionResponse], status_code=status.HTTP_201_CREATED)
+@router.post("/generate", response_model=list[QuestionBankQuestionResponse], status_code=status.HTTP_201_CREATED)
 async def generate_questions(
     db: DBSession,
     current_user: InstructorUser,
@@ -262,14 +318,16 @@ async def generate_questions(
     ).scalar()
     next_order = (max_order or 0) + 1
 
+    assigned_purposes = assign_purposes_by_difficulty(generation_result.questions)
+
     created_questions: list[QuestionBankQuestion] = []
     for offset, generated_question in enumerate(generation_result.questions):
         question = QuestionBankQuestion(
             course_id=course.id,
             lesson_id=lesson.id,
             question_text=generated_question.question_text,
-            difficulty=payload.difficulty,
-            purpose_type=payload.purpose_type,
+            difficulty=generated_question.difficulty,
+            purpose_type=assigned_purposes[offset],
             order_index=next_order + offset,
         )
         db.add(question)

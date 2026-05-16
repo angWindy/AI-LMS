@@ -1,19 +1,39 @@
 # Database Schema Notes
 
-## Question Bank
+The source of truth is the SQLAlchemy models in `apps/backend/app/models/` and migrations in `apps/backend/app/db/migrations/versions/`.
 
-The question bank stores reusable questions for courses and lessons.
+## Main Tables
 
-Tables:
-
+- `users`
+- `courses`
+- `lessons`
+- `materials`
+- `enrollments`
+- `assignments`
+- `assignment_questions`
+- `assignment_options`
+- `submissions`
 - `question_bank_questions`
 - `question_bank_options`
+- RAG tables from the RAG migration.
+- Slide deck tables from the slide deck migrations.
 
-Question metadata:
+## Question Metadata
 
-- `difficulty`: `easy`, `medium`, `hard`; default `easy`.
-- `purpose_type`: `practice`, `assessment`, `shared`; default `shared`.
+`assignment_questions` and `question_bank_questions` include:
 
-Existing `assignment_questions` also includes `difficulty` and `purpose_type` for compatibility with current assignment data.
+- `difficulty`: `easy`, `medium`, `hard`.
+- `purpose_type`: `practice`, `shared`, `assessment`.
 
-Follow-up work is tracked in [QUESTION_BANK.md](QUESTION_BANK.md). The important pending decision is how assignments and future assessments should reuse or snapshot question bank records.
+Generated Question Bank records use:
+
+- Difficulty ratio: `easy/medium/hard = 40/40/20`.
+- Purpose ratio inside each difficulty group: `practice/shared/assessment = 65/15/20`.
+
+## Migration Commands
+
+```bash
+cd apps/backend
+alembic upgrade head
+alembic revision --autogenerate -m "message"
+```

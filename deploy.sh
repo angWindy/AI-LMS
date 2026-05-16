@@ -231,7 +231,7 @@ print_access_info() {
     echo "   Teacher:  teacher@test.com / 00000000"
     echo "   Student:  student@test.com / 00000000"
     echo ""
-    echo "📚 Xem hướng dẫn chi tiết tại: QUICK_START.md"
+    echo "📚 Xem hướng dẫn chi tiết tại: README.md và docs/SETUP_GUIDE.md"
     echo ""
     echo "💡 Các lệnh hữu ích:"
     echo "   Xem logs:    docker compose -f docker-compose.prod.yml logs -f"
