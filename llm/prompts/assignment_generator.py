@@ -86,7 +86,7 @@ Strict output rules:
       "question": "...",
       "options": ["...", "...", "...", "..."],
       "correct_answer": "...",
-      "difficulty": "easy",
+      "difficulty": "...",
       "type": "text"
     }}
   ]
