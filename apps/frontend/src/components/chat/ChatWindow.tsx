@@ -256,16 +256,23 @@ export function ChatWindow({
   return (
     <div className={`flex min-h-0 flex-col overflow-hidden rounded-lg border bg-background shadow-sm ${sizeClass} ${className}`}>
       {/* Header */}
-      <div className="flex shrink-0 items-center justify-between border-b bg-muted/30 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <div className="min-w-0 flex flex-col">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b bg-muted/30 px-4 py-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <Sparkles className="h-5 w-5 shrink-0 text-primary" />
+          <div className="flex min-w-0 flex-1 flex-col">
             <span className="text-sm font-semibold">{title}</span>
             <span className="truncate text-[10px] text-muted-foreground">{subtitle}</span>
           </div>
         </div>
         {isPopup && onClose && (
-          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={onClose}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 rounded-full"
+            onClick={onClose}
+            aria-label="Đóng chatbot"
+            title="Đóng chatbot"
+          >
             <X className="h-4 w-4" />
           </Button>
         )}

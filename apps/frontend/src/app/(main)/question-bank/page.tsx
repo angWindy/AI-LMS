@@ -64,6 +64,12 @@ const difficultyBadgeClasses: Record<QuestionDifficulty, string> = {
   [QuestionDifficulty.HARD]: "border-red-200 bg-red-50 text-red-700 hover:bg-red-50",
 };
 
+const purposeBadgeClasses: Record<QuestionPurposeType, string> = {
+  [QuestionPurposeType.PRACTICE]: "border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-50",
+  [QuestionPurposeType.ASSESSMENT]: "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-50",
+  [QuestionPurposeType.SHARED]: "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-50",
+};
+
 interface QuestionEditorState {
   lesson_id: string | null;
   question_text: string;
@@ -452,10 +458,11 @@ export default function QuestionBankPage() {
           </div>
           <Badge variant="outline">{questions.length} câu hỏi</Badge>
         </div>
-        <div className="grid grid-cols-[40px_minmax(0,1fr)_72px] gap-3 border-b px-4 py-3 text-xs font-medium uppercase text-muted-foreground md:grid-cols-[48px_minmax(0,1fr)_140px_120px]">
+        <div className="grid grid-cols-[40px_minmax(0,1fr)_72px] gap-3 border-b px-4 py-3 text-xs font-medium uppercase text-muted-foreground md:grid-cols-[48px_minmax(0,1fr)_140px_140px_120px]">
           <span />
           <span>Câu hỏi</span>
           <span className="hidden md:block">Mức độ</span>
+          <span className="hidden md:block">Mục đích</span>
           <span className="text-right">Thao tác</span>
         </div>
 
@@ -472,22 +479,30 @@ export default function QuestionBankPage() {
               const isExpanded = expandedQuestionIds.has(question.id);
               return (
                 <div key={question.id}>
-                  <div className="grid grid-cols-[40px_minmax(0,1fr)_72px] gap-3 px-4 py-3 md:grid-cols-[48px_minmax(0,1fr)_140px_120px]">
+                  <div className="grid grid-cols-[40px_minmax(0,1fr)_72px] gap-3 px-4 py-3 md:grid-cols-[48px_minmax(0,1fr)_140px_140px_120px]">
                     <Button variant="ghost" size="icon" onClick={() => toggleExpanded(question.id)} aria-label="Mở chi tiết câu hỏi">
                       {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                     </Button>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-slate-900">{question.question_text}</p>
                       <p className="mt-1 text-xs text-muted-foreground">{question.course_title}</p>
-                      <div className="mt-2 flex md:hidden">
+                      <div className="mt-2 flex flex-wrap gap-2 md:hidden">
                         <Badge variant="outline" className={difficultyBadgeClasses[question.difficulty]}>
                           {difficultyLabels[question.difficulty]}
+                        </Badge>
+                        <Badge variant="outline" className={purposeBadgeClasses[question.purpose_type]}>
+                          {purposeLabels[question.purpose_type]}
                         </Badge>
                       </div>
                     </div>
                     <div className="hidden items-start md:flex">
                       <Badge variant="outline" className={difficultyBadgeClasses[question.difficulty]}>
                         {difficultyLabels[question.difficulty]}
+                      </Badge>
+                    </div>
+                    <div className="hidden items-start md:flex">
+                      <Badge variant="outline" className={purposeBadgeClasses[question.purpose_type]}>
+                        {purposeLabels[question.purpose_type]}
                       </Badge>
                     </div>
                     <div className="flex items-start justify-end gap-2">
@@ -523,9 +538,11 @@ export default function QuestionBankPage() {
                             <p className="mt-1 text-sm text-slate-700">{question.lesson_title || "Chung khóa học"}</p>
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            <Badge variant="outline">{purposeLabels[question.purpose_type]}</Badge>
                             <Badge variant="outline" className={difficultyBadgeClasses[question.difficulty]}>
                               {difficultyLabels[question.difficulty]}
+                            </Badge>
+                            <Badge variant="outline" className={purposeBadgeClasses[question.purpose_type]}>
+                              {purposeLabels[question.purpose_type]}
                             </Badge>
                           </div>
                           <div className="flex flex-wrap gap-2" />
