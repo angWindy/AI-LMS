@@ -543,7 +543,7 @@ export default function LessonVideoRoomPage() {
   const meetingPlatformLabel = getMeetingPlatformLabel(videoSourceKind);
   const isMeetingVideoSource = !!videoSourceKind && isMeetingSource(videoSourceKind);
   const teachingImageCapture = canCaptureTeachingImage ? captureTeachingImage : undefined;
-  const videoFrameClass = isFullscreen ? "h-full w-full" : "w-full aspect-video";
+  const videoFrameClass = isFullscreen ? "aspect-video w-full max-h-full max-w-full" : "w-full aspect-video";
   const playerShellClass = isFullscreen
     ? "relative flex h-screen w-screen overflow-hidden bg-black"
     : "relative w-full overflow-hidden rounded-xl bg-black";
