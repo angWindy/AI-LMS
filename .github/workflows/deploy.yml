@@ -114,10 +114,13 @@ jobs:
           docker compose -f docker-compose.prod.yml build
           docker compose -f docker-compose.prod.yml up -d --remove-orphans
           docker compose -f docker-compose.prod.yml exec -T backend alembic upgrade head
+          # Refresh Nginx's resolved upstream container IPs after backend/frontend
+          # images may have been recreated by this deployment.
+          docker compose -f docker-compose.prod.yml restart nginx
 
           if [ -n "$HEALTHCHECK_URL" ]; then
             for attempt in $(seq 1 30); do
-              if curl -fsS "$HEALTHCHECK_URL" >/dev/null; then
+              if curl -fsS "$HEALTHCHECK_URL" >/dev/null && curl -fsS http://localhost/ >/dev/null; then
                 docker compose -f docker-compose.prod.yml ps
                 exit 0
               fi
@@ -125,7 +128,7 @@ jobs:
             done
 
             docker compose -f docker-compose.prod.yml ps
-            docker compose -f docker-compose.prod.yml logs --tail=120
+            docker compose -f docker-compose.prod.yml logs --tail=120 nginx frontend backend db
             exit 1
           fi
           REMOTE
