@@ -1,41 +1,70 @@
 # RAG System
 
-The RAG pipeline lets AI-LMS answer course questions from uploaded PDF materials.
+RAG indexes PDF/DOCX course materials into PostgreSQL with pgvector so chatbot
+answers can use lesson/course context.
+
+## Supported Inputs
+
+- PDF: `application/pdf`
+- DOCX:
+  `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
+
+External links are not indexed.
+
+## API
+
+```text
+POST   /api/v1/rag/upload
+POST   /api/v1/rag/search
+GET    /api/v1/rag/documents
+DELETE /api/v1/rag/documents/{doc_id}
+GET    /api/v1/rag/stats
+```
+
+Normal LMS uploads should use course/lesson material endpoints. `/rag/upload`
+is mainly for ad-hoc testing.
+
+Search:
+
+```json
+{
+  "query": "Explain the topic",
+  "top_k": 5,
+  "course_id": "uuid-or-null",
+  "lesson_id": "uuid-or-null",
+  "document_id": "optional"
+}
+```
 
 ## Flow
 
-1. Extract text from PDF files.
-2. Split text into chunks.
-3. Generate embeddings with Gemini.
-4. Store vectors in PostgreSQL with pgvector.
-5. Retrieve relevant chunks for chatbot requests.
-6. Build an LLM prompt from course, lesson, and retrieved context.
+1. Material upload stores file and row.
+2. `rag_ingestion.py` indexes supported files best-effort.
+3. RAG service extracts text, chunks it, embeds it with Gemini, and stores
+   `rag_documents` plus `rag_chunks`.
+4. Chatbot retrieves lesson-first, then course-level context.
+
+Ingestion failure does not block material upload.
+
+## Config
+
+```env
+LLM_PROVIDER=google
+LLM_MODEL=gemini-3.1-flash-lite
+GOOGLE_AI_API_KEY=your-key
+```
+
+Embeddings use Gemini `gemini-embedding-001` with 3072 dimensions.
 
 ## Main Files
 
-- `llm/rag/pdf_processor.py`: PDF text extraction.
-- `llm/rag/chunker.py`: text chunking.
-- `llm/rag/embedder.py`: Gemini embedding client.
-- `llm/rag/vector_store.py`: pgvector storage and search.
-- `llm/rag/context_builder.py`: prompt context builder.
-- `llm/rag/service.py`: orchestration service.
-- `apps/backend/app/services/rag_ingestion.py`: backend ingestion integration.
-- `apps/backend/app/api/v1/rag.py`: RAG API routes.
+- API/model: `apps/backend/app/api/v1/rag.py`, `apps/backend/app/models/rag.py`
+- LMS glue: `apps/backend/app/services/rag_ingestion.py`
+- Pipeline: `llm/rag/pdf_processor.py`, `word_processor.py`, `chunker.py`,
+  `embedder.py`, `vector_store.py`, `service.py`, `context_builder.py`
 
-## Configuration
-
-```env
-GOOGLE_AI_API_KEY=your-key
-LLM_PROVIDER=google
-LLM_MODEL=gemini-3.1-flash-lite-preview
-```
-
-`gemini-embedding-001` returns 3072-dimensional vectors. The project uses exact cosine search by default because common pgvector approximate indexes have dimension limits.
-
-## Verification
+## Demo Seed
 
 ```bash
-python -m pytest -q tests
+PYTHONPATH="$PWD:$PWD/apps/backend" python -m apps.backend.scripts.seed_demo_rag
 ```
-
-Use `apps/backend/scripts/seed_demo_rag.py` when you need demo data from `llm/rag/data_sample/`.

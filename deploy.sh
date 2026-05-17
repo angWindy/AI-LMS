@@ -91,6 +91,15 @@ MAX_VIDEO_SIZE_MB=500
 # CORS
 CORS_ORIGINS=http://localhost,http://localhost:80,http://localhost:3000
 
+# LLM / Chatbot
+# Use mock for smoke deployments without an external API key.
+LLM_PROVIDER=mock
+LLM_MODEL=gemini-3.1-flash-lite
+LLM_TEMPERATURE=0.1
+LLM_MAX_OUTPUT_TOKENS=512
+LLM_REQUEST_TIMEOUT_SECONDS=180
+# GOOGLE_AI_API_KEY=
+
 # Ports
 BACKEND_PORT=8000
 FRONTEND_PORT=3000
@@ -172,37 +181,7 @@ wait_for_services() {
 create_users() {
     print_step "BƯỚC 9: Tạo tài khoản mặc định..."
     
-    docker compose -f docker-compose.prod.yml exec -T backend python -c "
-from app.db.session import SessionLocal
-from app.models.user import User
-from app.core.security import get_password_hash
-
-db = SessionLocal()
-
-users_data = [
-    {'email': 'admin@test.com', 'full_name': 'Admin User', 'password': '00000000', 'role': 'admin'},
-    {'email': 'teacher@test.com', 'full_name': 'Teacher User', 'password': '00000000', 'role': 'instructor'},
-    {'email': 'student@test.com', 'full_name': 'Student User', 'password': '00000000', 'role': 'learner'}
-]
-
-for user_data in users_data:
-    existing = db.query(User).filter(User.email == user_data['email']).first()
-    if not existing:
-        user = User(
-            email=user_data['email'],
-            full_name=user_data['full_name'],
-            password_hash=get_password_hash(user_data['password']),
-            role=user_data['role'],
-            is_active=True
-        )
-        db.add(user)
-        print(f'✓ Created: {user_data[\"email\"]}')
-    else:
-        print(f'- Already exists: {user_data[\"email\"]}')
-
-db.commit()
-print('Done!')
-" 2>/dev/null || print_info "Tài khoản đã tồn tại hoặc không thể tạo"
+    docker compose -f docker-compose.prod.yml exec -T backend python scripts/create_demo_users.py 2>/dev/null || print_info "Tài khoản đã tồn tại hoặc không thể tạo"
     
     echo ""
 }
@@ -224,7 +203,7 @@ print_access_info() {
     echo ""
     echo "📍 Truy cập ứng dụng tại:"
     echo "   Frontend:  http://localhost"
-    echo "   API Docs:  http://localhost/api/docs"
+    echo "   API Docs:  http://localhost/docs"
     echo ""
     echo "🔑 Tài khoản đăng nhập:"
     echo "   Admin:    admin@test.com / 00000000"

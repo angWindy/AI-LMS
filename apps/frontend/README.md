@@ -6,51 +6,72 @@ Next.js frontend for AI-LMS.
 
 - Next.js 14 App Router.
 - TypeScript.
-- Tailwind CSS.
-- shadcn/ui components.
-- Zustand for auth state.
-- Axios API client with JWT handling.
+- Tailwind CSS and Radix/shadcn-style components.
+- Zustand auth store.
+- Axios API client with JWT attach and refresh retry.
 
-## Local Run
+## Run Locally
 
 ```bash
 npm install
-npm run dev
+NEXT_PUBLIC_API_URL=http://localhost:8000 npm run dev
 ```
 
-Open:
-
-```text
-http://localhost:3000
-```
-
-## Environment
+Or create `.env.local`:
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
+Open `http://localhost:3000`.
+
+In production-like Compose, `NEXT_PUBLIC_API_URL` is empty and requests go
+through same-origin Nginx.
+
 ## Structure
 
 ```text
-src/app/          routes and layouts
+src/app/          routes/layouts
 src/components/   UI and feature components
-src/lib/api/      API client modules
-src/lib/auth/     auth store
-src/types/        shared TypeScript types
+src/lib/api/      API clients
+src/lib/auth/     persisted auth store
+src/types/        TypeScript API/domain types
 ```
 
 ## Main Routes
 
-- `/login`
-- `/register`
-- `/dashboard`
-- `/courses`
-- `/courses/my`
-- `/courses/enrolled`
-- `/question-bank`
-- `/users`
-- `/profile`
+```text
+/
+/login
+/register
+/dashboard
+/profile
+/courses
+/courses/my
+/courses/create
+/courses/[slug]
+/courses/[slug]/lessons/[lessonId]/studio
+/courses/[slug]/tests/[assignmentId]
+/lessons/[id]/video
+/lessons/[id]/assignment
+/lessons/[id]/materials/[materialId]
+/question-bank
+/users
+```
+
+Navigation role visibility is in `src/app/(main)/layout.tsx`; backend
+permissions remain authoritative.
+
+## API Client
+
+`src/lib/api/client.ts` calls:
+
+```text
+${NEXT_PUBLIC_API_URL}/api/v1
+```
+
+It attaches the access token, refreshes once on `401`, then retries the original
+request.
 
 ## Commands
 
@@ -60,4 +81,8 @@ npm run build
 npm run lint
 ```
 
-The Question Bank generation UI only asks for lesson and count. Difficulty and purpose metadata are allocated by backend generation logic.
+## Notes
+
+- Question Bank UI only asks for lesson/count; backend assigns metadata.
+- AI generation requests have long client timeouts.
+- Assignment chatbot is hint-focused and does not receive answer keys.

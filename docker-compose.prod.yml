@@ -28,17 +28,19 @@ services:
     environment:
       - DATABASE_URL=postgresql://${DB_USER:-lms_user}:${DB_PASSWORD:-lms_password}@db:5432/${DB_NAME:-lms_db}
       - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
-      - CORS_ORIGINS=http://localhost,http://localhost:80,http://localhost:3000,http://nginx
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost,http://localhost:80,http://localhost:3000,http://nginx}
       - STORAGE_PATH=/app/storage
       - MAX_DOCUMENT_SIZE_MB=${MAX_DOCUMENT_SIZE_MB:-100}
+      - MAX_VIDEO_SIZE_MB=${MAX_VIDEO_SIZE_MB:-500}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - GOOGLE_AI_API_KEY=${GOOGLE_AI_API_KEY}
       - GOOGLE_AI_ENDPOINT=${GOOGLE_AI_ENDPOINT}
       - LLM_PROVIDER=${LLM_PROVIDER:-google}
-      - LLM_MODEL=${LLM_MODEL:-gemini-3.1-flash-lite-preview}
+      - LLM_MODEL=${LLM_MODEL:-gemini-3.1-flash-lite}
       - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.1}
       - LLM_MAX_OUTPUT_TOKENS=${LLM_MAX_OUTPUT_TOKENS:-512}
       - LLM_THINKING_LEVEL=${LLM_THINKING_LEVEL:-}
+      - LLM_REQUEST_TIMEOUT_SECONDS=${LLM_REQUEST_TIMEOUT_SECONDS:-180}
     volumes:
       - storage_data:/app/storage
     depends_on:

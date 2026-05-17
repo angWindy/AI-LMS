@@ -53,7 +53,7 @@ start:
 	@echo "✅ AI-LMS started successfully!"
 	@echo ""
 	@echo "🌐 Frontend: http://localhost"
-	@echo "📚 API Docs: http://localhost/api/docs"
+	@echo "📚 API Docs: http://localhost/docs"
 	@echo ""
 	@echo "💡 Next: Create default users with:"
 	@echo "   make create-users"
@@ -68,27 +68,7 @@ stop:
 # Create default users
 create-users:
 	@echo "Creating default users..."
-	@docker compose -f docker-compose.prod.yml exec -T backend python -c "\
-from app.db.session import SessionLocal; \
-from app.models.user import User; \
-from app.utils.auth import get_password_hash; \
-db = SessionLocal(); \
-users = [ \
-    ('admin@test.com', 'Admin User', 'admin'), \
-    ('teacher@test.com', 'Teacher User', 'instructor'), \
-    ('student@test.com', 'Student User', 'learner') \
-]; \
-for email, name, role in users: \
-    existing = db.query(User).filter(User.email == email).first(); \
-    if not existing: \
-        user = User(email=email, full_name=name, hashed_password=get_password_hash('00000000'), role=role, is_active=True); \
-        db.add(user); \
-        print(f'✓ Created: {email}'); \
-    else: \
-        print(f'- Already exists: {email}'); \
-db.commit(); \
-print('Done!'); \
-"
+	@docker compose -f docker-compose.prod.yml exec -T backend python scripts/create_demo_users.py
 	@echo ""
 	@echo "============================================"
 	@echo "✅ Default users ready!"
@@ -166,7 +146,7 @@ shell-db:
 # Testing (when implemented)
 test:
 	@echo "Running tests..."
-	cd apps/backend && pytest tests/ -v
+	PYTHONPATH="$(CURDIR):$(CURDIR)/apps/backend" pytest tests/ -v
 
 # Linting
 lint:

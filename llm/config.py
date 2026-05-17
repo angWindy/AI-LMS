@@ -8,7 +8,7 @@ class LLMConfig:
     """Runtime configuration for LLM providers."""
 
     provider: str = "google"
-    model: str = "gemini-3.1-flash-lite-preview"
+    model: str = "gemini-3.1-flash-lite"
     temperature: float = 0.1
     max_output_tokens: int = 512
     thinking_level: str | None = None
@@ -20,7 +20,7 @@ class LLMConfig:
         """Build configuration from environment variables."""
         return cls(
             provider=os.getenv("LLM_PROVIDER", "google"),
-            model=os.getenv("LLM_MODEL", "gemini-3.1-flash-lite-preview"),
+            model=os.getenv("LLM_MODEL", "gemini-3.1-flash-lite"),
             temperature=float(os.getenv("LLM_TEMPERATURE", "0.1")),
             max_output_tokens=int(os.getenv("LLM_MAX_OUTPUT_TOKENS", "512")),
             thinking_level=os.getenv("LLM_THINKING_LEVEL"),

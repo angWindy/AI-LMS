@@ -1,120 +1,81 @@
 # Question Bank
 
-Question Bank stores reusable multiple-choice questions for courses and lessons.
+Reusable multiple-choice questions for courses and lessons.
 
 ## Access
 
-- Admin: can manage all course question banks.
-- Instructor: can manage question banks for courses they teach.
-- Learner: cannot manage Question Bank content.
+- Admin: all courses.
+- Instructor: owned courses.
+- Learner: no management access.
 
-## Data Model
+## API
 
-`question_bank_questions`:
+```text
+GET    /api/v1/question-bank/courses
+GET    /api/v1/question-bank/questions
+POST   /api/v1/question-bank/questions
+POST   /api/v1/question-bank/generate
+PUT    /api/v1/question-bank/questions/{question_id}
+DELETE /api/v1/question-bank/questions/{question_id}
+```
 
-- `course_id`
-- `lesson_id`
-- `question_text`
-- `difficulty`: `easy`, `medium`, `hard`
-- `purpose_type`: `practice`, `shared`, `assessment`
-- `order_index`
+Filters: `course_id`, `lesson_id`, `difficulty`, `purpose_type`.
 
-`question_bank_options`:
+## Data
 
-- `question_id`
-- `option_text`
-- `is_correct`
-- `order_index`
+`question_bank_questions` stores course, optional lesson, question text,
+`difficulty`, `purpose_type`, and `order_index`.
 
-Each question must have exactly four options and exactly one correct option.
+`question_bank_options` stores four options with exactly one correct answer.
 
-## Manual Creation
+Values:
 
-Manual questions accept explicit `difficulty` and `purpose_type`.
-
-```json
-{
-  "course_id": "uuid",
-  "lesson_id": "uuid",
-  "question_text": "What is supervised learning?",
-  "difficulty": "easy",
-  "purpose_type": "practice",
-  "options": [
-    { "option_text": "Learning from labeled data", "is_correct": true },
-    { "option_text": "Learning without any data", "is_correct": false },
-    { "option_text": "Only memorizing answers", "is_correct": false },
-    { "option_text": "Drawing charts manually", "is_correct": false }
-  ]
-}
+```text
+difficulty: easy, medium, hard
+purpose_type: practice, shared, assessment
 ```
 
 ## AI Generation
 
-Endpoint:
-
-```text
-POST /api/v1/question-bank/generate
-```
-
-Payload:
-
 ```json
-{
-  "course_id": "uuid",
-  "lesson_id": "uuid",
-  "question_count": 10
-}
+{ "course_id": "uuid", "lesson_id": "uuid", "question_count": 10 }
 ```
 
-The frontend only asks for lesson and count. Difficulty and purpose are generated or assigned by backend logic.
+Flow:
 
-## Difficulty Rules
+1. Backend builds course/lesson/material context.
+2. LLM returns Vietnamese questions with difficulty metadata.
+3. Backend validates `easy/medium/hard = 40/40/20`.
+4. Backend assigns purpose inside each difficulty group:
+   `practice/shared/assessment = 65/15/20`.
+5. Questions are saved to the bank.
 
-The LLM prompt is in English and asks for Vietnamese question content.
+Purpose usage:
 
-Difficulty definitions:
+- `practice`: practice assignments.
+- `assessment`: tests.
+- `shared`: both.
 
-- `easy`: basic knowledge and recall; direct concepts, definitions, or facts; little reasoning.
-- `medium`: understanding and application; comparison, explanation, or short reasoning; not answerable by recall alone.
-- `hard`: analysis and deeper reasoning; combines concepts or solves a problem; plausible distractors.
-
-Distribution per generated set:
-
-- `easy`: 40%
-- `medium`: 40%
-- `hard`: 20%
-
-The backend validates the final JSON distribution before saving.
-
-## Purpose Rules
-
-After valid JSON is parsed, backend assigns `purpose_type` randomly inside each difficulty group:
-
-- `practice`: 65%
-- `shared`: 15%
-- `assessment`: 20%
-
-This keeps the LLM prompt focused on question quality and keeps purpose allocation deterministic in shape but random in assignment.
+Existing assignments copy question content at creation time; later bank edits do
+not change them.
 
 ## Main Files
 
-- Prompt: `llm/prompts/assignment_generator.py`
-- Workflow: `llm/workflows/assignment_generator.py`
-- Service: `apps/backend/app/services/assignment_generator_service.py`
 - API: `apps/backend/app/api/v1/question_bank.py`
+- Models: `apps/backend/app/models/question_bank.py`
 - Schemas: `apps/backend/app/schemas/question_bank.py`
+- Service: `apps/backend/app/services/assignment_generator_service.py`
+- Prompt/workflow: `llm/prompts/assignment_generator.py`,
+  `llm/workflows/assignment_generator.py`
 - UI: `apps/frontend/src/app/(main)/question-bank/page.tsx`
 
-## Tests
+## Test
 
 ```bash
 python -m pytest -q tests/test_question_generation_metadata.py
 ```
 
-## Known Gaps
+## Gaps
 
-- No approval queue for generated questions.
-- No bulk import/export.
-- No duplicate detection.
-- Assignments still copy question content instead of referencing Question Bank records.
-- No dedicated assessment module yet.
+No approval queue, bulk import/export, duplicate detection, or live assignment
+references to bank rows.

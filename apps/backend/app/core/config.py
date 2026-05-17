@@ -52,13 +52,12 @@ class Settings(BaseSettings):
 
     # LLM / Chatbot Configuration
     # Supported Google models:
-    # - gemini-3.1-flash-lite-preview (default, supports LLM_THINKING_LEVEL)
-    # - gemini-3.1-flash-lite (supports LLM_THINKING_LEVEL)
+    # - gemini-3.1-flash-lite (default, supports LLM_THINKING_LEVEL)
     # - gemini-2.5-flash-lite (supports LLM_THINKING_LEVEL)
     # - gemini-2.5-flash (supports LLM_THINKING_LEVEL)
     # - gemma-4-31b-it (no LLM_THINKING_LEVEL)
     LLM_PROVIDER: str = "google"
-    LLM_MODEL: str = "gemini-3.1-flash-lite-preview"
+    LLM_MODEL: str = "gemini-3.1-flash-lite"
     LLM_TEMPERATURE: float = 0.1
     LLM_MAX_OUTPUT_TOKENS: int = 512
     LLM_THINKING_LEVEL: str | None = None

@@ -1,67 +1,89 @@
 # AI-LMS Backend
 
-FastAPI backend for AI-LMS.
+FastAPI backend for auth, course content, assignments, RAG, chat, and AI
+generation workflows.
 
 ## Structure
 
 ```text
-app/
-  api/v1/       API routers
-  core/         config, security, dependencies
-  db/           session, base, migrations
-  models/       SQLAlchemy models
-  schemas/      Pydantic schemas
-  services/     business logic
-  utils/        helpers
-scripts/        smoke tests and utilities
-storage/        uploaded/generated files
+app/api/v1/    routers
+app/core/      config, security, dependencies, logging, exceptions
+app/db/        SQLAlchemy session/base and Alembic migrations
+app/models/    ORM models
+app/schemas/   Pydantic schemas
+app/services/  business logic and AI/RAG orchestration
+app/utils/     file helpers
+scripts/       demo and utility scripts
 ```
 
-## Local Run
+Entrypoint: `app/main.py`. API prefix: `/api/v1`. Docs: `/docs`.
+
+## Run Locally
 
 ```bash
+docker compose up -d db
+cd apps/backend
 python -m pip install -r requirements.txt -r requirements-dev.txt
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-API docs:
-
-```text
-http://localhost:8000/docs
-```
-
-## LLM Configuration
+## Config
 
 ```env
+DATABASE_URL=postgresql://lms_user:lms_password@localhost:5432/lms_db
+SECRET_KEY=change-this
+CORS_ORIGINS=http://localhost:3000
+STORAGE_PATH=./storage
 LLM_PROVIDER=google
-LLM_MODEL=gemini-3.1-flash-lite-preview
+LLM_MODEL=gemini-3.1-flash-lite
 LLM_TEMPERATURE=0.1
 LLM_MAX_OUTPUT_TOKENS=512
-LLM_THINKING_LEVEL=
+LLM_REQUEST_TIMEOUT_SECONDS=180
 GOOGLE_AI_API_KEY=your-key
 ```
 
-Use `LLM_PROVIDER=mock` for offline development.
+Use `LLM_PROVIDER=mock` for offline smoke tests.
 
-## Main AI Features
+## Main Areas
 
-- Chatbot routes for classroom and assignment help.
-- Question generation through `AssignmentGeneratorService`.
-- Question Bank generation with backend-validated difficulty distribution.
+- Auth and refresh tokens.
+- Admin user management.
+- Courses, lessons, materials, lesson progress.
+- Question Bank and AI question generation.
+- Assignments, tests, submissions, AI feedback.
 - Slide generation and PDF rendering.
-- RAG ingestion and retrieval.
+- RAG upload/search/stats.
+- General and assignment chatbot.
+
+## Database
+
+```bash
+alembic upgrade head
+alembic revision --autogenerate -m "message"
+```
+
+## Demo Users
+
+```bash
+python scripts/create_demo_users.py
+```
+
+Creates `admin@test.com`, `teacher@test.com`, `student@test.com` with password
+`00000000`.
 
 ## Tests
 
 From repo root:
 
 ```bash
-python -m pytest -q tests
+PYTHONPATH="$PWD:$PWD/apps/backend" LLM_PROVIDER=mock python -m pytest -q tests
 ```
 
-Focused backend-related tests:
+Focused:
 
 ```bash
 python -m pytest -q tests/test_question_generation_metadata.py
-python -m pytest -q tests/test_slide_generator_prompts.py
+python -m pytest -q tests/test_slide_generator_prompts.py tests/test_slide_pdf_render.py
+python -m pytest -q tests/test_chatbot_context_selection.py
 ```

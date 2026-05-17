@@ -1,48 +1,50 @@
 # Slide Generation
 
-Slide Generation creates lecture decks for lessons.
+AI-generated lecture slide decks for lessons. Each deck stores IR JSON, slide
+JSON, provider/model metadata, and a PDF URL.
 
 ## Access
 
-- Admin and Instructor can generate, preview, publish, and delete decks.
-- Learners can access published decks through lesson content.
-
-## Flow
-
-1. Backend builds course and lesson context.
-2. LLM creates a document intermediate representation.
-3. LLM converts that representation into slide JSON.
-4. Backend renders a PDF.
-5. The deck is saved as unpublished by default.
-
-## Main Files
-
-- Prompts: `llm/prompts/slide_generator.py`
-- Workflow: `llm/workflows/slide_generator.py`
-- Service: `apps/backend/app/services/slide_generator_service.py`
-- API: `apps/backend/app/api/v1/slides.py`
-- Tests: `tests/test_slide_generator_prompts.py`, `tests/test_slide_pdf_render.py`
+- Admin/instructor: generate, publish, delete.
+- Learner: read published decks only.
 
 ## API
 
 ```text
-POST /api/v1/slides/generate-draft?course_id={course_id}
-GET /api/v1/slides?course_id={course_id}
-GET /api/v1/slides/{slide_deck_id}
-POST /api/v1/slides/{slide_deck_id}/publish
+POST   /api/v1/slides/generate-draft?course_id={course_id}
+GET    /api/v1/slides?course_id={course_id}&lesson_id={lesson_id}&include_unpublished=false
+GET    /api/v1/slides/{slide_deck_id}
+POST   /api/v1/slides/{slide_deck_id}/publish
 DELETE /api/v1/slides/{slide_deck_id}
 ```
 
-## Output
+Generate:
 
-Each deck stores:
+```json
+{ "lesson_id": "uuid", "slide_count": 8, "title": "optional" }
+```
 
-- title
-- course and lesson references
-- slide JSON
-- PDF path
-- provider/model metadata
-- publish status
+`slide_count` range: 1 to 50.
+
+## Flow
+
+1. Load course, lesson, and material context.
+2. LLM creates document IR.
+3. LLM converts IR to slide JSON.
+4. Backend renders PDF into `/storage`.
+5. Deck is saved unpublished.
+
+Slide types: `title`, `objectives`, `concept`, `comparison`, `example`,
+`summary`, `quiz`.
+
+## Main Files
+
+- API: `apps/backend/app/api/v1/slides.py`
+- Model/schema: `apps/backend/app/models/slide_deck.py`,
+  `apps/backend/app/schemas/slide_deck.py`
+- Service: `apps/backend/app/services/slide_generator_service.py`
+- Prompt/workflow: `llm/prompts/slide_generator.py`,
+  `llm/workflows/slide_generator.py`
 
 ## Tests
 
@@ -50,9 +52,6 @@ Each deck stores:
 python -m pytest -q tests/test_slide_generator_prompts.py tests/test_slide_pdf_render.py
 ```
 
-## Limits
+## Gaps
 
-- No visual slide editor.
-- No theme system.
-- No version comparison UI.
-- Long LLM calls require frontend, backend, and proxy timeouts to allow several minutes.
+No visual editor, theme system, or deck version comparison UI.
