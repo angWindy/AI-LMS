@@ -8,9 +8,10 @@ import { ArrowLeft, CheckCircle2, Circle, ClipboardList, Loader2, XCircle } from
 import { Lesson } from "@/lib/api/lessons";
 import { assignmentApi, chatbotApi, courseApi } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth/store";
-import { Assignment, CourseDetail, UserRole } from "@/types";
+import { Assignment, AssignmentQuestionType, AssignmentType, CourseDetail, Submission, UserRole } from "@/types";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { useChatbotStore } from "@/components/chat/store";
 
@@ -35,9 +36,13 @@ export default function LessonAssignmentPage() {
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
+  const [textAnswers, setTextAnswers] = useState<Record<string, string>>({});
+  const [submission, setSubmission] = useState<Submission | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [score, setScore] = useState<{ correct: number; total: number; percent: number } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const isLearner = user?.role === UserRole.LEARNER;
   const canAssignWork = user?.role === UserRole.INSTRUCTOR || user?.role === UserRole.ADMIN;
@@ -95,22 +100,63 @@ export default function LessonAssignmentPage() {
 
   useEffect(() => {
     setSelectedAnswers({});
+    setTextAnswers({});
+    setSubmission(null);
     setIsSubmitted(false);
     setScore(null);
     useChatbotStore.getState().reset();
   }, [assignment?.id]);
 
   useEffect(() => {
-    if (!assignment?.id || !isLearner) return;
+    if (!assignment?.id || !isLearner || assignment.assignment_type === AssignmentType.TEST) return;
 
     chatbotApi.preloadAssignment({ assignment_id: assignment.id }).catch((preloadError) => {
       console.debug("Assignment chatbot context preload skipped:", preloadError);
     });
-  }, [assignment?.id, isLearner]);
+  }, [assignment?.id, assignment?.assignment_type, isLearner]);
+
+  useEffect(() => {
+    if (!assignment?.id || !isLearner) return;
+
+    assignmentApi.getMySubmission(assignment.id)
+      .then((savedSubmission) => {
+        const restoredSelectedAnswers: Record<string, string> = {};
+        const restoredTextAnswers: Record<string, string> = {};
+        for (const answer of savedSubmission.answers || []) {
+          if (answer.selected_option_id) {
+            restoredSelectedAnswers[answer.question_id] = answer.selected_option_id;
+          }
+          if (answer.answer_text) {
+            restoredTextAnswers[answer.question_id] = answer.answer_text;
+          }
+        }
+        const correct = (savedSubmission.answers || []).filter((answer) => answer.is_correct).length;
+        setSelectedAnswers(restoredSelectedAnswers);
+        setTextAnswers(restoredTextAnswers);
+        setSubmission(savedSubmission);
+        setScore({
+          correct,
+          total: assignment.questions.length,
+          percent: Math.round(Number(savedSubmission.score || 0)),
+        });
+        setIsSubmitted(true);
+      })
+      .catch((submissionError) => {
+        if (submissionError?.response?.status !== 404) {
+          console.debug("Saved submission load skipped:", submissionError);
+        }
+      });
+  }, [assignment?.id, assignment?.questions.length, isLearner]);
 
   const orderedQuestions = [...(assignment?.questions || [])].sort((a, b) => a.order_index - b.order_index);
-  const answeredCount = Object.keys(selectedAnswers).length;
+  const answeredCount = orderedQuestions.reduce((count, question) => {
+    if (question.question_type === AssignmentQuestionType.ESSAY) {
+      return textAnswers[question.id]?.trim() ? count + 1 : count;
+    }
+    return selectedAnswers[question.id] ? count + 1 : count;
+  }, 0);
   const totalQuestionCount = orderedQuestions.length;
+  const submissionAnswersByQuestion = new Map((submission?.answers || []).map((answer) => [answer.question_id, answer]));
 
   const handleChooseAnswer = (questionId: string, optionId: string) => {
     if (isSubmitted) return;
@@ -120,22 +166,52 @@ export default function LessonAssignmentPage() {
     }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!assignment || orderedQuestions.length === 0) return;
 
-    const correct = orderedQuestions.reduce((acc, question) => {
-      const selectedOptionId = selectedAnswers[question.id];
-      if (!selectedOptionId) return acc;
+    setIsSubmitting(true);
+    try {
+      const result = await assignmentApi.submit(assignment.id, {
+        answers: orderedQuestions.map((question) => ({
+          question_id: question.id,
+          selected_option_id:
+            question.question_type === AssignmentQuestionType.MULTIPLE_CHOICE
+              ? selectedAnswers[question.id]
+              : undefined,
+          answer_text:
+            question.question_type === AssignmentQuestionType.ESSAY
+              ? textAnswers[question.id]?.trim()
+              : undefined,
+        })),
+      });
+      const correct = (result.answers || []).filter((answer) => answer.is_correct).length;
+      const percent = Math.round(Number(result.score || 0));
+      setSubmission(result);
+      setScore({ correct, total: orderedQuestions.length, percent });
+      setIsSubmitted(true);
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Nộp bài thất bại");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
-      const selectedOption = question.options.find((option) => option.id === selectedOptionId);
-      return selectedOption?.is_correct ? acc + 1 : acc;
-    }, 0);
+  const handleRetake = async () => {
+    if (!assignment) return;
 
-    const total = orderedQuestions.length;
-    const percent = Math.round((correct / total) * 100);
-
-    setScore({ correct, total, percent });
-    setIsSubmitted(true);
+    setIsResetting(true);
+    try {
+      await assignmentApi.resetMySubmission(assignment.id);
+      setSelectedAnswers({});
+      setTextAnswers({});
+      setSubmission(null);
+      setIsSubmitted(false);
+      setScore(null);
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Không thể xóa kết quả bài làm");
+    } finally {
+      setIsResetting(false);
+    }
   };
 
   if (isLoading) {
@@ -170,7 +246,13 @@ export default function LessonAssignmentPage() {
         <span className="text-foreground font-medium">Bài tập</span>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div
+        className={
+          assignment?.assignment_type === AssignmentType.TEST
+            ? "grid grid-cols-1 gap-6"
+            : "grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]"
+        }
+      >
         <Card className="min-w-0">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -203,6 +285,7 @@ export default function LessonAssignmentPage() {
                   {orderedQuestions.map((question, questionIndex) => {
                     const sortedOptions = [...question.options].sort((a, b) => a.order_index - b.order_index);
                     const selectedOptionId = selectedAnswers[question.id];
+                    const submittedAnswer = submissionAnswersByQuestion.get(question.id);
 
                     return (
                       <div key={question.id} className="rounded-lg border border-slate-200 p-4 space-y-3">
@@ -210,42 +293,73 @@ export default function LessonAssignmentPage() {
                           Câu {questionIndex + 1}. {question.question_text}
                         </p>
 
-                        <div className="space-y-2">
-                          {sortedOptions.map((option, optionIndex) => {
-                            const isSelected = selectedOptionId === option.id;
-                            const showCorrect = isSubmitted && option.is_correct;
-                            const showIncorrect = isSubmitted && isSelected && !option.is_correct;
+                        {question.question_type === AssignmentQuestionType.ESSAY ? (
+                          <Textarea
+                            value={textAnswers[question.id] || ""}
+                            disabled={isSubmitted}
+                            rows={5}
+                            onChange={(event) =>
+                              setTextAnswers((prev) => ({
+                                ...prev,
+                                [question.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="Nhập câu trả lời tự luận"
+                          />
+                        ) : (
+                          <div className="space-y-2">
+                            {sortedOptions.map((option, optionIndex) => {
+                              const isSelected = selectedOptionId === option.id;
+                              const isSelectedCorrect = isSubmitted && isSelected && submittedAnswer?.is_correct;
+                              const showIncorrect = isSubmitted && isSelected && submittedAnswer?.is_correct === false;
 
-                            const optionClasses = showCorrect
-                              ? "border-emerald-300 bg-emerald-50"
-                              : showIncorrect
-                                ? "border-red-300 bg-red-50"
-                                : isSelected
-                                  ? "border-primary bg-primary/5"
-                                  : "border-slate-200 bg-white hover:bg-slate-50";
+                              const optionClasses = isSelectedCorrect
+                                ? "border-emerald-300 bg-emerald-50"
+                                : showIncorrect
+                                  ? "border-red-300 bg-red-50"
+                                  : isSelected
+                                    ? "border-primary bg-primary/5"
+                                    : "border-slate-200 bg-white hover:bg-slate-50";
 
-                            return (
-                              <button
-                                key={option.id}
-                                type="button"
-                                disabled={isSubmitted}
-                                onClick={() => handleChooseAnswer(question.id, option.id)}
-                                className={`w-full rounded-md border px-3 py-2 text-left text-sm flex items-center justify-between gap-2 transition-colors ${optionClasses} ${isSubmitted ? "cursor-default" : "cursor-pointer"}`}
-                              >
-                                <span>
-                                  {String.fromCharCode(65 + optionIndex)}. {option.option_text}
-                                </span>
-                                {showCorrect ? (
-                                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                                ) : showIncorrect ? (
-                                  <XCircle className="h-4 w-4 text-red-600" />
-                                ) : isSelected ? (
-                                  <Circle className="h-4 w-4 text-primary" />
-                                ) : null}
-                              </button>
-                            );
-                          })}
-                        </div>
+                              return (
+                                <button
+                                  key={option.id}
+                                  type="button"
+                                  disabled={isSubmitted}
+                                  onClick={() => handleChooseAnswer(question.id, option.id)}
+                                  className={`w-full rounded-md border px-3 py-2 text-left text-sm flex items-center justify-between gap-2 transition-colors ${optionClasses} ${isSubmitted ? "cursor-default" : "cursor-pointer"}`}
+                                >
+                                  <span>
+                                    {String.fromCharCode(65 + optionIndex)}. {option.option_text}
+                                  </span>
+                                  {isSelectedCorrect ? (
+                                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                                  ) : showIncorrect ? (
+                                    <XCircle className="h-4 w-4 text-red-600" />
+                                  ) : isSelected ? (
+                                    <Circle className="h-4 w-4 text-primary" />
+                                  ) : null}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {isSubmitted && submittedAnswer && (
+                          <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
+                            {submittedAnswer.correct_answer_text && (
+                              <p className="font-medium text-slate-900">
+                                Đáp án chuẩn: {submittedAnswer.correct_answer_text}
+                              </p>
+                            )}
+                            {submittedAnswer.explanation && (
+                              <p className="mt-1 text-slate-700">{submittedAnswer.explanation}</p>
+                            )}
+                            {submittedAnswer.feedback && (
+                              <p className="mt-1 text-muted-foreground">{submittedAnswer.feedback}</p>
+                            )}
+                          </div>
+                        )}
 
                       </div>
                     );
@@ -255,20 +369,31 @@ export default function LessonAssignmentPage() {
                 <div className="flex items-center gap-2">
                   <Button
                     onClick={handleSubmit}
-                    disabled={isSubmitted || answeredCount !== totalQuestionCount || totalQuestionCount === 0}
+                    disabled={isSubmitted || isSubmitting || answeredCount !== totalQuestionCount || totalQuestionCount === 0}
                   >
-                    Nộp bài
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Đang nộp...
+                      </>
+                    ) : (
+                      "Nộp bài"
+                    )}
                   </Button>
                   {isSubmitted && (
                     <Button
                       variant="outline"
-                      onClick={() => {
-                        setSelectedAnswers({});
-                        setIsSubmitted(false);
-                        setScore(null);
-                      }}
+                      onClick={handleRetake}
+                      disabled={isResetting}
                     >
-                      Làm lại
+                      {isResetting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Đang xóa...
+                        </>
+                      ) : (
+                        "Làm lại"
+                      )}
                     </Button>
                   )}
                 </div>
@@ -290,7 +415,7 @@ export default function LessonAssignmentPage() {
           </CardContent>
         </Card>
 
-        {assignment && (
+        {assignment && assignment.assignment_type !== AssignmentType.TEST && (
           <aside className="min-h-[560px] xl:sticky xl:top-6 xl:h-[calc(100vh-8rem)]">
             <ChatWindow
               mode="assignment"

@@ -105,11 +105,23 @@ export interface Material {
 }
 
 // Assignment types
+export enum AssignmentType {
+  PRACTICE = "practice",
+  TEST = "test",
+}
+
+export enum AssignmentQuestionType {
+  MULTIPLE_CHOICE = "multiple_choice",
+  ESSAY = "essay",
+}
+
 export interface Assignment {
   id: string;
   course_id: string;
   lesson_id?: string | null;
   title: string;
+  assignment_type: AssignmentType;
+  scoped_lesson_ids: string[];
   is_published: boolean;
   order_index: number;
   questions: AssignmentQuestion[];
@@ -121,6 +133,8 @@ export interface AssignmentQuestion {
   id: string;
   assignment_id: string;
   question_text: string;
+  question_type: AssignmentQuestionType;
+  correct_answer_text?: string | null;
   difficulty: QuestionDifficulty;
   purpose_type: QuestionPurposeType;
   order_index: number;
@@ -249,6 +263,20 @@ export interface Submission {
   submitted_at: string;
   graded_at?: string | null;
   is_late: boolean;
+  answers?: SubmissionAnswer[];
+}
+
+export interface SubmissionAnswer {
+  id: string;
+  submission_id: string;
+  question_id: string;
+  selected_option_id?: string | null;
+  answer_text?: string | null;
+  is_correct?: boolean | null;
+  score?: number | null;
+  explanation?: string | null;
+  feedback?: string | null;
+  correct_answer_text?: string | null;
 }
 
 // API Response types

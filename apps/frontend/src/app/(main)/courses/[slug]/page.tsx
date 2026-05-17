@@ -15,6 +15,7 @@ import {
   Trash2,
   Video,
   FileText,
+  ClipboardCheck,
   ClipboardList,
   GripVertical,
   Eye,
@@ -52,7 +53,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { assignmentApi, courseApi, lessonApi, Lesson, Material } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth/store";
-import { Assignment, CourseDetail, UserRole } from "@/types";
+import { Assignment, AssignmentType, CourseDetail, UserRole } from "@/types";
 
 interface MaterialUploadForm {
   title: string;
@@ -116,6 +117,11 @@ export default function CourseDetailPage() {
   });
   const [collapsedLessonIds, setCollapsedLessonIds] = useState<Set<string>>(new Set());
   const [learningFilter, setLearningFilter] = useState<LearningFilter>("home");
+  const [showTestDialog, setShowTestDialog] = useState(false);
+  const [testTitle, setTestTitle] = useState("");
+  const [testQuestionCount, setTestQuestionCount] = useState(20);
+  const [testLessonIds, setTestLessonIds] = useState<string[]>([]);
+  const [isGeneratingTest, setIsGeneratingTest] = useState(false);
 
   const slug = params.slug as string;
 
@@ -340,6 +346,45 @@ export default function CourseDetailPage() {
     }
   };
 
+  const handleOpenTestDialog = () => {
+    setTestTitle(`${course?.title || "Khóa học"} - Bài kiểm tra`);
+    setTestQuestionCount(20);
+    setTestLessonIds(lessons.map((lesson) => lesson.id));
+    setShowTestDialog(true);
+  };
+
+  const handleGenerateTest = async () => {
+    if (!course) return;
+    if (testQuestionCount < 1 || testQuestionCount > 100) {
+      alert("Số câu phải nằm trong khoảng 1-100.");
+      return;
+    }
+
+    setIsGeneratingTest(true);
+    try {
+      const created = await assignmentApi.generateTest(course.id, {
+        title: testTitle.trim() || undefined,
+        question_count: testQuestionCount,
+        lesson_ids: testLessonIds,
+      });
+      setAssignments((prev) => [...prev, created].sort((a, b) => a.order_index - b.order_index));
+      setShowTestDialog(false);
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Tạo bài kiểm tra thất bại");
+    } finally {
+      setIsGeneratingTest(false);
+    }
+  };
+
+  const handlePublishTest = async (assignmentId: string) => {
+    try {
+      const published = await assignmentApi.publish(assignmentId);
+      setAssignments((prev) => prev.map((assignment) => (assignment.id === published.id ? published : assignment)));
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Xuất bản bài kiểm tra thất bại");
+    }
+  };
+
   const getInitials = (name: string) => {
     return name
       .split(" ")
@@ -378,7 +423,7 @@ export default function CourseDetailPage() {
       : videoMaterials;
 
     const lessonAssignments = assignments
-      .filter((assignment) => assignment.lesson_id === lesson.id)
+      .filter((assignment) => assignment.assignment_type !== AssignmentType.TEST && assignment.lesson_id === lesson.id)
       .sort((a, b) => a.order_index - b.order_index);
 
     return {
@@ -658,6 +703,56 @@ export default function CourseDetailPage() {
     </div>
   );
 
+  const renderCourseTestSection = () => {
+    const courseTests = assignments
+      .filter((assignment) => assignment.assignment_type === AssignmentType.TEST)
+      .sort((a, b) => a.order_index - b.order_index);
+
+    return (
+      <div className="space-y-3 rounded-xl border border-rose-200 bg-rose-50/40 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-base font-semibold text-rose-900">Bài kiểm tra</p>
+            <p className="text-xs text-muted-foreground">Bài kiểm tra cấp khóa học, không thuộc lesson riêng lẻ</p>
+          </div>
+          {canEdit && (
+            <Button size="sm" variant="outline" onClick={handleOpenTestDialog}>
+              <ClipboardCheck className="h-4 w-4 mr-2" />
+              Tạo bài kiểm tra
+            </Button>
+          )}
+        </div>
+
+        {courseTests.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Chưa có bài kiểm tra cấp khóa học</p>
+        ) : (
+          <div className="space-y-2">
+            {courseTests.map((assignment, index) => (
+              <div key={assignment.id} className="flex items-center gap-2">
+                <Link
+                  href={`/courses/${course?.slug}/tests/${assignment.id}`}
+                  className="flex-1 border rounded-md px-3 py-2 bg-white hover:bg-gray-50 flex items-center justify-between"
+                >
+                  <span className="flex items-center gap-2 text-sm font-medium">
+                    <ClipboardCheck className="h-4 w-4" />
+                    {assignment.title || `Bài kiểm tra ${index + 1}`}
+                    {!assignment.is_published && <Badge variant="secondary">Nháp</Badge>}
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </Link>
+                {canEdit && !assignment.is_published && (
+                  <Button size="sm" variant="outline" onClick={() => handlePublishTest(assignment.id)}>
+                    Xuất bản
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-6 animate-pulse">
@@ -761,6 +856,9 @@ export default function CourseDetailPage() {
                         ) : (
                           <>
                             {(learningFilter === "home" || learningFilter === "document") && renderCourseMaterialSection()}
+                            {(learningFilter === "home" || learningFilter === "assignments") && (
+                              <div className="mt-4">{renderCourseTestSection()}</div>
+                            )}
                             <div className="mt-6 mb-3">
                               <h3 className="text-sm font-semibold text-slate-800">Nội dung theo từng Lesson</h3>
                               <p className="text-xs text-muted-foreground">Mỗi lesson có tài liệu, video và bài tập riêng</p>
@@ -921,6 +1019,9 @@ export default function CourseDetailPage() {
                     ) : (
                       <>
                         {(learningFilter === "home" || learningFilter === "document") && renderCourseMaterialSection()}
+                        {(learningFilter === "home" || learningFilter === "assignments") && (
+                          <div className="mt-4">{renderCourseTestSection()}</div>
+                        )}
                         <div className="mt-6 mb-3">
                           <h3 className="text-sm font-semibold text-slate-800">Nội dung theo từng Lesson</h3>
                           <p className="text-xs text-muted-foreground">Mỗi lesson có tài liệu, video và bài tập riêng</p>
@@ -969,10 +1070,16 @@ export default function CourseDetailPage() {
               </div>
 
               {canEdit && (
-                <Button className="w-full" variant="outline" onClick={() => handleOpenLessonDialog()}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Thêm bài học mới
-                </Button>
+                <div className="space-y-2">
+                  <Button className="w-full" variant="outline" onClick={() => handleOpenLessonDialog()}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Thêm bài học mới
+                  </Button>
+                  <Button className="w-full" variant="outline" onClick={handleOpenTestDialog}>
+                    <ClipboardCheck className="h-4 w-4 mr-2" />
+                    Tạo bài kiểm tra
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -1097,6 +1204,93 @@ export default function CourseDetailPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Test Generation Dialog */}
+      <Dialog open={showTestDialog} onOpenChange={setShowTestDialog}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Tạo Bài kiểm tra</DialogTitle>
+            <DialogDescription>
+              Hệ thống chọn câu hỏi từ ngân hàng câu hỏi theo tỉ lệ độ khó 40/40/20 và phạm vi lesson đã chọn.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="test-title">Tiêu đề bài kiểm tra</Label>
+              <Input
+                id="test-title"
+                value={testTitle}
+                onChange={(event) => setTestTitle(event.target.value)}
+                placeholder="Ví dụ: Kiểm tra giữa khóa"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="test-question-count">Số câu *</Label>
+              <Input
+                id="test-question-count"
+                type="number"
+                min={1}
+                max={100}
+                value={testQuestionCount}
+                onChange={(event) => setTestQuestionCount(Number(event.target.value))}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Khoanh vùng lesson</Label>
+              <div className="max-h-56 space-y-2 overflow-y-auto rounded-md border p-3">
+                {lessons.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Khóa học chưa có lesson.</p>
+                ) : (
+                  lessons.map((lesson, index) => {
+                    const checked = testLessonIds.includes(lesson.id);
+                    return (
+                      <label key={lesson.id} className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(event) => {
+                            setTestLessonIds((prev) =>
+                              event.target.checked
+                                ? [...prev, lesson.id]
+                                : prev.filter((lessonId) => lessonId !== lesson.id)
+                            );
+                          }}
+                        />
+                        <span>{index + 1}. {lesson.title}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Bỏ trống toàn bộ để lấy câu hỏi cấp khóa học từ mọi lesson.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTestDialog(false)} disabled={isGeneratingTest}>
+              Hủy
+            </Button>
+            <Button
+              onClick={handleGenerateTest}
+              disabled={isGeneratingTest || testQuestionCount < 1 || testQuestionCount > 100}
+            >
+              {isGeneratingTest ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Đang tạo...
+                </>
+              ) : (
+                "Tạo bài kiểm tra"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Material Upload Dialog */}
       <Dialog open={showMaterialDialog} onOpenChange={setShowMaterialDialog}>
