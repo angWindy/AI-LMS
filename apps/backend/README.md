@@ -34,7 +34,7 @@ http://localhost:8000/docs
 
 ```env
 LLM_PROVIDER=google
-LLM_MODEL=gemini-3.1-flash-lite-preview
+LLM_MODEL=gemini-3.1-flash-lite
 LLM_TEMPERATURE=0.1
 LLM_MAX_OUTPUT_TOKENS=512
 LLM_THINKING_LEVEL=
