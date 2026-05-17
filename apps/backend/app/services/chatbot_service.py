@@ -55,6 +55,9 @@ class ChatbotService:
     """Coordinates prompt assembly and delegates text generation to a provider."""
 
     MAX_CONVERSATION_HISTORY_MESSAGES = 40
+    MAX_CONTEXT_HISTORY_MESSAGES = 12
+    MAX_CONTEXT_HISTORY_CHARS = 6000
+    MAX_CONTEXT_HISTORY_MESSAGE_CHARS = 800
     MAX_IMAGE_BYTES = 10 * 1024 * 1024
     ALLOWED_IMAGE_MIME_TYPES = {
         "image/png",
@@ -139,9 +142,13 @@ class ChatbotService:
         runtime_history = list(persisted_history)
         if not conversation_id and history:
             runtime_history.extend(history)
+        conversation_history_context = self._format_conversation_history_context(
+            runtime_history
+        )
 
         incoming_teaching_images = list(teaching_images or [])
         image_rule_matched = _need_teaching_image_strict(question)
+        image_mode_active = image_rule_matched
         selected_teaching_images = (
             incoming_teaching_images if image_rule_matched else []
         )
@@ -162,18 +169,26 @@ class ChatbotService:
                 len(incoming_teaching_images),
             )
 
+        if image_mode_active and enable_auto_rag:
+            logger.debug(
+                "[Debug] Chatbot service skipped RAG because image rule matched user_id=%s conversation_id=%s",
+                user_id,
+                conversation.id,
+            )
+
         auto_rag_context = (
             self._build_auto_rag_context(
                 db=db,
                 question=question,
                 scope=scope,
             )
-            if enable_auto_rag
+            if enable_auto_rag and not image_mode_active
             else []
         )
+        explicit_context_docs = [] if image_mode_active else list(context_docs or [])
         merged_context_docs = [
             *auto_rag_context,
-            *(context_docs or []),
+            *explicit_context_docs,
         ]
         effective_system_prompt = (
             _merge_optional_text(
@@ -193,6 +208,7 @@ class ChatbotService:
             system_prompt=effective_system_prompt,
             rag_context=merged_context_docs,
             image_contexts=merged_image_contexts,
+            conversation_history_context=conversation_history_context,
             images=prepared_images,
             temperature=temperature,
             max_output_tokens=max_output_tokens,
@@ -200,17 +216,19 @@ class ChatbotService:
         )
 
         logger.debug(
-            "[Debug] Chatbot service assembled request provider=%s model=%s user_id=%s conversation_id=%s image_rule_matched=%s has_image_input=%s image_input_count=%s image_used_count=%s rag_context_count=%s merged_image_context_count=%s",
+            "[Debug] Chatbot service assembled request provider=%s model=%s user_id=%s conversation_id=%s context_mode=%s image_rule_matched=%s has_image_input=%s image_input_count=%s image_used_count=%s rag_context_count=%s merged_image_context_count=%s conversation_history_context_count=%s",
             llm_result.provider,
             llm_result.model,
             user_id,
             conversation.id,
+            "image" if image_mode_active else "rag_or_lms",
             image_rule_matched,
             len(incoming_teaching_images) > 0,
             len(incoming_teaching_images),
             len(prepared_images),
             len(merged_context_docs),
             len(merged_image_contexts),
+            len(conversation_history_context),
         )
 
         messages_to_save: list[AIMessage] = []
@@ -311,6 +329,46 @@ class ChatbotService:
         )
         rows.reverse()
         return [ChatMessage(role=row.role, content=row.content) for row in rows]
+
+    def _format_conversation_history_context(
+        self,
+        history: Sequence[ChatMessage],
+    ) -> list[str]:
+        """Format recent non-system turns as compact context for continuity."""
+        selected_messages = [
+            message
+            for message in history
+            if message.role in {"user", "assistant"} and message.content.strip()
+        ][-self.MAX_CONTEXT_HISTORY_MESSAGES :]
+        if not selected_messages:
+            return []
+
+        lines = ["Recent conversation history, oldest to newest:"]
+        total_chars = len(lines[0])
+        role_labels = {
+            "user": "Learner",
+            "assistant": "Assistant",
+        }
+        for message in selected_messages:
+            content = self._truncate_history_message(
+                " ".join(message.content.split())
+            )
+            if not content:
+                continue
+            line = f"{role_labels.get(message.role, message.role)}: {content}"
+            if total_chars + len(line) + 1 > self.MAX_CONTEXT_HISTORY_CHARS:
+                break
+            lines.append(line)
+            total_chars += len(line) + 1
+
+        if len(lines) == 1:
+            return []
+        return ["\n".join(lines)]
+
+    def _truncate_history_message(self, content: str) -> str:
+        if len(content) <= self.MAX_CONTEXT_HISTORY_MESSAGE_CHARS:
+            return content
+        return content[: self.MAX_CONTEXT_HISTORY_MESSAGE_CHARS - 3].rstrip() + "..."
 
     def _resolve_lms_scope(
         self,

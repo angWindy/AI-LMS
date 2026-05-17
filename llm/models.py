@@ -52,4 +52,5 @@ class ContextTrace:
 
     rag_context: list[str] = field(default_factory=list)
     image_contexts: list[str] = field(default_factory=list)
+    conversation_history: list[str] = field(default_factory=list)
     merged_context: str | None = None

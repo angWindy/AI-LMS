@@ -18,6 +18,7 @@ class ContextTracePayload(BaseModel):
 
     rag_context: list[str] = Field(default_factory=list)
     image_contexts: list[str] = Field(default_factory=list)
+    conversation_history: list[str] = Field(default_factory=list)
     merged_context: str | None = None
 
 

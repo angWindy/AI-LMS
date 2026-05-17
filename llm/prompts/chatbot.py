@@ -27,6 +27,7 @@ def build_lms_chatbot_prompt(
             "",
             "Role: act as a tutor for this subject or course.",
             "Prefer PRIMARY_LESSON_CONTEXT when it is present; use SUPPORTING_COURSE_CONTEXT to supplement or verify.",
+            "Use CONVERSATION_HISTORY_CONTEXT for continuity, but prioritize the current image or RAG context for the latest answer.",
             "If the context is not sufficient for a final conclusion, do not apologize, do not say the system lacks context, and do not blame the platform.",
             "Instead, use subject-matter knowledge and reasonable inference from the course and lesson names to answer the most useful part of the question.",
             "If you must infer, keep the answer short and useful; you may briefly note that the answer is based on subject knowledge when the LMS materials do not fully cover it.",

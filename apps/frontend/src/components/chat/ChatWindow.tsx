@@ -205,9 +205,11 @@ export function ChatWindow({
     } catch (error: any) {
       console.error("Chatbot API error:", error);
       const detail = error.response?.data?.detail;
-      const content = detail === "GOOGLE_AI_API_KEY is not configured."
-        ? "Hệ thống chưa được cấu hình API Key cho Google Gemini. Vui lòng kiểm tra lại thiết lập."
-        : (detail || error.message || "Xin lỗi, đã có lỗi xảy ra. Không thể kết nối với hệ thống AI.");
+      const content = error.code === "ECONNABORTED"
+        ? "Chatbot phản hồi quá lâu. Vui lòng thử lại sau ít phút."
+        : detail === "GOOGLE_AI_API_KEY is not configured."
+          ? "Hệ thống chưa được cấu hình API Key cho Google Gemini. Vui lòng kiểm tra lại thiết lập."
+          : (detail || error.message || "Xin lỗi, đã có lỗi xảy ra. Không thể kết nối với hệ thống AI.");
         
       const errorMsg: ChatMessage = {
         id: Date.now().toString() + "_error",

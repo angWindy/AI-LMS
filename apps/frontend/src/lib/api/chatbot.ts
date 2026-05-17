@@ -1,5 +1,7 @@
 import { apiClient } from "./client";
 
+const CHATBOT_REQUEST_TIMEOUT_MS = 4 * 60 * 1000;
+
 export interface ChatMessagePayload {
   role: string | "system" | "user" | "assistant";
   content: string;
@@ -83,12 +85,16 @@ export interface ConversationMessagesResponse {
 
 export const chatbotApi = {
   ask: async (data: ChatbotAskRequest): Promise<ChatbotAskResponse> => {
-    const response = await apiClient.post<ChatbotAskRequest, any>("/chatbot/ask", data);
+    const response = await apiClient.post<ChatbotAskRequest, any>("/chatbot/ask", data, {
+      timeout: CHATBOT_REQUEST_TIMEOUT_MS,
+    });
     return response.data;
   },
 
   askAssignment: async (data: AssignmentChatbotAskRequest): Promise<ChatbotAskResponse> => {
-    const response = await apiClient.post<AssignmentChatbotAskRequest, any>("/chatbot/assignment/ask", data);
+    const response = await apiClient.post<AssignmentChatbotAskRequest, any>("/chatbot/assignment/ask", data, {
+      timeout: CHATBOT_REQUEST_TIMEOUT_MS,
+    });
     return response.data;
   },
 

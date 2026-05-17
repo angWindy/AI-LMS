@@ -88,7 +88,11 @@ def ask_chatbot(
     has_image_input = image_input_count > 0
     image_used_count = response.image_used_count
     has_image_used = image_used_count > 0
-    context_count = len(payload.context_docs or []) + len(payload.image_contexts or [])
+    context_count = (
+        len(response.result.context.rag_context)
+        + len(response.result.context.image_contexts)
+        + len(response.result.context.conversation_history)
+    )
 
     logger.info(
         "[Success] Chatbot ask succeeded user=%s conversation_id=%s provider=%s model=%s image_rule_matched=%s has_image_input=%s image_input_count=%s has_image_used=%s image_used_count=%s context_count=%s question=%s",
@@ -120,6 +124,7 @@ def ask_chatbot(
         context=ContextTracePayload(
             rag_context=response.result.context.rag_context,
             image_contexts=response.result.context.image_contexts,
+            conversation_history=response.result.context.conversation_history,
             merged_context=response.result.context.merged_context,
         ),
     )
@@ -217,6 +222,7 @@ def ask_assignment_chatbot(
         context=ContextTracePayload(
             rag_context=response.result.context.rag_context,
             image_contexts=response.result.context.image_contexts,
+            conversation_history=response.result.context.conversation_history,
             merged_context=response.result.context.merged_context,
         ),
     )

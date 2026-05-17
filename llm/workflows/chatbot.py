@@ -43,6 +43,7 @@ class ChatbotWorkflow:
         system_prompt: str | None = None,
         rag_context: Sequence[str] | None = None,
         image_contexts: Sequence[str] | None = None,
+        conversation_history_context: Sequence[str] | None = None,
         images: Sequence[ImageInput] | None = None,
         temperature: float | None = None,
         max_output_tokens: int | None = None,
@@ -58,6 +59,7 @@ class ChatbotWorkflow:
             question=question,
             rag_context=rag_context,
             image_contexts=image_contexts,
+            conversation_history=conversation_history_context,
         )
 
         base_system_prompt = system_prompt or default_chatbot_prompt()
