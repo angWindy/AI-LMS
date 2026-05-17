@@ -2,6 +2,7 @@
 Lesson management API endpoints.
 """
 import logging
+from pathlib import Path
 from typing import List, Optional
 import uuid
 
@@ -32,6 +33,21 @@ from app.services.rag_ingestion import index_material, remove_lesson_index, remo
 
 router = APIRouter(prefix="/lessons", tags=["Lessons"])
 logger = logging.getLogger(__name__)
+
+
+def _material_title_or_default(
+    title: Optional[str],
+    file: Optional[UploadFile],
+    external_url: Optional[str],
+) -> str:
+    normalized_title = (title or "").strip()
+    if normalized_title:
+        return normalized_title
+    if file and file.filename:
+        return Path(file.filename).stem.strip() or file.filename
+    if external_url:
+        return Path(external_url.rstrip("/")).stem or external_url
+    return "Tài liệu"
 
 
 def check_course_access(db: DBSession, course_id: uuid.UUID, user: User, require_owner: bool = False):
@@ -254,7 +270,7 @@ async def create_material(
     db: DBSession,
     lesson_id: uuid.UUID,
     current_user: InstructorUser,
-    title: str = Form(...),
+    title: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
     material_type: str = Form(..., alias="type"),
     file: Optional[UploadFile] = File(None),
@@ -283,7 +299,7 @@ async def create_material(
     material = Material(
         course_id=lesson.course_id,
         lesson_id=lesson_id,
-        title=title,
+        title=_material_title_or_default(title, file, external_url),
         description=description,
         type=material_type,
         file_url=file_url,

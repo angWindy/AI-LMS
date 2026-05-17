@@ -343,7 +343,7 @@ export default function LessonStudioPage() {
   };
 
   const handleUploadMaterial = async () => {
-    if (!lesson || !materialForm.title.trim()) return;
+    if (!lesson) return;
     if (materialForm.type === "document" && !materialForm.file) {
       alert("Vui lòng chọn file tài liệu để tải lên.");
       return;
@@ -357,7 +357,7 @@ export default function LessonStudioPage() {
     setIsSavingMaterial(true);
     try {
       const created = await lessonApi.uploadMaterial(lesson.id, {
-        title: materialForm.title.trim(),
+        title: materialForm.title.trim() || undefined,
         description: materialForm.description.trim() || undefined,
         type: materialForm.type,
         file: materialForm.type === "document" ? materialForm.file || undefined : undefined,
@@ -1065,12 +1065,12 @@ export default function LessonStudioPage() {
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="material-title">Tiêu đề tài liệu *</Label>
+              <Label htmlFor="material-title">Tiêu đề tài liệu</Label>
               <Input
                 id="material-title"
                 value={materialForm.title}
                 onChange={(e) => setMaterialForm({ ...materialForm, title: e.target.value })}
-                placeholder="Ví dụ: Slide buổi 1"
+                placeholder="Bỏ trống để dùng tên file hoặc URL"
               />
             </div>
 
@@ -1140,7 +1140,14 @@ export default function LessonStudioPage() {
             <Button variant="outline" onClick={() => setShowMaterialDialog(false)} disabled={isSavingMaterial}>
               Hủy
             </Button>
-            <Button onClick={handleUploadMaterial} disabled={isSavingMaterial || !materialForm.title.trim()}>
+            <Button
+              onClick={handleUploadMaterial}
+              disabled={
+                isSavingMaterial ||
+                (materialForm.type === "document" && !materialForm.file) ||
+                (materialForm.type === "link" && !materialForm.externalUrl.trim())
+              }
+            >
               {isSavingMaterial ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

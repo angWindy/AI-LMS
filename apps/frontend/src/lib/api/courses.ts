@@ -71,10 +71,10 @@ export const courseApi = {
   // Upload course-level material
   uploadMaterial: async (
     courseId: string,
-    data: { title: string; description?: string; type: string; file?: File; external_url?: string }
+    data: { title?: string; description?: string; type: string; file?: File; external_url?: string }
   ): Promise<Material> => {
     const formData = new FormData();
-    formData.append("title", data.title);
+    if (data.title?.trim()) formData.append("title", data.title.trim());
     formData.append("type", data.type);
     if (data.description) formData.append("description", data.description);
     if (data.file) formData.append("file", data.file);

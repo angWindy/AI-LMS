@@ -39,26 +39,27 @@ async def upload_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> RAGIngestionResponse:
-    """Upload a PDF directly to the RAG store (admin / instructor side-channel).
+    """Upload a document directly to the RAG store (admin / instructor side-channel).
 
     For Teacher uploads via the regular Material endpoints, ingestion happens
     automatically; this endpoint is for ad-hoc / testing usage.
     """
-    if not (file.filename or "").lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in {".pdf", ".docx"}:
+        raise HTTPException(status_code=400, detail="Only PDF and DOCX files are supported")
 
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
         content = await file.read()
         tmp.write(content)
         tmp_path = tmp.name
 
     try:
-        doc_title = title or Path(file.filename or "Untitled.pdf").stem
+        doc_title = title or Path(file.filename or "Untitled").stem
         doc_id = f"upload_{uuid.uuid4().hex[:16]}"
 
         rag_service = get_rag_service(use_postgres=True, verbose=False)
-        result = rag_service.ingest_pdf(
-            pdf_path=tmp_path,
+        result = rag_service.ingest_document(
+            file_path=tmp_path,
             document_id=doc_id,
             course_id=str(course_id) if course_id else None,
             lesson_id=str(lesson_id) if lesson_id else None,
@@ -70,19 +71,19 @@ async def upload_document(
             logger.error("[RAG API] Ingestion failed: %s", result.get("error"))
             raise HTTPException(status_code=400, detail=result.get("error", "Ingestion failed"))
 
-        rag_doc = RAGDocument(
-            doc_id=result["document_id"],
-            title=doc_title,
-            source_path=file.filename,
-            source_type="pdf",
-            course_id=course_id,
-            lesson_id=lesson_id,
-            uploaded_by=current_user.id,
-            chunks_count=result["chunks"],
-            total_tokens=result["total_tokens"],
-            metadata_json={"original_filename": file.filename},
-        )
-        db.add(rag_doc)
+        rag_doc = db.query(RAGDocument).filter(RAGDocument.doc_id == result["document_id"]).first()
+        if rag_doc is None:
+            rag_doc = RAGDocument(doc_id=result["document_id"])
+            db.add(rag_doc)
+        rag_doc.title = doc_title
+        rag_doc.source_path = file.filename
+        rag_doc.source_type = result.get("source_type", suffix.lstrip("."))
+        rag_doc.course_id = course_id
+        rag_doc.lesson_id = lesson_id
+        rag_doc.uploaded_by = current_user.id
+        rag_doc.chunks_count = result["chunks"]
+        rag_doc.total_tokens = result["total_tokens"]
+        rag_doc.metadata_json = {"original_filename": file.filename}
         db.commit()
 
         return RAGIngestionResponse(
@@ -292,4 +293,3 @@ async def get_stats(
     except Exception as e:
         logger.error(f"[RAG API] Stats error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
-

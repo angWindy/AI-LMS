@@ -1,7 +1,7 @@
 """Glue layer between LMS Material uploads and the RAG pipeline.
 
 The Teacher uploads Material rows via the existing course / lesson endpoints.
-For document types we know how to index (currently PDF) we forward the file to
+For document types we know how to index (PDF and DOCX) we forward the file to
 ``llm.rag.service.RAGService`` so the content is chunked, embedded and stored
 in the vector store. When the Material row is removed, the corresponding RAG
 document and its chunks are removed as well.
@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import os
 import uuid as uuid_lib
 from pathlib import Path
 from typing import Optional
@@ -30,9 +29,12 @@ logger = logging.getLogger(__name__)
 
 
 # MIME types we currently support indexing.
-INDEXABLE_MIME_TYPES = {"application/pdf"}
+INDEXABLE_MIME_TYPES = {
+    "application/pdf",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
 # File extensions used as a fallback when the upload has no MIME type recorded.
-INDEXABLE_EXTENSIONS = {".pdf"}
+INDEXABLE_EXTENSIONS = {".pdf", ".docx"}
 
 
 def _resolve_storage_path(file_url: str) -> Optional[Path]:
@@ -113,8 +115,8 @@ def index_material(db: Session, material: Material) -> Optional[RAGDocument]:
         )
         return existing
 
-    result = rag_service.ingest_pdf(
-        pdf_path=storage_path,
+    result = rag_service.ingest_document(
+        file_path=storage_path,
         document_id=doc_id,
         course_id=str(material.course_id) if material.course_id else None,
         lesson_id=str(material.lesson_id) if material.lesson_id else None,
@@ -146,7 +148,7 @@ def index_material(db: Session, material: Material) -> Optional[RAGDocument]:
     rag_doc.title = material.title
     rag_doc.description = material.description
     rag_doc.source_path = material.file_url
-    rag_doc.source_type = "pdf"
+    rag_doc.source_type = result.get("source_type") or storage_path.suffix.lower().lstrip(".")
     rag_doc.file_hash = file_hash
     rag_doc.chunks_count = int(result.get("chunks", 0))
     rag_doc.total_tokens = int(result.get("total_tokens", 0))

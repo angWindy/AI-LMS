@@ -1,13 +1,12 @@
 """RAG Service for LMS - High-level RAG operations."""
 
-import json
-import logging
 import hashlib
+import logging
 from pathlib import Path
-from typing import Optional, Dict, List
-from dataclasses import asdict
+from typing import Optional, Dict
 
 from llm.rag.pdf_processor import PDFProcessor
+from llm.rag.word_processor import WordProcessor
 from llm.rag.chunker import HierarchicalChunker, Document
 from llm.rag.embedder import EmbeddingService
 from llm.rag.vector_store import VectorStore, InMemoryVectorStore, PostgresVectorStore
@@ -98,18 +97,54 @@ class RAGService:
             title: Optional override for the document title.
             extra_metadata: Free-form metadata merged into the document record.
         """
-        pdf_path = Path(pdf_path)
+        return self.ingest_document(
+            file_path=pdf_path,
+            document_id=document_id,
+            course_id=course_id,
+            lesson_id=lesson_id,
+            material_id=material_id,
+            uploaded_by=uploaded_by,
+            file_hash=file_hash,
+            title=title,
+            extra_metadata=extra_metadata,
+        )
+
+    def ingest_document(
+        self,
+        file_path: str | Path,
+        document_id: Optional[str] = None,
+        course_id: Optional[str] = None,
+        lesson_id: Optional[str] = None,
+        material_id: Optional[str] = None,
+        uploaded_by: Optional[str] = None,
+        file_hash: Optional[str] = None,
+        title: Optional[str] = None,
+        extra_metadata: Optional[Dict] = None,
+    ) -> Dict:
+        """Ingest a supported document into RAG.
+
+        Text is extracted first, then chunked, then embedded. This keeps the
+        embedding calls scoped to retrieval-ready chunks instead of raw files.
+        """
+        file_path = Path(file_path)
+        suffix = file_path.suffix.lower()
 
         if self.verbose:
-            logger.info(f"[RAGService] Starting PDF ingestion: {pdf_path}")
+            logger.info("[RAGService] Starting document ingestion: %s", file_path)
 
         try:
-            processor = PDFProcessor(verbose=self.verbose)
-            pdf_result = processor.process_pdf(pdf_path)
+            if suffix == ".pdf":
+                source_type = "pdf"
+                processed_result = PDFProcessor(verbose=self.verbose).process_pdf(file_path)
+            elif suffix == ".docx":
+                source_type = "docx"
+                processed_result = WordProcessor(verbose=self.verbose).process_word(file_path)
+            else:
+                raise ValueError(f"Unsupported RAG document type: {suffix or 'unknown'}")
 
             doc_metadata = {
-                **pdf_result['metadata'],
-                'source_path': str(pdf_path),
+                **processed_result['metadata'],
+                'source_path': str(file_path),
             }
             for key, value in {
                 "course_id": str(course_id) if course_id else None,
@@ -117,7 +152,7 @@ class RAGService:
                 "material_id": str(material_id) if material_id else None,
                 "uploaded_by": str(uploaded_by) if uploaded_by else None,
                 "file_hash": file_hash,
-                "source_type": "pdf",
+                "source_type": source_type,
             }.items():
                 if value is not None:
                     doc_metadata[key] = value
@@ -126,12 +161,12 @@ class RAGService:
 
             chunker = HierarchicalChunker(verbose=self.verbose)
             document = chunker.chunk_document(
-                pages=pdf_result['pages'],
+                pages=processed_result['pages'],
                 doc_metadata=doc_metadata,
             )
 
             if not document_id:
-                document_id = pdf_path.stem.lower().replace(' ', '_')
+                document_id = file_path.stem.lower().replace(' ', '_')
             document.id = document_id
             if title:
                 document.title = title
@@ -146,26 +181,27 @@ class RAGService:
                 'status': 'success',
                 'document_id': document.id,
                 'title': document.title,
-                'pages': pdf_result['metadata'].get('total_pages', 0),
+                'pages': processed_result['metadata'].get('total_pages', len(processed_result['pages'])),
                 'chunks': len(document.chunks),
                 'total_tokens': sum(c.tokens_count for c in document.chunks),
                 'course_id': doc_metadata.get('course_id'),
                 'lesson_id': doc_metadata.get('lesson_id'),
                 'material_id': doc_metadata.get('material_id'),
-                'message': f'Successfully ingested {len(document.chunks)} chunks from {pdf_path.name}',
+                'source_type': source_type,
+                'message': f'Successfully ingested {len(document.chunks)} chunks from {file_path.name}',
             }
 
             if self.verbose:
-                logger.info(f"[RAGService] PDF ingestion completed: {result}")
+                logger.info("[RAGService] Document ingestion completed: %s", result)
 
             return result
 
         except Exception as e:
-            logger.error(f"[RAGService] PDF ingestion failed: {str(e)}")
+            logger.error("[RAGService] Document ingestion failed: %s", str(e))
             return {
                 'status': 'error',
                 'error': str(e),
-                'message': f'Failed to ingest PDF: {str(e)}',
+                'message': f'Failed to ingest document: {str(e)}',
             }
 
     def _namespace_chunk_ids(self, document: Document) -> None:
