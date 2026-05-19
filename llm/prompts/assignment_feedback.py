@@ -35,6 +35,8 @@ Rules:
 8. score must be between 0 and 1 for each question.
 9. Include exactly one answers item for every submitted question_id.
 10. Keep feedback concise, specific, and actionable; avoid generic praise or long lectures.
+11. Adapt explanation depth, vocabulary, examples, and next-step advice to the learner level stated in Course context.
+12. Preserve grading accuracy; learner level changes feedback style and scaffolding, not the correctness standard.
 
 Course context:
 {course_context}

@@ -11,6 +11,7 @@ code in `apps/`, `llm/`, migrations, and Compose files.
 - [Database Schema Notes](DATABASE_SCHEMA.md)
 - [Deployment Guide](DEPLOYMENT_GUIDE.md): manual deploy, helper script, and
   GitHub Actions deployment.
+- [Course Levels](COURSE_LEVELS.md)
 
 ## Features
 

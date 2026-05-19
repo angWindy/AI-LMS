@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { courseApi } from "@/lib/api";
+import { getCourseLevelLabel } from "@/lib/course-levels";
 import { Course } from "@/types";
 
 export default function CoursesPage() {
@@ -45,19 +46,6 @@ export default function CoursesPage() {
       setFilteredCourses(courses);
     }
   }, [searchQuery, courses]);
-
-  const getLevelLabel = (level: string | null | undefined) => {
-    switch (level) {
-      case "beginner":
-        return "Cơ bản";
-      case "intermediate":
-        return "Trung cấp";
-      case "advanced":
-        return "Nâng cao";
-      default:
-        return "Tất cả trình độ";
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -142,7 +130,7 @@ export default function CoursesPage() {
                   </div>
                   <div className="flex gap-2 flex-wrap">
                     {course.level && (
-                      <Badge variant="secondary">{getLevelLabel(course.level)}</Badge>
+                      <Badge variant="secondary">{getCourseLevelLabel(course.level)}</Badge>
                     )}
                     {course.category && (
                       <Badge variant="outline">{course.category}</Badge>

@@ -7,7 +7,7 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.course import CourseStatus
+from app.models.course import CourseLevel, CourseStatus
 from app.schemas.user import UserResponse
 
 
@@ -17,7 +17,7 @@ class CourseBase(BaseModel):
     description: Optional[str] = None
     short_description: Optional[str] = None
     category: Optional[str] = None
-    level: Optional[str] = None
+    level: CourseLevel
     language: str = "vi"
 
 
@@ -32,7 +32,7 @@ class CourseUpdate(BaseModel):
     description: Optional[str] = None
     short_description: Optional[str] = None
     category: Optional[str] = None
-    level: Optional[str] = None
+    level: Optional[CourseLevel] = None
     language: Optional[str] = None
     thumbnail_url: Optional[str] = None
 
@@ -69,6 +69,6 @@ class CourseListResponse(BaseModel):
     short_description: Optional[str] = None
     thumbnail_url: Optional[str] = None
     status: CourseStatus
-    level: Optional[str] = None
+    level: CourseLevel
     instructor: UserResponse
     lesson_count: int = 0

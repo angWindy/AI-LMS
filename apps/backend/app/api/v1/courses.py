@@ -15,7 +15,7 @@ from slugify import slugify
 from app.core.dependencies import DBSession, InstructorUser, get_current_user_optional
 from app.core.exceptions import NotFoundException, ForbiddenException
 from app.models.user import User, UserRole
-from app.models.course import Course, CourseStatus
+from app.models.course import Course, CourseLevel, CourseStatus
 from app.models.lesson import Lesson
 from app.models.material import Material
 from app.schemas.lesson import MaterialResponse
@@ -85,7 +85,7 @@ async def list_courses(
     page_size: int = Query(20, ge=1, le=100),
     status: Optional[CourseStatus] = None,
     category: Optional[str] = None,
-    level: Optional[str] = None,
+    level: Optional[CourseLevel] = None,
     search: Optional[str] = None,
 ):
     """List all published courses with filtering and pagination."""
@@ -94,7 +94,7 @@ async def list_courses(
     if category:
         query = query.filter(Course.category == category)
     if level:
-        query = query.filter(Course.level == level)
+        query = query.filter(Course.level == level.value)
     if search:
         query = query.filter(Course.title.ilike(f"%{search}%"))
 
@@ -146,7 +146,7 @@ async def create_course(
         description=course_data.description,
         short_description=course_data.short_description,
         category=course_data.category,
-        level=course_data.level,
+        level=course_data.level.value,
         language=course_data.language,
     )
 
@@ -268,7 +268,7 @@ async def update_course(
     if course_data.category is not None:
         course.category = course_data.category
     if course_data.level is not None:
-        course.level = course_data.level
+        course.level = course_data.level.value
     if course_data.language is not None:
         course.language = course_data.language
     if course_data.thumbnail_url is not None:

@@ -104,6 +104,8 @@ Strict output rules:
 12. Questions should align with the lesson and course context below.
 13. Avoid duplicate questions and avoid ambiguous answer keys.
 14. For hard questions, make distractors plausible and difficult to distinguish.
+15. Adapt every question, option, distractor, example, and explanation implied by the answer key to the learner level stated in Course context.
+16. Keep the academic target correct; learner level changes wording, scaffolding, context familiarity, and reasoning depth, not factual correctness.
 
 Course context:
 {course_context}

@@ -28,11 +28,15 @@ If the question directly refers to an image/screenshot, image mode is used and
 RAG/text context is skipped for that turn. Otherwise provided images are ignored
 and text/RAG context is used.
 
+When a course scope is present, the chatbot prompt includes the course academic
+level and adapts wording, examples, analogies, and scaffolding to that level.
+
 ## Assignment Tutor
 
 Validates assignment access, builds sanitized assignment context without answer
 keys, disables auto-RAG, and uses a prompt that gives hints without revealing
-final answers.
+final answers. It also receives the course academic level so hints match the
+expected learner stage.
 
 ## Main Files
 

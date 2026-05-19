@@ -18,10 +18,15 @@ Strict output rules:
    claims that are not supported by either context or widely accepted knowledge.
 6. Do not create slides in this step. Create only the IR object.
 7. Keep the IR compact and useful for a teacher-facing lecture slide deck.
+8. Adapt learning objectives, examples, vocabulary, abstraction level, and
+   teaching suggestions to the learner level stated in Course context.
+9. Preserve academic correctness; learner level changes scaffolding and
+   presentation, not the underlying facts.
 
 Required JSON schema:
 {{
   "document_title": "...",
+  "learner_level": "...",
   "domain": "...",
   "summary": "...",
   "learning_objectives": ["..."],
@@ -49,6 +54,7 @@ Required JSON schema:
 Field guidance:
 - document_title should come from the lesson title when available; otherwise use
   the most specific supported title from the source context.
+- learner_level should use the label from Course context when available.
 - domain should be inferred from course and lesson context when possible.
 - main_sections.id must start at 1 and increase sequentially.
 - key_points should stay close to the source context.
@@ -87,6 +93,8 @@ Strict output rules:
 9. source_sections must contain only main_sections.id values present in the IR.
 10. Avoid duplicated content across slides.
 11. Do not include design, theme, UI, renderer, export, or PDF instructions.
+12. Adapt slide titles, bullet wording, examples, and quiz prompts to the
+   learner_level present in the IR while preserving academic correctness.
 
 Required JSON schema:
 {{

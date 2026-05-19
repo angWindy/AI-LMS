@@ -57,6 +57,7 @@ class AssignmentChatbotService:
         system_prompt = build_assignment_tutor_prompt(
             course_title=course.title if course else None,
             lesson_title=lesson.title if lesson else None,
+            course_level=course.level if course else None,
         )
 
         return self.chatbot_service.ask(

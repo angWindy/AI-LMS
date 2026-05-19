@@ -1,10 +1,15 @@
 import { apiClient } from "./client";
-import { Course, CourseDetail, PaginatedResponse } from "@/types";
+import { Course, CourseDetail, CourseLevel, PaginatedResponse } from "@/types";
 import { Material } from "./lessons";
 
 export const courseApi = {
   // Get all courses (paginated)
-  getAll: async (params?: { status?: string; page?: number; page_size?: number }): Promise<PaginatedResponse<Course>> => {
+  getAll: async (params?: {
+    status?: string;
+    level?: CourseLevel;
+    page?: number;
+    page_size?: number;
+  }): Promise<PaginatedResponse<Course>> => {
     const response = await apiClient.get("/courses", { params });
     return response.data;
   },

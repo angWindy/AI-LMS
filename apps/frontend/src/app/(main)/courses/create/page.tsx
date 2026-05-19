@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { COURSE_LEVEL_OPTIONS, COURSE_LEVEL_VALUES } from "@/lib/course-levels";
 import { courseApi } from "@/lib/api";
 
 const courseSchema = z.object({
@@ -20,7 +21,7 @@ const courseSchema = z.object({
   description: z.string().optional(),
   short_description: z.string().max(500, "Mô tả ngắn tối đa 500 ký tự").optional(),
   category: z.string().optional(),
-  level: z.string().optional(),
+  level: z.enum(COURSE_LEVEL_VALUES, { error: "Vui lòng chọn trình độ" }),
   language: z.string(),
 });
 
@@ -134,17 +135,28 @@ export default function CreateCoursePage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Trình độ</Label>
-                <Select onValueChange={(value) => setValue("level", value)}>
+                <Label>Trình độ *</Label>
+                <Select
+                  onValueChange={(value) =>
+                    setValue("level", value as CourseFormData["level"], {
+                      shouldValidate: true,
+                    })
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Chọn trình độ" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="beginner">Cơ bản</SelectItem>
-                    <SelectItem value="intermediate">Trung cấp</SelectItem>
-                    <SelectItem value="advanced">Nâng cao</SelectItem>
+                    {COURSE_LEVEL_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                {errors.level && (
+                  <p className="text-sm text-red-500">{errors.level.message}</p>
+                )}
               </div>
             </div>
 

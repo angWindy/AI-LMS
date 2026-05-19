@@ -29,8 +29,9 @@ Generate:
 ## Flow
 
 1. Load course, lesson, and material context.
-2. LLM creates document IR.
-3. LLM converts IR to slide JSON.
+2. LLM creates document IR, including `learner_level` from the course.
+3. LLM converts IR to slide JSON and adapts objectives, vocabulary, examples,
+   bullets, and quiz prompts to that level.
 4. Backend renders PDF into `/storage`.
 5. Deck is saved unpublished.
 

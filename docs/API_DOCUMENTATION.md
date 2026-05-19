@@ -80,6 +80,13 @@ GET    /courses/my/teaching
 `GET /courses` returns published courses. Filters: `status`, `category`,
 `level`, `search`, `page`, `page_size`.
 
+Course `level` is required on create and must be one of:
+
+- `elementary`: Tiểu học
+- `middle_school`: Trung học cơ sở
+- `high_school`: Trung học phổ thông
+- `higher_education`: Đại học và sau đại học
+
 Material upload form fields: `title`, `description`, `type`, optional `file`,
 optional `external_url`.
 

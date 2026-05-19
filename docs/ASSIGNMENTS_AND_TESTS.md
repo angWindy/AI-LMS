@@ -38,6 +38,8 @@ Learners see only published assignments and never receive answer keys.
 AI practice draft:
 
 - Uses course and lesson context.
+- Uses course academic level to adapt wording, examples, distractors, and
+  reasoning depth.
 - Validates 40/40/20 difficulty distribution.
 - Saves as unpublished `practice`.
 
@@ -62,7 +64,8 @@ retaken until the learner deletes their submission.
 Scoring:
 
 - Multiple-choice: local 1/0 score.
-- Essay: LLM feedback service returns score, explanation, and summary.
+- Essay: LLM feedback service returns score, explanation, and summary adapted
+  to the course academic level.
 - Submission score is saved as a percentage.
 
 ## Main Files

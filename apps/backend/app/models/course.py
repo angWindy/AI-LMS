@@ -6,9 +6,9 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, List
 
-from sqlalchemy import String, Boolean, Enum, Text, Integer, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import Boolean, CheckConstraint, Enum, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, TimestampMixin
 
@@ -29,10 +29,24 @@ class CourseStatus(str, enum.Enum):
     ARCHIVED = "archived"
 
 
+class CourseLevel(str, enum.Enum):
+    """Academic level targeted by a course."""
+    ELEMENTARY = "elementary"
+    MIDDLE_SCHOOL = "middle_school"
+    HIGH_SCHOOL = "high_school"
+    HIGHER_EDUCATION = "higher_education"
+
+
 class Course(Base, TimestampMixin):
     """Course model."""
 
     __tablename__ = "courses"
+    __table_args__ = (
+        CheckConstraint(
+            "level IN ('elementary', 'middle_school', 'high_school', 'higher_education')",
+            name="ck_courses_level_valid",
+        ),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -57,7 +71,12 @@ class Course(Base, TimestampMixin):
         index=True,
     )
     category: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    level: Mapped[str | None] = mapped_column(String(50), nullable=True)  # beginner, intermediate, advanced
+    level: Mapped[str] = mapped_column(
+        String(50),
+        default=CourseLevel.HIGHER_EDUCATION.value,
+        server_default=CourseLevel.HIGHER_EDUCATION.value,
+        nullable=False,
+    )
     language: Mapped[str] = mapped_column(String(10), default="vi", nullable=False)
     estimated_duration: Mapped[int | None] = mapped_column(Integer, nullable=True)  # in minutes
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

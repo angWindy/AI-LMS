@@ -53,6 +53,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { assignmentApi, courseApi, lessonApi, Lesson, Material } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth/store";
+import { getCourseLevelLabel } from "@/lib/course-levels";
 import { Assignment, AssignmentType, CourseDetail, UserRole } from "@/types";
 
 interface MaterialUploadForm {
@@ -637,7 +638,7 @@ export default function CourseDetailPage() {
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Badge variant="outline">{course?.level || "Không xác định cấp độ"}</Badge>
+        <Badge variant="outline">{getCourseLevelLabel(course?.level)}</Badge>
         <Badge variant="outline">{course?.category || "Không xác định danh mục"}</Badge>
         <Badge variant="secondary">{lessons.length} lesson</Badge>
       </div>
@@ -819,7 +820,9 @@ export default function CourseDetailPage() {
                   <Badge variant={course.status === "published" ? "default" : "secondary"}>
                     {course.status === "published" ? "Đã xuất bản" : "Nháp"}
                   </Badge>
-                  {course.level && <Badge variant="outline">{course.level}</Badge>}
+                  {course.level && (
+                    <Badge variant="outline">{getCourseLevelLabel(course.level)}</Badge>
+                  )}
                   {course.category && <Badge variant="outline">{course.category}</Badge>}
                 </div>
               </div>

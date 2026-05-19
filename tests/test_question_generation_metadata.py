@@ -39,6 +39,7 @@ def test_assignment_generator_prompt_requires_difficulty_metadata() -> None:
     assert "Tests basic knowledge and recall" in prompt
     assert "Tests understanding and application" in prompt
     assert "Tests analysis and deeper reasoning" in prompt
+    assert "Adapt every question, option, distractor" in prompt
 
 
 def test_parse_questions_preserves_valid_difficulty_distribution() -> None:

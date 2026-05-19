@@ -7,6 +7,10 @@ from dataclasses import dataclass
 
 from llm.config import LLMConfig
 from llm.prompts.assignment_generator import difficulty_distribution
+from llm.prompts.learning_level import (
+    build_learning_level_prompt_block,
+    learning_level_label,
+)
 from llm.workflows.assignment_generator import (
     AssignmentGeneratorResult,
     AssignmentGeneratorWorkflow,
@@ -182,7 +186,8 @@ class AssignmentGeneratorService:
             f"Description: {self._truncate(course.description, 1500) or 'N/A'}",
             f"Short description: {self._truncate(course.short_description, 500) or 'N/A'}",
             f"Category: {course.category or 'N/A'}",
-            f"Level: {course.level or 'N/A'}",
+            f"Level: {learning_level_label(course.level)} ({course.level or 'unknown'})",
+            build_learning_level_prompt_block(course.level),
             f"Language: {course.language or 'N/A'}",
         ]
 

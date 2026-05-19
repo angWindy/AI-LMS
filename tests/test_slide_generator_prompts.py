@@ -13,6 +13,7 @@ def test_document_to_ir_prompt_contains_ir_schema() -> None:
     )
 
     assert '"document_title"' in prompt
+    assert '"learner_level"' in prompt
     assert '"key_concepts"' in prompt
     assert '"main_sections"' in prompt
     assert '"teaching_suggestions"' in prompt
@@ -48,6 +49,23 @@ def test_prompts_allow_general_teaching_knowledge() -> None:
 
     assert "general domain and teaching knowledge" in ir_prompt
     assert "general teaching knowledge" in slide_prompt
+
+
+def test_prompts_adapt_to_learner_level() -> None:
+    ir_prompt = build_document_to_ir_prompt(
+        course_context="Level: Tiểu học (elementary)",
+        lesson_context="Lesson title: Search",
+    )
+    slide_prompt = build_ir_to_slides_prompt(
+        ir_json=(
+            '{"document_title": "Search", "learner_level": "Tiểu học", '
+            '"main_sections": [{"id": 1}]}'
+        ),
+        slide_count=5,
+    )
+
+    assert "learner level stated in Course context" in ir_prompt
+    assert "learner_level present in the IR" in slide_prompt
 
 
 def test_ir_to_slides_prompt_contains_slide_count_and_type_enum() -> None:

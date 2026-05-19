@@ -15,6 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { courseApi } from "@/lib/api";
+import { getCourseLevelLabel } from "@/lib/course-levels";
 import { Course } from "@/types";
 
 export default function MyCoursesPage() {
@@ -171,8 +172,9 @@ export default function MyCoursesPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
                   <span>Tạo: {new Date(course.created_at).toLocaleDateString("vi-VN")}</span>
+                  <Badge variant="outline">{getCourseLevelLabel(course.level)}</Badge>
                 </div>
               </CardContent>
             </Card>

@@ -8,7 +8,7 @@ Source of truth:
 Current migration head:
 
 ```text
-c3d4e5f6a7b8_tests_and_submission_answers
+8b1c9f2d3a4e_course_levels
 ```
 
 ## Active Tables
@@ -65,6 +65,7 @@ AI/content:
 ```text
 UserRole: admin, instructor, learner
 CourseStatus: draft, published, archived
+CourseLevel: elementary, middle_school, high_school, higher_education
 MaterialType: video, document, link, quiz
 AssignmentType: practice, test
 AssignmentQuestionType: multiple_choice, essay
@@ -72,6 +73,18 @@ QuestionDifficulty: easy, medium, hard
 QuestionPurposeType: practice, shared, assessment
 SubmissionStatus: submitted, graded, returned
 ```
+
+## Course Levels
+
+`courses.level` is required. The value represents the intended learner stage:
+
+- `elementary`: Tiểu học
+- `middle_school`: Trung học cơ sở
+- `high_school`: Trung học phổ thông
+- `higher_education`: Đại học và sau đại học
+
+LLM prompts use this value to adapt vocabulary, examples, scaffolding, and
+reasoning depth for learners in the course.
 
 ## Question Metadata
 
