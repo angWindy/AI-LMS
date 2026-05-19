@@ -4,12 +4,12 @@ from llm.prompts.learning_level import build_learning_level_instructions
 
 
 def build_document_to_ir_prompt(
-  course_context: str,
-  lesson_context: str,
-  course_level: str | None = None,
+    course_context: str,
+    lesson_context: str,
+    course_level: str | None = None,
 ) -> str:
     """Build a strict prompt that converts lesson context into document IR JSON."""
-  level_guidance = build_learning_level_instructions(course_level)
+    level_guidance = build_learning_level_instructions(course_level)
     return f"""
 You are an expert Vietnamese curriculum designer.
 Convert the course and lesson context into a JSON Intermediate Representation (IR)
@@ -77,12 +77,12 @@ Lesson context:
 
 
 def build_ir_to_slides_prompt(
-  ir_json: str,
-  slide_count: int,
-  course_level: str | None = None,
+    ir_json: str,
+    slide_count: int,
+    course_level: str | None = None,
 ) -> str:
     """Build a strict prompt that converts document IR JSON into slides JSON."""
-  level_guidance = build_learning_level_instructions(course_level)
+    level_guidance = build_learning_level_instructions(course_level)
     return f"""
 You are an expert Vietnamese teacher assistant.
 Convert the JSON IR into lecture slides JSON. The JSON IR is the source of truth.
