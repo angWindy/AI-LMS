@@ -77,7 +77,6 @@ class AssignmentGeneratorService:
                 question_count=question_count,
                 course_context=course_context,
                 lesson_context=lesson_context,
-                course_level=str(course.level),
             )
         except Exception:
             logger.exception(
@@ -111,7 +110,6 @@ class AssignmentGeneratorService:
                 llm_result=llm_result,
                 course_context=course_context,
                 lesson_context=lesson_context,
-                course_level=str(course.level),
                 question_count=question_count,
             )
         except ValueError:
@@ -138,7 +136,6 @@ class AssignmentGeneratorService:
         llm_result: AssignmentGeneratorResult,
         course_context: str,
         lesson_context: str,
-        course_level: str | None,
         question_count: int,
     ) -> tuple[list[AssignmentQuestionCreate], AssignmentGeneratorResult]:
         try:
@@ -152,7 +149,6 @@ class AssignmentGeneratorService:
                 question_count=question_count,
                 course_context=course_context,
                 lesson_context=lesson_context,
-                course_level=course_level,
                 max_output_tokens=self._retry_token_budget(question_count),
                 temperature=0.0,
             )

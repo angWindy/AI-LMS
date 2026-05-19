@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import Link from "next/link";
 import { BookOpen, Plus, Edit, Trash2, MoreVertical } from "lucide-react";
 
@@ -113,12 +112,10 @@ export default function MyCoursesPage() {
             >
               <div className="h-40 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center relative">
                 {course.thumbnail_url ? (
-                  <Image
+                  <img
                     src={course.thumbnail_url}
                     alt={course.title}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    className="object-cover"
+                    className="w-full h-full object-cover"
                   />
                 ) : (
                   <BookOpen className="h-16 w-16 text-white opacity-50" />

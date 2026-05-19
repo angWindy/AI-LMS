@@ -28,15 +28,11 @@ If the question directly refers to an image/screenshot, image mode is used and
 RAG/text context is skipped for that turn. Otherwise provided images are ignored
 and text/RAG context is used.
 
-Prompts adapt tone, vocabulary, and depth to the course level.
-
 ## Assignment Tutor
 
 Validates assignment access, builds sanitized assignment context without answer
 keys, disables auto-RAG, and uses a prompt that gives hints without revealing
 final answers.
-
-Assignment tutor prompts also adapt to the course level.
 
 ## Main Files
 

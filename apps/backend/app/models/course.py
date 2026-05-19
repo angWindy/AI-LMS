@@ -29,18 +29,6 @@ class CourseStatus(str, enum.Enum):
     ARCHIVED = "archived"
 
 
-class CourseLevel(str, enum.Enum):
-    """Course learning level for learner-appropriate content."""
-
-    PRIMARY = "primary"
-    LOWER_SECONDARY = "lower_secondary"
-    UPPER_SECONDARY = "upper_secondary"
-    HIGHER_ED = "higher_ed"
-
-    def __str__(self) -> str:
-        return self.value
-
-
 class Course(Base, TimestampMixin):
     """Course model."""
 
@@ -69,10 +57,7 @@ class Course(Base, TimestampMixin):
         index=True,
     )
     category: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    level: Mapped[CourseLevel] = mapped_column(
-        Enum(CourseLevel, native_enum=False, length=50),
-        nullable=False,
-    )
+    level: Mapped[str | None] = mapped_column(String(50), nullable=True)  # beginner, intermediate, advanced
     language: Mapped[str] = mapped_column(String(10), default="vi", nullable=False)
     estimated_duration: Mapped[int | None] = mapped_column(Integer, nullable=True)  # in minutes
     is_featured: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

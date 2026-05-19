@@ -37,7 +37,6 @@ class SlideGeneratorWorkflow:
         self,
         course_context: str,
         lesson_context: str,
-        course_level: str | None = None,
         temperature: float | None = None,
         max_output_tokens: int | None = None,
         thinking_level: str | None = None,
@@ -46,7 +45,6 @@ class SlideGeneratorWorkflow:
         system_prompt = build_document_to_ir_prompt(
             course_context=course_context,
             lesson_context=lesson_context,
-            course_level=course_level,
         )
         return self._run_json_prompt(
             system_prompt=system_prompt,
@@ -60,7 +58,6 @@ class SlideGeneratorWorkflow:
         self,
         ir_json: str,
         slide_count: int,
-        course_level: str | None = None,
         temperature: float | None = None,
         max_output_tokens: int | None = None,
         thinking_level: str | None = None,
@@ -69,7 +66,6 @@ class SlideGeneratorWorkflow:
         system_prompt = build_ir_to_slides_prompt(
             ir_json=ir_json,
             slide_count=slide_count,
-            course_level=course_level,
         )
         return self._run_json_prompt(
             system_prompt=system_prompt,
@@ -84,7 +80,6 @@ class SlideGeneratorWorkflow:
         course_context: str,
         lesson_context: str,
         slide_count: int,
-        course_level: str | None = None,
         temperature: float | None = None,
         max_output_tokens: int | None = None,
         thinking_level: str | None = None,
@@ -93,7 +88,6 @@ class SlideGeneratorWorkflow:
         ir_result = self.generate_document_ir(
             course_context=course_context,
             lesson_context=lesson_context,
-            course_level=course_level,
             temperature=temperature,
             max_output_tokens=max_output_tokens,
             thinking_level=thinking_level,
@@ -101,7 +95,6 @@ class SlideGeneratorWorkflow:
         return self.generate_slides_from_ir(
             ir_json=ir_result.text,
             slide_count=slide_count,
-            course_level=course_level,
             temperature=temperature,
             max_output_tokens=max_output_tokens,
             thinking_level=thinking_level,

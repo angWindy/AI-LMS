@@ -12,7 +12,7 @@ from app.models.assignment import (
     QuestionDifficulty,
     QuestionPurposeType,
 )
-from app.models.course import Course, CourseLevel, CourseStatus
+from app.models.course import Course, CourseStatus
 from app.models.lesson import Lesson
 from app.models.lesson_progress import LessonProgress
 from app.models.material import Material, MaterialType
@@ -34,7 +34,6 @@ __all__ = [
     "User",
     "UserRole",
     "Course",
-    "CourseLevel",
     "CourseStatus",
     "Lesson",
     "Material",

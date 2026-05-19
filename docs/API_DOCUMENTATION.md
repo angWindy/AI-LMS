@@ -80,9 +80,6 @@ GET    /courses/my/teaching
 `GET /courses` returns published courses. Filters: `status`, `category`,
 `level`, `search`, `page`, `page_size`.
 
-Course level values: `primary`, `lower_secondary`, `upper_secondary`,
-`higher_ed`. `level` is required when creating or updating a course.
-
 Material upload form fields: `title`, `description`, `type`, optional `file`,
 optional `external_url`.
 

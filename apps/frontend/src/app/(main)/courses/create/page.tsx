@@ -14,14 +14,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { courseApi } from "@/lib/api";
-import { CourseLevel } from "@/types";
 
 const courseSchema = z.object({
   title: z.string().min(3, "Tiêu đề phải có ít nhất 3 ký tự"),
   description: z.string().optional(),
   short_description: z.string().max(500, "Mô tả ngắn tối đa 500 ký tự").optional(),
   category: z.string().optional(),
-  level: z.nativeEnum(CourseLevel),
+  level: z.string().optional(),
   language: z.string(),
 });
 
@@ -136,20 +135,16 @@ export default function CreateCoursePage() {
 
               <div className="space-y-2">
                 <Label>Trình độ</Label>
-                <Select onValueChange={(value) => setValue("level", value, { shouldValidate: true })}>
+                <Select onValueChange={(value) => setValue("level", value)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Chọn trình độ" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={CourseLevel.PRIMARY}>Tiểu học</SelectItem>
-                    <SelectItem value={CourseLevel.LOWER_SECONDARY}>Trung học cơ sở</SelectItem>
-                    <SelectItem value={CourseLevel.UPPER_SECONDARY}>Trung học phổ thông</SelectItem>
-                    <SelectItem value={CourseLevel.HIGHER_ED}>Đại học và sau đại học</SelectItem>
+                    <SelectItem value="beginner">Cơ bản</SelectItem>
+                    <SelectItem value="intermediate">Trung cấp</SelectItem>
+                    <SelectItem value="advanced">Nâng cao</SelectItem>
                   </SelectContent>
                 </Select>
-                {errors.level && (
-                  <p className="text-sm text-red-500">{errors.level.message}</p>
-                )}
               </div>
             </div>
 

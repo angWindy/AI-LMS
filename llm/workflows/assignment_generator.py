@@ -35,7 +35,6 @@ class AssignmentGeneratorWorkflow:
         question_count: int,
         course_context: str,
         lesson_context: str,
-        course_level: str | None = None,
         temperature: float | None = None,
         max_output_tokens: int | None = None,
         thinking_level: str | None = None,
@@ -45,7 +44,6 @@ class AssignmentGeneratorWorkflow:
             question_count=question_count,
             course_context=course_context,
             lesson_context=lesson_context,
-            course_level=course_level,
         )
         # Disable output token caps for question generation unless explicitly overridden.
         token_budget = None if max_output_tokens is None else max_output_tokens

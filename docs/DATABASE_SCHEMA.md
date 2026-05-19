@@ -8,7 +8,7 @@ Source of truth:
 Current migration head:
 
 ```text
-8b1c9f2d3a4e_course_levels
+c3d4e5f6a7b8_tests_and_submission_answers
 ```
 
 ## Active Tables
@@ -65,7 +65,6 @@ AI/content:
 ```text
 UserRole: admin, instructor, learner
 CourseStatus: draft, published, archived
-CourseLevel: primary, lower_secondary, upper_secondary, higher_ed
 MaterialType: video, document, link, quiz
 AssignmentType: practice, test
 AssignmentQuestionType: multiple_choice, essay
@@ -73,8 +72,6 @@ QuestionDifficulty: easy, medium, hard
 QuestionPurposeType: practice, shared, assessment
 SubmissionStatus: submitted, graded, returned
 ```
-
-`courses.level` is required and constrained to `CourseLevel`.
 
 ## Question Metadata
 

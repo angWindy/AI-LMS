@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { BookOpen, Search, Filter } from "lucide-react";
 
@@ -10,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { courseApi } from "@/lib/api";
-import { Course, CourseLevel } from "@/types";
+import { Course } from "@/types";
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -47,18 +46,16 @@ export default function CoursesPage() {
     }
   }, [searchQuery, courses]);
 
-  const getLevelLabel = (level: CourseLevel | null | undefined) => {
+  const getLevelLabel = (level: string | null | undefined) => {
     switch (level) {
-      case CourseLevel.PRIMARY:
-        return "Tiểu học";
-      case CourseLevel.LOWER_SECONDARY:
-        return "Trung học cơ sở";
-      case CourseLevel.UPPER_SECONDARY:
-        return "Trung học phổ thông";
-      case CourseLevel.HIGHER_ED:
-        return "Đại học và sau đại học";
+      case "beginner":
+        return "Cơ bản";
+      case "intermediate":
+        return "Trung cấp";
+      case "advanced":
+        return "Nâng cao";
       default:
-        return "Không xác định";
+        return "Tất cả trình độ";
     }
   };
 
@@ -128,12 +125,10 @@ export default function CoursesPage() {
               <Card className="hover:shadow-lg transition-all duration-300 cursor-pointer h-full group">
                 <div className="h-48 bg-gradient-to-br from-blue-500 to-purple-600 rounded-t-lg flex items-center justify-center relative overflow-hidden">
                   {course.thumbnail_url ? (
-                    <Image
+                    <img
                       src={course.thumbnail_url}
                       alt={course.title}
-                      fill
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                      className="object-cover"
+                      className="w-full h-full object-cover"
                     />
                   ) : (
                     <BookOpen className="h-20 w-20 text-white opacity-50 group-hover:scale-110 transition-transform" />

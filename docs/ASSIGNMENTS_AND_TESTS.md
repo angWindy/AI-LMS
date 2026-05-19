@@ -38,7 +38,6 @@ Learners see only published assignments and never receive answer keys.
 AI practice draft:
 
 - Uses course and lesson context.
-- Adapts wording, examples, and depth to the course level.
 - Validates 40/40/20 difficulty distribution.
 - Saves as unpublished `practice`.
 
