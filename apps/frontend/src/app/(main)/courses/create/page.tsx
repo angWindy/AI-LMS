@@ -21,7 +21,7 @@ const courseSchema = z.object({
   description: z.string().optional(),
   short_description: z.string().max(500, "Mô tả ngắn tối đa 500 ký tự").optional(),
   category: z.string().optional(),
-  level: z.nativeEnum(CourseLevel, { required_error: "Vui lòng chọn trình độ" }),
+  level: z.nativeEnum(CourseLevel),
   language: z.string(),
 });
 

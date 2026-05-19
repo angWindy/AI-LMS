@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, Download, ExternalLink, FileText, Loader2 } from "lucide-react";
 
@@ -147,9 +148,12 @@ export default function MaterialPreviewPage() {
           {!material.file_url ? (
             <p className="text-sm text-muted-foreground">Tài liệu không có đường dẫn xem trước.</p>
           ) : previewType === "image" ? (
-            <img
+            <Image
               src={material.file_url}
               alt={material.title}
+              width={1600}
+              height={1200}
+              sizes="100vw"
               className="w-full max-h-[70vh] object-contain rounded-md border bg-white"
             />
           ) : previewType === "pdf" ? (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { BookOpen, Search, Filter } from "lucide-react";
 
@@ -127,10 +128,12 @@ export default function CoursesPage() {
               <Card className="hover:shadow-lg transition-all duration-300 cursor-pointer h-full group">
                 <div className="h-48 bg-gradient-to-br from-blue-500 to-purple-600 rounded-t-lg flex items-center justify-center relative overflow-hidden">
                   {course.thumbnail_url ? (
-                    <img
+                    <Image
                       src={course.thumbnail_url}
                       alt={course.title}
-                      className="w-full h-full object-cover"
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      className="object-cover"
                     />
                   ) : (
                     <BookOpen className="h-20 w-20 text-white opacity-50 group-hover:scale-110 transition-transform" />
