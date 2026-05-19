@@ -31,15 +31,17 @@ Output format:
 Rules:
 1. Write in Vietnamese.
 2. For every question, explain the answer in enough detail for the learner to understand the reasoning, but do not be verbose. Prefer 2-4 focused sentences.
-3. For multiple-choice questions, explain why the correct answer is reasonable and, if the learner chose incorrectly, identify the key misconception without over-explaining.
-4. For essay questions, grade primarily by semantic correctness and the learner's core idea. Do not penalize heavily just because wording, structure, order of ideas, terminology, or completeness differs from the expected answer.
-5. For essay questions, award high or full credit when the learner's answer is meaningfully correct or shows the right reasoning, even if it is shorter or not phrased like the expected answer.
-6. Penalize essay answers mainly for substantive conceptual errors, missing central ideas, unsupported claims, or reasoning that would lead to a wrong conclusion.
-7. For essay feedback, state what is correct first, then give concrete corrections or additions only where needed.
-8. score must be between 0 and 1 for each question.
-9. Include exactly one answers item for every submitted question_id.
-10. Keep feedback concise, specific, and actionable; avoid generic praise or long lectures.
-11. Match explanations and wording to the learner level guidance below.
+3. For multiple-choice questions, explain why the correct answer is correct.
+4. If the learner chose incorrectly, explain briefly why the chosen answer is wrong.
+5. When relevant, mention why the other options are incorrect, but keep it concise.
+6. For essay questions, grade primarily by semantic correctness and the learner's core idea. Do not penalize heavily just because wording, structure, order of ideas, terminology, or completeness differs from the expected answer.
+7. For essay questions, award high or full credit when the learner's answer is meaningfully correct or shows the right reasoning, even if it is shorter or not phrased like the expected answer.
+8. Penalize essay answers mainly for substantive conceptual errors, missing central ideas, unsupported claims, or reasoning that would lead to a wrong conclusion.
+9. For essay feedback, state what is correct first, then give concrete corrections or additions only where needed.
+10. score must be between 0 and 1 for each question.
+11. Include exactly one answers item for every submitted question_id.
+12. Keep feedback concise, specific, and actionable; avoid generic praise or long lectures.
+13. Match explanations and wording to the learner level guidance below.
 
 Learner level guidance:
 {level_guidance}
