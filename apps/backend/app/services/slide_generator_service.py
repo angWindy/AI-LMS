@@ -87,12 +87,14 @@ class SlideGeneratorService:
             ir_result = self.workflow.generate_document_ir(
                 course_context=course_context,
                 lesson_context=lesson_context,
+                course_level=str(course.level),
             )
             ir_json = self._parse_ir(ir_result.text)
 
             slides_result = self.workflow.generate_slides_from_ir(
                 ir_json=json.dumps(ir_json, ensure_ascii=False),
                 slide_count=slide_count,
+                course_level=str(course.level),
             )
             slides_json = self._parse_slides(
                 raw_text=slides_result.text,

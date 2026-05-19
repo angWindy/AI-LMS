@@ -55,7 +55,7 @@ except ImportError:
 from app.core.config import settings  # noqa: E402
 from app.core.security import get_password_hash  # noqa: E402
 from app.db.session import SessionLocal  # noqa: E402
-from app.models.course import Course, CourseStatus  # noqa: E402
+from app.models.course import Course, CourseLevel, CourseStatus  # noqa: E402
 from app.models.lesson import Lesson  # noqa: E402
 from app.models.material import Material, MaterialType  # noqa: E402
 from app.models.user import User, UserRole  # noqa: E402
@@ -133,6 +133,7 @@ def _get_or_create_course(db, instructor: User) -> Course:
         course.title = DEMO_COURSE_TITLE
         course.short_description = DEMO_COURSE_SHORT
         course.status = CourseStatus.PUBLISHED
+        course.level = CourseLevel.HIGHER_ED
         db.commit()
         db.refresh(course)
         return course
@@ -147,7 +148,7 @@ def _get_or_create_course(db, instructor: User) -> Course:
         short_description=DEMO_COURSE_SHORT,
         status=CourseStatus.PUBLISHED,
         language="vi",
-        level="beginner",
+        level=CourseLevel.HIGHER_ED,
     )
     db.add(course)
     db.commit()

@@ -53,7 +53,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { assignmentApi, courseApi, lessonApi, Lesson, Material } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth/store";
-import { Assignment, AssignmentType, CourseDetail, UserRole } from "@/types";
+import { Assignment, AssignmentType, CourseDetail, CourseLevel, UserRole } from "@/types";
 
 interface MaterialUploadForm {
   title: string;
@@ -80,6 +80,16 @@ const learningFilterOptions: { value: LearningFilter; label: string }[] = [
   { value: "assignments", label: "Assigaments" },
   { value: "classroom", label: "Classroom" },
 ];
+
+const levelLabels: Record<CourseLevel, string> = {
+  [CourseLevel.PRIMARY]: "Tiểu học",
+  [CourseLevel.LOWER_SECONDARY]: "Trung học cơ sở",
+  [CourseLevel.UPPER_SECONDARY]: "Trung học phổ thông",
+  [CourseLevel.HIGHER_ED]: "Đại học và sau đại học",
+};
+
+const getLevelLabel = (level?: CourseLevel | null) =>
+  level ? levelLabels[level] : "Không xác định cấp độ";
 
 export default function CourseDetailPage() {
   const params = useParams();
@@ -637,7 +647,7 @@ export default function CourseDetailPage() {
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Badge variant="outline">{course?.level || "Không xác định cấp độ"}</Badge>
+        <Badge variant="outline">{getLevelLabel(course?.level)}</Badge>
         <Badge variant="outline">{course?.category || "Không xác định danh mục"}</Badge>
         <Badge variant="secondary">{lessons.length} lesson</Badge>
       </div>
@@ -819,7 +829,7 @@ export default function CourseDetailPage() {
                   <Badge variant={course.status === "published" ? "default" : "secondary"}>
                     {course.status === "published" ? "Đã xuất bản" : "Nháp"}
                   </Badge>
-                  {course.level && <Badge variant="outline">{course.level}</Badge>}
+                  <Badge variant="outline">{getLevelLabel(course.level)}</Badge>
                   {course.category && <Badge variant="outline">{course.category}</Badge>}
                 </div>
               </div>

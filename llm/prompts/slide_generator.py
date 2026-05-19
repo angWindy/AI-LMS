@@ -1,8 +1,15 @@
 """Prompt helpers for slide generation workflows."""
 
+from llm.prompts.learning_level import build_learning_level_instructions
 
-def build_document_to_ir_prompt(course_context: str, lesson_context: str) -> str:
+
+def build_document_to_ir_prompt(
+  course_context: str,
+  lesson_context: str,
+  course_level: str | None = None,
+) -> str:
     """Build a strict prompt that converts lesson context into document IR JSON."""
+  level_guidance = build_learning_level_instructions(course_level)
     return f"""
 You are an expert Vietnamese curriculum designer.
 Convert the course and lesson context into a JSON Intermediate Representation (IR)
@@ -18,6 +25,10 @@ Strict output rules:
    claims that are not supported by either context or widely accepted knowledge.
 6. Do not create slides in this step. Create only the IR object.
 7. Keep the IR compact and useful for a teacher-facing lecture slide deck.
+8. Align wording and examples with the learner level guidance below.
+
+Learner level guidance:
+{level_guidance}
 
 Required JSON schema:
 {{
@@ -65,8 +76,13 @@ Lesson context:
 """.strip()
 
 
-def build_ir_to_slides_prompt(ir_json: str, slide_count: int) -> str:
+def build_ir_to_slides_prompt(
+  ir_json: str,
+  slide_count: int,
+  course_level: str | None = None,
+) -> str:
     """Build a strict prompt that converts document IR JSON into slides JSON."""
+  level_guidance = build_learning_level_instructions(course_level)
     return f"""
 You are an expert Vietnamese teacher assistant.
 Convert the JSON IR into lecture slides JSON. The JSON IR is the source of truth.
@@ -87,6 +103,10 @@ Strict output rules:
 9. source_sections must contain only main_sections.id values present in the IR.
 10. Avoid duplicated content across slides.
 11. Do not include design, theme, UI, renderer, export, or PDF instructions.
+12. Keep tone and depth aligned with the learner level guidance below.
+
+Learner level guidance:
+{level_guidance}
 
 Required JSON schema:
 {{

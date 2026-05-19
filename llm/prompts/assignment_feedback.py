@@ -1,12 +1,16 @@
 """Prompt helpers for assignment feedback workflows."""
 
+from llm.prompts.learning_level import build_learning_level_instructions
+
 
 def build_assignment_feedback_prompt(
     course_context: str,
     scope_context: str,
     submission_context: str,
+  course_level: str | None = None,
 ) -> str:
     """Build a strict JSON prompt for post-submission feedback."""
+  level_guidance = build_learning_level_instructions(course_level)
     return f"""
 You are an expert Vietnamese teacher grading LMS work after a learner submits.
 
@@ -35,6 +39,10 @@ Rules:
 8. score must be between 0 and 1 for each question.
 9. Include exactly one answers item for every submitted question_id.
 10. Keep feedback concise, specific, and actionable; avoid generic praise or long lectures.
+11. Match explanations and wording to the learner level guidance below.
+
+Learner level guidance:
+{level_guidance}
 
 Course context:
 {course_context}

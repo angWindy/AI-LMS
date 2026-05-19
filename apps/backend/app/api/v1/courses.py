@@ -15,7 +15,7 @@ from slugify import slugify
 from app.core.dependencies import DBSession, InstructorUser, get_current_user_optional
 from app.core.exceptions import NotFoundException, ForbiddenException
 from app.models.user import User, UserRole
-from app.models.course import Course, CourseStatus
+from app.models.course import Course, CourseLevel, CourseStatus
 from app.models.lesson import Lesson
 from app.models.material import Material
 from app.schemas.lesson import MaterialResponse
@@ -85,7 +85,7 @@ async def list_courses(
     page_size: int = Query(20, ge=1, le=100),
     status: Optional[CourseStatus] = None,
     category: Optional[str] = None,
-    level: Optional[str] = None,
+    level: Optional[CourseLevel] = None,
     search: Optional[str] = None,
 ):
     """List all published courses with filtering and pagination."""

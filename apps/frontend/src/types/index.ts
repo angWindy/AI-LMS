@@ -48,6 +48,13 @@ export enum CourseStatus {
   ARCHIVED = "archived",
 }
 
+export enum CourseLevel {
+  PRIMARY = "primary",
+  LOWER_SECONDARY = "lower_secondary",
+  UPPER_SECONDARY = "upper_secondary",
+  HIGHER_ED = "higher_ed",
+}
+
 export interface Course {
   id: string;
   slug: string;
@@ -58,7 +65,7 @@ export interface Course {
   thumbnail_url?: string | null;
   status: CourseStatus;
   category?: string | null;
-  level?: string | null;
+  level: CourseLevel;
   language: string;
   estimated_duration?: number | null;
   is_featured: boolean;

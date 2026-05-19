@@ -1,5 +1,7 @@
 """Prompt helpers for chatbot workflows."""
 
+from llm.prompts.learning_level import build_learning_level_instructions
+
 
 def default_chatbot_prompt() -> str:
     """Default system prompt for the chatbot assistant."""
@@ -14,16 +16,20 @@ def default_chatbot_prompt() -> str:
 def build_lms_chatbot_prompt(
     course_title: str | None = None,
     lesson_title: str | None = None,
+    course_level: str | None = None,
 ) -> str:
     """Build the LMS classroom system prompt with course/lesson metadata."""
     course_name = (course_title or "Chưa xác định").strip()
     lesson_name = (lesson_title or "Chưa xác định").strip()
+    level_guidance = build_learning_level_instructions(course_level)
     return "\n".join(
         [
             default_chatbot_prompt(),
             "",
             f"Course: {course_name}",
             f"Lesson or classroom: {lesson_name}",
+            "",
+            level_guidance,
             "",
             "Role: act as a tutor for this subject or course.",
             "Prefer PRIMARY_LESSON_CONTEXT when it is present; use SUPPORTING_COURSE_CONTEXT to supplement or verify.",

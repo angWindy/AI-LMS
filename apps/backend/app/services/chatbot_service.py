@@ -45,6 +45,7 @@ class LMSChatScope:
 
     course_id: uuid.UUID | None = None
     course_title: str | None = None
+    course_level: str | None = None
     lesson_id: uuid.UUID | None = None
     lesson_title: str | None = None
     has_lesson_rag_documents: bool = False
@@ -196,6 +197,7 @@ class ChatbotService:
                 build_lms_chatbot_prompt(
                     course_title=scope.course_title,
                     lesson_title=scope.lesson_title,
+                    course_level=scope.course_level,
                 ),
             )
             if append_lms_prompt
@@ -421,6 +423,7 @@ class ChatbotService:
         return LMSChatScope(
             course_id=course_id,
             course_title=course.title if course else None,
+            course_level=str(course.level) if course else None,
             lesson_id=lesson_id,
             lesson_title=lesson.title if lesson else None,
             has_lesson_rag_documents=has_lesson_rag_documents,

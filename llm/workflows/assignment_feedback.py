@@ -35,12 +35,14 @@ class AssignmentFeedbackWorkflow:
         course_context: str,
         scope_context: str,
         submission_context: str,
+        course_level: str | None = None,
     ) -> AssignmentFeedbackResult:
         """Generate submission feedback in JSON text format."""
         system_prompt = build_assignment_feedback_prompt(
             course_context=course_context,
             scope_context=scope_context,
             submission_context=submission_context,
+            course_level=course_level,
         )
 
         metadata = {"request_timeout_seconds": 1800}

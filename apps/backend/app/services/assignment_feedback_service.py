@@ -70,6 +70,7 @@ class AssignmentFeedbackService:
                 course_context=course_context,
                 scope_context=scope_context,
                 submission_context=submission_context,
+                course_level=str(assignment.course.level),
             )
         except Exception:
             logger.exception(

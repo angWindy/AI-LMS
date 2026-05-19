@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { courseApi } from "@/lib/api";
-import { Course } from "@/types";
+import { Course, CourseLevel } from "@/types";
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -46,16 +46,18 @@ export default function CoursesPage() {
     }
   }, [searchQuery, courses]);
 
-  const getLevelLabel = (level: string | null | undefined) => {
+  const getLevelLabel = (level: CourseLevel | null | undefined) => {
     switch (level) {
-      case "beginner":
-        return "Cơ bản";
-      case "intermediate":
-        return "Trung cấp";
-      case "advanced":
-        return "Nâng cao";
+      case CourseLevel.PRIMARY:
+        return "Tiểu học";
+      case CourseLevel.LOWER_SECONDARY:
+        return "Trung học cơ sở";
+      case CourseLevel.UPPER_SECONDARY:
+        return "Trung học phổ thông";
+      case CourseLevel.HIGHER_ED:
+        return "Đại học và sau đại học";
       default:
-        return "Tất cả trình độ";
+        return "Không xác định";
     }
   };
 

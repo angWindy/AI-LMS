@@ -1,5 +1,7 @@
 """Prompt helpers for assignment generation workflows."""
 
+from llm.prompts.learning_level import build_learning_level_instructions
+
 
 DIFFICULTY_LEVELS = {
     "easy": """
@@ -65,6 +67,7 @@ def build_assignment_generator_prompt(
     question_count: int,
     course_context: str,
     lesson_context: str,
+    course_level: str | None = None,
 ) -> str:
     """Build a strict prompt that returns machine-readable quiz JSON."""
     counts = difficulty_distribution(question_count)
@@ -72,6 +75,7 @@ def build_assignment_generator_prompt(
         f'{count} "{difficulty}"'
         for difficulty, count in counts.items()
     )
+    level_guidance = build_learning_level_instructions(course_level)
     return f"""
 You are an expert teacher assistant that creates multiple-choice quizzes.
 Generate exactly {question_count} questions in Vietnamese for one lesson.
@@ -104,6 +108,10 @@ Strict output rules:
 12. Questions should align with the lesson and course context below.
 13. Avoid duplicate questions and avoid ambiguous answer keys.
 14. For hard questions, make distractors plausible and difficult to distinguish.
+15. Adjust vocabulary, depth, and examples to the learner level guidance below.
+
+Learner level guidance:
+{level_guidance}
 
 Course context:
 {course_context}
