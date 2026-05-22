@@ -52,7 +52,6 @@ Use `LLM_PROVIDER=mock` for offline smoke tests.
 - Courses, lessons, materials, lesson progress.
 - Question Bank and AI question generation.
 - Assignments, tests, submissions, AI feedback.
-- Slide generation and PDF rendering.
 - RAG upload/search/stats.
 - General and assignment chatbot.
 
@@ -84,6 +83,5 @@ Focused:
 
 ```bash
 python -m pytest -q tests/test_question_generation_metadata.py
-python -m pytest -q tests/test_slide_generator_prompts.py tests/test_slide_pdf_render.py
 python -m pytest -q tests/test_chatbot_context_selection.py
 ```

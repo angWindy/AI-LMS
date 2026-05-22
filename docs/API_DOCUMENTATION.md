@@ -173,22 +173,6 @@ Generated difficulty distribution is `easy/medium/hard = 40/40/20`. Backend
 assigns purpose distribution `practice/shared/assessment = 65/15/20` within
 each difficulty group.
 
-## Slides
-
-```text
-POST   /slides/generate-draft?course_id={course_id}
-GET    /slides?course_id={course_id}&lesson_id={lesson_id}&include_unpublished=false
-GET    /slides/{slide_deck_id}
-POST   /slides/{slide_deck_id}/publish
-DELETE /slides/{slide_deck_id}
-```
-
-Generate:
-
-```json
-{ "lesson_id": "uuid", "slide_count": 8, "title": "optional" }
-```
-
 ## RAG
 
 ```text

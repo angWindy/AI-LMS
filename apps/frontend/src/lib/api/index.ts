@@ -4,6 +4,5 @@ export * from "./courses";
 export * from "./users";
 export * from "./lessons";
 export * from "./assignments";
-export * from "./slides";
 export * from "./question-bank";
 export * from "./chatbot";

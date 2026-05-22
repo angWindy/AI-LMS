@@ -52,7 +52,6 @@ The old `enrollments` table was dropped by migration
 
 - Assignment generation: lesson/course context -> JSON questions -> validation.
 - Assignment feedback: submission context -> per-answer feedback and score.
-- Slide generation: context -> document IR -> slides JSON -> PDF.
 - Chatbot: LMS scope + history + optional RAG/image context.
 - Assignment chatbot: sanitized assignment context, no answer keys, hints only.
 - RAG: PDF/DOCX material -> chunks -> Gemini embeddings -> pgvector search.

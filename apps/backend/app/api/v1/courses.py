@@ -257,21 +257,22 @@ async def update_course(
     if current_user.role != UserRole.ADMIN and course.instructor_id != current_user.id:
         raise ForbiddenException("You don't have permission to edit this course")
 
-    # Update fields
-    if course_data.title is not None:
+    updated_fields = course_data.model_fields_set
+
+    if "title" in updated_fields and course_data.title is not None:
         course.title = course_data.title
         course.slug = generate_unique_slug(db, course_data.title, exclude_id=course_id)
-    if course_data.description is not None:
+    if "description" in updated_fields:
         course.description = course_data.description
-    if course_data.short_description is not None:
+    if "short_description" in updated_fields:
         course.short_description = course_data.short_description
-    if course_data.category is not None:
+    if "category" in updated_fields:
         course.category = course_data.category
-    if course_data.level is not None:
+    if "level" in updated_fields and course_data.level is not None:
         course.level = course_data.level.value
-    if course_data.language is not None:
+    if "language" in updated_fields and course_data.language is not None:
         course.language = course_data.language
-    if course_data.thumbnail_url is not None:
+    if "thumbnail_url" in updated_fields:
         course.thumbnail_url = course_data.thumbnail_url
 
     db.commit()

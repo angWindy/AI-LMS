@@ -11,7 +11,6 @@ from app.api.v1 import (
     lessons,
     question_bank,
     rag,
-    slides,
     users,
 )
 
@@ -26,4 +25,3 @@ api_router.include_router(assignments.router)
 api_router.include_router(question_bank.router)
 api_router.include_router(chatbot.router)
 api_router.include_router(rag.router)
-api_router.include_router(slides.router)

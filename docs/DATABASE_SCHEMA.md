@@ -38,7 +38,6 @@ AI/content:
 
 - `question_bank_questions`
 - `question_bank_options`
-- `slide_decks`
 - `ai_conversations`
 - `ai_messages`
 - `rag_documents`
@@ -52,10 +51,9 @@ AI/content:
 
 ## Key Relationships
 
-- Course owns lessons, materials, assignments, question bank records, slide
-  decks, and RAG docs.
-- Lesson owns lesson materials, progress records, question bank records, slide
-  decks, and optional assignment scope.
+- Course owns lessons, materials, assignments, question bank records, and RAG docs.
+- Lesson owns lesson materials, progress records, question bank records, and
+  optional assignment scope.
 - Material may map to one `rag_documents.material_id`.
 - Assignment owns questions, options, submissions, and test lesson scopes.
 - Submission owns one `submission_answers` row per question answer.

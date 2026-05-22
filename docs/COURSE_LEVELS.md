@@ -51,7 +51,5 @@ All LMS LLM services receive level guidance:
   reasoning depth.
 - Assignment feedback: adapts feedback vocabulary, explanation depth, and next
   steps without changing grading correctness.
-- Slide generator: adds `learner_level` to the IR and adapts slide objectives,
-  examples, bullets, and quiz prompts.
 
 The shared prompt helper is `llm/prompts/learning_level.py`.

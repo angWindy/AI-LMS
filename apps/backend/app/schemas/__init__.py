@@ -37,10 +37,6 @@ from app.schemas.lesson import (
     MaterialCreate,
     MaterialResponse,
 )
-from app.schemas.slide_deck import (
-    SlideDeckGenerateDraftRequest,
-    SlideDeckResponse,
-)
 from app.schemas.user import (
     PasswordChange,
     UserBase,
@@ -85,6 +81,4 @@ __all__ = [
     "AssignmentQuestionResponse",
     "AssignmentOptionCreate",
     "AssignmentOptionResponse",
-    "SlideDeckGenerateDraftRequest",
-    "SlideDeckResponse",
 ]

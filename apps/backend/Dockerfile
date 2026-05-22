@@ -25,7 +25,7 @@ COPY apps/backend /app
 COPY llm /app/llm
 
 # Create storage directories
-RUN mkdir -p /app/storage/videos /app/storage/documents /app/storage/submissions /app/storage/slides
+RUN mkdir -p /app/storage/videos /app/storage/documents /app/storage/submissions
 
 # Expose port
 EXPOSE 8000

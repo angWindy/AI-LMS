@@ -19,7 +19,6 @@ if TYPE_CHECKING:
     from app.models.material import Material
     from app.models.assignment import Assignment
     from app.models.question_bank import QuestionBankQuestion
-    from app.models.slide_deck import SlideDeck
 
 
 class CourseStatus(str, enum.Enum):
@@ -111,13 +110,5 @@ class Course(Base, TimestampMixin):
         order_by="QuestionBankQuestion.order_index",
         lazy="selectin",
     )
-    slide_decks: Mapped[List["SlideDeck"]] = relationship(
-        "SlideDeck",
-        back_populates="course",
-        cascade="all, delete-orphan",
-        order_by="SlideDeck.order_index",
-        lazy="selectin",
-    )
-
     def __repr__(self) -> str:
         return f"<Course {self.title}>"

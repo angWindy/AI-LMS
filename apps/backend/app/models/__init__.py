@@ -26,7 +26,6 @@ from app.models.rag import (
     RAGSearchSession,
 )
 from app.models.refresh_token import RefreshToken
-from app.models.slide_deck import SlideDeck
 from app.models.submission import Submission, SubmissionAnswer, SubmissionStatus
 from app.models.user import User, UserRole
 
@@ -50,7 +49,6 @@ __all__ = [
     "QuestionPurposeType",
     "QuestionBankQuestion",
     "QuestionBankOption",
-    "SlideDeck",
     "Submission",
     "SubmissionAnswer",
     "SubmissionStatus",

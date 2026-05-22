@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     from app.models.lesson_progress import LessonProgress
     from app.models.assignment import Assignment
     from app.models.question_bank import QuestionBankQuestion
-    from app.models.slide_deck import SlideDeck
 
 
 class Lesson(Base, TimestampMixin):
@@ -71,13 +70,5 @@ class Lesson(Base, TimestampMixin):
         back_populates="lesson",
         lazy="selectin",
     )
-    slide_decks: Mapped[List["SlideDeck"]] = relationship(
-        "SlideDeck",
-        back_populates="lesson",
-        cascade="all, delete-orphan",
-        order_by="SlideDeck.order_index",
-        lazy="selectin",
-    )
-
     def __repr__(self) -> str:
         return f"<Lesson {self.title}>"

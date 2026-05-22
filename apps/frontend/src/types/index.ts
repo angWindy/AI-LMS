@@ -160,50 +160,6 @@ export interface AssignmentOption {
   updated_at: string;
 }
 
-// Slide deck types
-export type SlideType =
-  | "title"
-  | "objectives"
-  | "concept"
-  | "comparison"
-  | "example"
-  | "summary"
-  | "quiz";
-
-export interface LectureSlide {
-  id: number;
-  slide_type: SlideType;
-  title: string;
-  content: string[];
-  speaker_notes: string;
-  source_sections: number[];
-}
-
-export interface SlideDeckPayload {
-  document_type: "slides";
-  title: string;
-  slides: LectureSlide[];
-}
-
-export interface SlideDeck {
-  id: string;
-  course_id: string;
-  lesson_id: string;
-  title: string;
-  slide_count: number;
-  ir_json: Record<string, unknown>;
-  slides_json: SlideDeckPayload;
-  pdf_url?: string | null;
-  pdf_file_size?: number | null;
-  pdf_mime_type?: string | null;
-  provider?: string | null;
-  model?: string | null;
-  is_published: boolean;
-  order_index: number;
-  created_at: string;
-  updated_at: string;
-}
-
 // Question bank types
 export enum QuestionDifficulty {
   EASY = "easy",

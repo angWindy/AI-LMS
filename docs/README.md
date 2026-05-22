@@ -17,7 +17,6 @@ code in `apps/`, `llm/`, migrations, and Compose files.
 
 - [Assignments And Tests](ASSIGNMENTS_AND_TESTS.md)
 - [Question Bank](QUESTION_BANK.md)
-- [Slide Generation](SLIDE_GENERATION.md)
 - [RAG System](RAG.md)
 - [Chatbot](CHATBOT.md)
 

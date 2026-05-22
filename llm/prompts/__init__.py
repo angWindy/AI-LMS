@@ -9,10 +9,6 @@ from llm.prompts.learning_level import (
     learning_level_label,
     normalize_learning_level,
 )
-from llm.prompts.slide_generator import (
-    build_document_to_ir_prompt,
-    build_ir_to_slides_prompt,
-)
 
 __all__ = [
     "build_lms_chatbot_prompt",
@@ -23,6 +19,4 @@ __all__ = [
     "learning_level_guidance",
     "learning_level_label",
     "normalize_learning_level",
-    "build_document_to_ir_prompt",
-    "build_ir_to_slides_prompt",
 ]

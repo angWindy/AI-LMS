@@ -33,6 +33,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -53,8 +54,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { assignmentApi, courseApi, lessonApi, Lesson, Material } from "@/lib/api";
 import { useAuthStore } from "@/lib/auth/store";
-import { getCourseLevelLabel } from "@/lib/course-levels";
-import { Assignment, AssignmentType, CourseDetail, UserRole } from "@/types";
+import { COURSE_LEVEL_OPTIONS, getCourseLevelLabel } from "@/lib/course-levels";
+import { Assignment, AssignmentType, CourseDetail, CourseLevel, UserRole } from "@/types";
 
 interface MaterialUploadForm {
   title: string;
@@ -80,6 +81,15 @@ const learningFilterOptions: { value: LearningFilter; label: string }[] = [
   { value: "document", label: "Document" },
   { value: "assignments", label: "Assigaments" },
   { value: "classroom", label: "Classroom" },
+];
+
+const COURSE_CATEGORY_OPTIONS = [
+  { value: "programming", label: "Lập trình" },
+  { value: "design", label: "Thiết kế" },
+  { value: "business", label: "Kinh doanh" },
+  { value: "marketing", label: "Marketing" },
+  { value: "language", label: "Ngoại ngữ" },
+  { value: "other", label: "Khác" },
 ];
 
 export default function CourseDetailPage() {
@@ -123,6 +133,16 @@ export default function CourseDetailPage() {
   const [testQuestionCount, setTestQuestionCount] = useState(20);
   const [testLessonIds, setTestLessonIds] = useState<string[]>([]);
   const [isGeneratingTest, setIsGeneratingTest] = useState(false);
+  const [showCourseDialog, setShowCourseDialog] = useState(false);
+  const [isSavingCourse, setIsSavingCourse] = useState(false);
+  const [courseForm, setCourseForm] = useState({
+    title: "",
+    short_description: "",
+    description: "",
+    category: "none",
+    level: CourseLevel.HIGHER_EDUCATION,
+    language: "vi",
+  });
 
   const slug = params.slug as string;
 
@@ -179,6 +199,56 @@ export default function CourseDetailPage() {
       fetchCourseData();
     }
   }, [slug, fetchCourseData]);
+
+  const handleOpenCourseDialog = () => {
+    if (!course) return;
+
+    setCourseForm({
+      title: course.title,
+      short_description: course.short_description || "",
+      description: course.description || "",
+      category: course.category || "none",
+      level: course.level,
+      language: course.language || "vi",
+    });
+    setShowCourseDialog(true);
+  };
+
+  const handleSaveCourse = async () => {
+    if (!course || !courseForm.title.trim()) return;
+
+    setIsSavingCourse(true);
+    try {
+      const updated = await courseApi.update(course.id, {
+        title: courseForm.title.trim(),
+        short_description: courseForm.short_description.trim() || null,
+        description: courseForm.description.trim() || null,
+        category: courseForm.category === "none" ? null : courseForm.category,
+        level: courseForm.level,
+        language: courseForm.language,
+      });
+
+      setCourse((prev) =>
+        prev
+          ? {
+              ...prev,
+              ...updated,
+              instructor: prev.instructor,
+              lesson_count: prev.lesson_count,
+            }
+          : prev
+      );
+      setShowCourseDialog(false);
+
+      if (updated.slug !== slug) {
+        router.replace(`/courses/${updated.slug}`);
+      }
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Cập nhật thông tin môn học thất bại");
+    } finally {
+      setIsSavingCourse(false);
+    }
+  };
 
   const handleOpenLessonDialog = (lesson?: Lesson) => {
     if (lesson) {
@@ -831,6 +901,12 @@ export default function CourseDetailPage() {
                 <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
                   {lessons.length} buổi học
                 </div>
+                {canEdit && (
+                  <Button variant="outline" onClick={handleOpenCourseDialog}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Sửa môn học
+                  </Button>
+                )}
               </div>
             </div>
           </div>
@@ -1074,6 +1150,10 @@ export default function CourseDetailPage() {
 
               {canEdit && (
                 <div className="space-y-2">
+                  <Button className="w-full" variant="outline" onClick={handleOpenCourseDialog}>
+                    <Edit className="h-4 w-4 mr-2" />
+                    Sửa chi tiết môn học
+                  </Button>
                   <Button className="w-full" variant="outline" onClick={() => handleOpenLessonDialog()}>
                     <Plus className="h-4 w-4 mr-2" />
                     Thêm bài học mới
@@ -1114,6 +1194,119 @@ export default function CourseDetailPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={showCourseDialog} onOpenChange={setShowCourseDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Chỉnh sửa chi tiết môn học</DialogTitle>
+            <DialogDescription>Cập nhật thông tin hiển thị cho môn học này.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="course-title">Tên môn học *</Label>
+              <Input
+                id="course-title"
+                value={courseForm.title}
+                onChange={(e) => setCourseForm({ ...courseForm, title: e.target.value })}
+                placeholder="Nhập tên môn học"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="course-short-description">Mô tả ngắn</Label>
+              <Input
+                id="course-short-description"
+                value={courseForm.short_description}
+                onChange={(e) => setCourseForm({ ...courseForm, short_description: e.target.value })}
+                placeholder="Mô tả ngắn gọn về môn học"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="course-description">Mô tả chi tiết</Label>
+              <Textarea
+                id="course-description"
+                value={courseForm.description}
+                onChange={(e) => setCourseForm({ ...courseForm, description: e.target.value })}
+                placeholder="Mô tả nội dung, mục tiêu và yêu cầu của môn học"
+                rows={6}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Danh mục</Label>
+                <Select
+                  value={courseForm.category}
+                  onValueChange={(value) => setCourseForm({ ...courseForm, category: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn danh mục" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Không chọn</SelectItem>
+                    {COURSE_CATEGORY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Trình độ</Label>
+                <Select
+                  value={courseForm.level}
+                  onValueChange={(value) => setCourseForm({ ...courseForm, level: value as CourseLevel })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn trình độ" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COURSE_LEVEL_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Ngôn ngữ</Label>
+                <Select
+                  value={courseForm.language}
+                  onValueChange={(value) => setCourseForm({ ...courseForm, language: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Chọn ngôn ngữ" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="vi">Tiếng Việt</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCourseDialog(false)} disabled={isSavingCourse}>
+              Hủy
+            </Button>
+            <Button onClick={handleSaveCourse} disabled={isSavingCourse || !courseForm.title.trim()}>
+              {isSavingCourse ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Đang lưu...
+                </>
+              ) : (
+                "Lưu thay đổi"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Lesson Dialog */}
       <Dialog open={showLessonDialog} onOpenChange={setShowLessonDialog}>

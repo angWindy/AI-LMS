@@ -11,7 +11,6 @@ authoring and tutoring.
 - Practice assignments from AI or Question Bank.
 - Course-level tests from assessment-ready Question Bank items.
 - Learner submissions with automatic scoring and AI feedback.
-- AI slide generation with structured JSON and PDF output.
 - RAG over uploaded PDF/DOCX materials.
 - General chatbot and assignment hint chatbot.
 
@@ -82,7 +81,6 @@ with `GOOGLE_AI_API_KEY` for generation, chatbot, RAG embeddings, and feedback.
 - [Database](docs/DATABASE_SCHEMA.md)
 - [Assignments And Tests](docs/ASSIGNMENTS_AND_TESTS.md)
 - [Question Bank](docs/QUESTION_BANK.md)
-- [Slides](docs/SLIDE_GENERATION.md)
 - [RAG](docs/RAG.md)
 - [Chatbot](docs/CHATBOT.md)
 - [Deployment](docs/DEPLOYMENT_GUIDE.md): manual and GitHub Actions deployment.

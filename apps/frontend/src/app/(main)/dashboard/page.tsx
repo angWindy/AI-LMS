@@ -379,8 +379,8 @@ function CourseGrid({
       {courses.map((course) => (
         <Link key={course.id} href={`/courses/${course.slug}`}>
           <Card className="h-full transition-shadow hover:shadow-md">
-            <div className="flex h-28 items-center justify-center rounded-t-lg bg-slate-100">
-              <BookOpen className="h-10 w-10 text-slate-400" />
+            <div className="flex h-28 items-center justify-center rounded-t-lg bg-blue-600">
+              <BookOpen className="h-10 w-10 text-white" />
             </div>
             <CardHeader>
               <div className="flex items-start justify-between gap-3">
