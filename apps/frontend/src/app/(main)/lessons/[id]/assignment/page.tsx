@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, CheckCircle2, Circle, ClipboardList, Loader2, XCircle } from "lucide-react";
@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { useChatbotStore } from "@/components/chat/store";
+import { QuestionNavigator, QuestionPageSize } from "@/components/assignments/QuestionNavigator";
 
 interface AssignmentLessonContext {
   id: string;
@@ -40,6 +41,8 @@ export default function LessonAssignmentPage() {
   const [submission, setSubmission] = useState<Submission | null>(null);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [score, setScore] = useState<{ correct: number; total: number; percent: number } | null>(null);
+  const [questionPageSize, setQuestionPageSize] = useState<QuestionPageSize>("1");
+  const [currentQuestionPage, setCurrentQuestionPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -104,6 +107,7 @@ export default function LessonAssignmentPage() {
     setSubmission(null);
     setIsSubmitted(false);
     setScore(null);
+    setCurrentQuestionPage(1);
     useChatbotStore.getState().reset();
   }, [assignment?.id]);
 
@@ -148,7 +152,10 @@ export default function LessonAssignmentPage() {
       });
   }, [assignment?.id, assignment?.questions.length, isLearner]);
 
-  const orderedQuestions = [...(assignment?.questions || [])].sort((a, b) => a.order_index - b.order_index);
+  const orderedQuestions = useMemo(
+    () => [...(assignment?.questions || [])].sort((a, b) => a.order_index - b.order_index),
+    [assignment?.questions]
+  );
   const answeredCount = orderedQuestions.reduce((count, question) => {
     if (question.question_type === AssignmentQuestionType.ESSAY) {
       return textAnswers[question.id]?.trim() ? count + 1 : count;
@@ -156,7 +163,34 @@ export default function LessonAssignmentPage() {
     return selectedAnswers[question.id] ? count + 1 : count;
   }, 0);
   const totalQuestionCount = orderedQuestions.length;
+  const totalQuestionPages =
+    questionPageSize === "all"
+      ? 1
+      : Math.max(1, Math.ceil(totalQuestionCount / Number(questionPageSize)));
+  const visibleStart =
+    questionPageSize === "all"
+      ? 0
+      : (Math.min(currentQuestionPage, totalQuestionPages) - 1) * Number(questionPageSize);
+  const visibleEnd =
+    questionPageSize === "all"
+      ? totalQuestionCount
+      : Math.min(visibleStart + Number(questionPageSize), totalQuestionCount);
+  const visibleQuestions =
+    questionPageSize === "all" ? orderedQuestions : orderedQuestions.slice(visibleStart, visibleEnd);
+  const questionNavigatorItems = orderedQuestions.map((question) => ({
+    id: question.id,
+    isAnswered:
+      question.question_type === AssignmentQuestionType.ESSAY
+        ? Boolean(textAnswers[question.id]?.trim())
+        : Boolean(selectedAnswers[question.id]),
+  }));
   const submissionAnswersByQuestion = new Map((submission?.answers || []).map((answer) => [answer.question_id, answer]));
+
+  useEffect(() => {
+    if (currentQuestionPage > totalQuestionPages) {
+      setCurrentQuestionPage(totalQuestionPages);
+    }
+  }, [currentQuestionPage, totalQuestionPages]);
 
   const handleChooseAnswer = (questionId: string, optionId: string) => {
     if (isSubmitted) return;
@@ -164,6 +198,36 @@ export default function LessonAssignmentPage() {
       ...prev,
       [questionId]: optionId,
     }));
+  };
+
+  const scrollToQuestion = (questionId?: string) => {
+    window.setTimeout(() => {
+      const target = questionId
+        ? document.getElementById(`assignment-question-${questionId}`)
+        : document.getElementById("assignment-question-list");
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  };
+
+  const handleQuestionPageChange = (page: number) => {
+    setCurrentQuestionPage(page);
+    scrollToQuestion();
+  };
+
+  const handleQuestionPageSizeChange = (pageSize: QuestionPageSize) => {
+    setQuestionPageSize(pageSize);
+    setCurrentQuestionPage(1);
+    scrollToQuestion();
+  };
+
+  const handleQuestionJump = (questionIndex: number) => {
+    const question = orderedQuestions[questionIndex];
+    if (!question) return;
+
+    if (questionPageSize !== "all") {
+      setCurrentQuestionPage(Math.floor(questionIndex / Number(questionPageSize)) + 1);
+    }
+    scrollToQuestion(question.id);
   };
 
   const handleSubmit = async () => {
@@ -207,6 +271,7 @@ export default function LessonAssignmentPage() {
       setSubmission(null);
       setIsSubmitted(false);
       setScore(null);
+      setCurrentQuestionPage(1);
     } catch (err: any) {
       alert(err.response?.data?.detail || "Không thể xóa kết quả bài làm");
     } finally {
@@ -270,25 +335,40 @@ export default function LessonAssignmentPage() {
           <CardContent className="space-y-4">
             {assignment && isLearner ? (
               <>
-                <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-3 text-sm text-muted-foreground">
-                  <p>
-                    Đã trả lời {answeredCount}/{totalQuestionCount} câu hỏi.
-                  </p>
-                  {isSubmitted && score && (
-                    <p className="mt-1 font-medium text-foreground">
+                <QuestionNavigator
+                  questions={questionNavigatorItems}
+                  answeredCount={answeredCount}
+                  pageSize={questionPageSize}
+                  currentPage={currentQuestionPage}
+                  totalPages={totalQuestionPages}
+                  visibleStart={visibleStart}
+                  visibleEnd={visibleEnd}
+                  onPageSizeChange={handleQuestionPageSizeChange}
+                  onPageChange={handleQuestionPageChange}
+                  onQuestionClick={handleQuestionJump}
+                />
+
+                {isSubmitted && score && (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm">
+                    <p className="font-medium text-emerald-900">
                       Kết quả: {score.correct}/{score.total} câu đúng ({score.percent}%)
                     </p>
-                  )}
-                </div>
+                  </div>
+                )}
 
-                <div className="space-y-4">
-                  {orderedQuestions.map((question, questionIndex) => {
+                <div id="assignment-question-list" className="space-y-4 scroll-mt-6">
+                  {visibleQuestions.map((question) => {
+                    const questionIndex = orderedQuestions.findIndex((item) => item.id === question.id);
                     const sortedOptions = [...question.options].sort((a, b) => a.order_index - b.order_index);
                     const selectedOptionId = selectedAnswers[question.id];
                     const submittedAnswer = submissionAnswersByQuestion.get(question.id);
 
                     return (
-                      <div key={question.id} className="rounded-lg border border-slate-200 p-4 space-y-3">
+                      <div
+                        key={question.id}
+                        id={`assignment-question-${question.id}`}
+                        className="rounded-lg border border-slate-200 p-4 space-y-3 scroll-mt-6"
+                      >
                         <p className="text-sm font-semibold text-foreground">
                           Câu {questionIndex + 1}. {question.question_text}
                         </p>
@@ -360,7 +440,6 @@ export default function LessonAssignmentPage() {
                             )}
                           </div>
                         )}
-
                       </div>
                     );
                   })}
