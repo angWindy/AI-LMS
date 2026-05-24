@@ -682,42 +682,173 @@ def _need_teaching_image_strict(text: str) -> bool:
     if not normalized:
         return False
 
-    deictic_strong = [
-        "cai nay",
-        "cái này",
-        "doan nay",
-        "đoạn này",
-        "cho nay",
-        "chỗ này",
+    deictic_strong += [
+        "anh nay",
+        "ảnh này",
+        "tam anh nay",
+        "tấm ảnh này",
+        "buc anh nay",
+        "bức ảnh này",
+        "hinh anh nay",
+        "hình ảnh này",
+
         "slide nay",
         "slide này",
-        "dong nay",
-        "dòng này",
-        "frame nay",
-        "frame này",
+
+        "video nay",
+        "video này",
+        "clip nay",
+        "clip này",
+        "doan video nay",
+        "đoạn video này",
+        "doan clip nay",
+        "đoạn clip này",
+
+        "man hinh nay",
+        "màn hình này",
+        "anh chup man hinh nay",
+        "ảnh chụp màn hình này",
     ]
 
-    visual_context = [
+    visual_context += [
+        "trong anh",
+        "trong ảnh",
+        "tren anh",
+        "trên ảnh",
+
+        "trong buc anh",
+        "trong bức ảnh",
+        "tren buc anh",
+        "trên bức ảnh",
+
+        "trong tam anh",
+        "trong tấm ảnh",
+        "tren tam anh",
+        "trên tấm ảnh",
+
+        "trong clip",
+        "tren clip",
+        "trên clip",
+
         "trong video",
+        "trên video",
+        "tren video",
+
+        "trong doan video",
+        "trong đoạn video",
+        "tren doan video",
+        "trên đoạn video",
+
+        "trong clip",
+        "tren clip",
+        "trên clip",
+
+        "trong doan clip",
+        "trong đoạn clip",
+        "tren doan clip",
+        "trên đoạn clip",
+
+        "trong screenshot",
+        "tren screenshot",
+        "trên screenshot",
+
+        "trong anh chup man hinh",
+        "trong ảnh chụp màn hình",
+        "tren anh chup man hinh",
+        "trên ảnh chụp màn hình",
+
+        "trong man hinh",
+        "trong màn hình",
         "tren man hinh",
         "trên màn hình",
+
         "trong slide",
-        "tren hinh",
-        "trên hình",
-        "trong hinh",
-        "trong hình",
+        "tren slide",
+        "trên slide",
+
+        "trong khung hinh",
+        "trong khung hình",
+        "tren khung hinh",
+        "trên khung hình",
+
+        "trong frame",
+        "tren frame",
+        "trên frame",
     ]
 
-    visual_action = [
-        "ve cai",
-        "vẽ cái",
-        "ve lai",
-        "vẽ lại",
-        "plot cai",
-        "plot cái",
-        "minh hoa cai",
-        "minh họa cái",
-        "draw this",
+    visual_action += [
+        "xem hinh",
+        "xem hình",
+        "xem anh",
+        "xem ảnh",
+        "xem video",
+        "xem clip",
+        "xem slide",
+        "xem man hinh",
+        "xem màn hình",
+
+        "nhin hinh",
+        "nhìn hình",
+        "nhin anh",
+        "nhìn ảnh",
+        "nhin video",
+        "nhìn video",
+        "nhin slide",
+        "nhìn slide",
+        "nhin man hinh",
+        "nhìn màn hình",
+
+        "dua vao hinh",
+        "dựa vào hình",
+        "dua vao anh",
+        "dựa vào ảnh",
+        "dua vao video",
+        "dựa vào video",
+        "dua vao slide",
+        "dựa vào slide",
+
+        "giai thich hinh nay",
+        "giải thích hình này",
+        "giai thich anh nay",
+        "giải thích ảnh này",
+        "giai thich video nay",
+        "giải thích video này",
+        "giai thich slide nay",
+        "giải thích slide này",
+
+        "phan tich hinh nay",
+        "phân tích hình này",
+        "phan tich anh nay",
+        "phân tích ảnh này",
+        "phan tich video nay",
+        "phân tích video này",
+        "phan tich slide nay",
+        "phân tích slide này",
+
+        "mo ta hinh nay",
+        "mô tả hình này",
+        "mo ta anh nay",
+        "mô tả ảnh này",
+        "mo ta video nay",
+        "mô tả video này",
+
+        "doc hinh nay",
+        "đọc hình này",
+        "doc anh nay",
+        "đọc ảnh này",
+        "doc bieu do nay",
+        "đọc biểu đồ này",
+        "doc bang nay",
+        "đọc bảng này",
+        "doc so do nay",
+        "đọc sơ đồ này",
+
+        "ve lai hinh nay",
+        "vẽ lại hình này",
+        "ve lai anh nay",
+        "vẽ lại ảnh này",
+        "ve lai so do nay",
+        "vẽ lại sơ đồ này",
     ]
 
     if any(keyword in normalized for keyword in deictic_strong):
