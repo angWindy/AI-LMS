@@ -682,7 +682,7 @@ def _need_teaching_image_strict(text: str) -> bool:
     if not normalized:
         return False
 
-    deictic_strong += [
+    deictic_strong = [
         "anh nay",
         "ảnh này",
         "tam anh nay",
@@ -710,7 +710,7 @@ def _need_teaching_image_strict(text: str) -> bool:
         "ảnh chụp màn hình này",
     ]
 
-    visual_context += [
+    visual_context = [
         "trong anh",
         "trong ảnh",
         "tren anh",
@@ -776,7 +776,7 @@ def _need_teaching_image_strict(text: str) -> bool:
         "trên frame",
     ]
 
-    visual_action += [
+    visual_action = [
         "xem hinh",
         "xem hình",
         "xem anh",
