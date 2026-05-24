@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { chatbotApi, TeachingImagePayload } from "@/lib/api/chatbot";
 import { useChatbotStore, ChatMessage } from "./store";
+import { RichContent, tryParseJson } from "@/components/content/RichContent";
 
 interface ChatWindowProps {
   mode?: "lesson" | "assignment";
@@ -114,6 +115,77 @@ function ChatMarkdown({ content }: { content: string }) {
   flushList();
 
   return <>{blocks}</>;
+}
+
+type ChatSegment =
+  | { type: "text"; value: string }
+  | { type: "code"; value: string; language?: string };
+
+function splitChatSegments(content: string): ChatSegment[] {
+  const segments: ChatSegment[] = [];
+  const pattern = /```(\w+)?\s*([\s\S]*?)\s*```/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = pattern.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({ type: "text", value: content.slice(lastIndex, match.index) });
+    }
+
+    segments.push({
+      type: "code",
+      value: match[2] || "",
+      language: match[1] || undefined,
+    });
+
+    lastIndex = pattern.lastIndex;
+  }
+
+  if (lastIndex < content.length) {
+    segments.push({ type: "text", value: content.slice(lastIndex) });
+  }
+
+  return segments.length ? segments : [{ type: "text", value: content }];
+}
+
+function isJsonSegment(value: string, language?: string): boolean {
+  if (language && language.toLowerCase() === "json") return true;
+  return Boolean(tryParseJson(value));
+}
+
+function ChatMessageContent({ content }: { content: string }) {
+  const parsed = tryParseJson(content);
+  if (parsed) {
+    return <RichContent value={content} />;
+  }
+
+  const segments = splitChatSegments(content);
+  return (
+    <>
+      {segments.map((segment, index) => {
+        if (segment.type === "code") {
+          if (isJsonSegment(segment.value, segment.language)) {
+            return <RichContent key={`json-${index}`} value={segment.value} className="mt-2" />;
+          }
+
+          return (
+            <pre
+              key={`code-${index}`}
+              className="mt-2 whitespace-pre-wrap rounded-md border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700"
+            >
+              {segment.value}
+            </pre>
+          );
+        }
+
+        if (!segment.value.trim()) {
+          return <div key={`space-${index}`} className="h-2" />;
+        }
+
+        return <ChatMarkdown key={`text-${index}`} content={segment.value} />;
+      })}
+    </>
+  );
 }
 
 export function ChatWindow({
@@ -331,7 +403,7 @@ export function ChatWindow({
                   }`}
                 >
                   {msg.role === "assistant" ? (
-                    <ChatMarkdown content={msg.content} />
+                    <ChatMessageContent content={msg.content} />
                   ) : (
                     <span className="whitespace-pre-wrap">{msg.content}</span>
                   )}

@@ -6,17 +6,25 @@ DIFFICULTY_LEVELS = {
 - Tests basic knowledge and recall.
 - Focuses on concepts, definitions, or directly stated facts.
 - Requires little to no reasoning.
+- Question length should be short and direct, usually 1 sentence.
+- Avoid unnecessary context or long scenarios.
 """,
     "medium": """
 - Tests understanding and application.
 - May require comparison, explanation, or short reasoning.
 - Cannot be answered by recall alone.
+- Question length should be moderate, usually 1-2 sentences.
+- May include a simple scenario, short example, or small code snippet if relevant.
 """,
     "hard": """
 - Tests analysis and deeper reasoning.
 - Requires combining multiple concepts or solving a problem.
 - Distractors must be plausible and difficult to distinguish.
-""",
+- Question length should be long enough to fully present the problem, context, code, data, or scenario.
+- Hard questions may contain 2-4 sentences, a realistic situation, or a concise code snippet.
+- Do not shorten hard questions in a way that removes necessary reasoning context.
+- The length should support complexity, not add unnecessary verbosity.
+"""
 }
 
 
@@ -107,20 +115,29 @@ Strict output rules:
 15. Adapt every question, option, distractor, example, and explanation implied by the answer key to the learner level stated in Course context.
 16. Keep the academic target correct; learner level changes wording, scaffolding, context familiarity, and reasoning depth, not factual correctness.
 
+Question length and complexity rules:
+17. The length and structure of each question must match its difficulty.
+18. Easy questions should be short, direct, and focused on one basic concept.
+19. Medium questions should be moderately detailed and may include a small scenario, example, comparison, or short reasoning requirement.
+20. Hard questions must be long enough to include all necessary context, constraints, code snippets, data, or scenario details required for deeper reasoning.
+21. Do not make hard questions overly short if doing so makes the question become theoretical, ambiguous, or answerable by memorization.
+22. Do not add filler text only to make a question longer. Length must serve the reasoning requirement.
+23. For programming or practical subjects, medium and hard questions should often include code snippets, debugging situations, design scenarios, or output prediction tasks.
+24. If a hard question includes code, keep the code concise but complete enough for the learner to reason correctly.
+25. If code is included inside JSON strings, escape newline characters and quotation marks properly so the final output remains valid JSON.
+
 Practice-oriented question rules:
-17. If the lesson is practice-oriented, especially programming, algorithms, databases, web development, software engineering, or other technical/practical subjects, the question set must include practical application questions, not only theoretical recall.
-18. For practice-oriented lessons, at least 60% of the questions must be application-based.
-19. Application-based questions may include:
+26. If the lesson is practice-oriented, especially programming, algorithms, databases, web development, software engineering, or other technical/practical subjects, the question set must include practical application questions, not only theoretical recall.
+27. For practice-oriented lessons, at least 60% of the questions must be application-based.
+28. Application-based questions may include:
     - reading a short code snippet and predicting the output;
     - identifying an error or bug in code;
     - choosing the best implementation;
     - selecting the correct class, method, attribute, access modifier, or design relationship;
     - applying a concept to a realistic programming scenario;
     - comparing alternative solutions and choosing the most appropriate one.
-20. For programming lessons, include short code snippets when useful. Code snippets must be concise, syntactically reasonable, and directly related to the lesson objective.
-21. For object-oriented programming lessons, prioritize practical questions about objects, classes, constructors, encapsulation, inheritance, polymorphism, overriding, overloading, access modifiers, composition, interfaces, abstract classes, and class relationships when relevant to the lesson.
-22. Hard questions in practical subjects should require reasoning through code behavior, object interaction, design choice, or subtle conceptual differences, not simple memorization.
-23. If code is included inside the JSON, escape characters properly so the final output remains valid JSON.
+29. For object-oriented programming lessons, prioritize practical questions about objects, classes, constructors, encapsulation, inheritance, polymorphism, overriding, overloading, access modifiers, composition, interfaces, abstract classes, and class relationships when relevant to the lesson.
+30. Hard questions in practical subjects should require reasoning through code behavior, object interaction, design choice, or subtle conceptual differences, not simple memorization.
 Course context:
 {course_context}
 

@@ -22,6 +22,7 @@ import {
 } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { RichContent } from "@/components/content/RichContent";
 import {
   Dialog,
   DialogContent,
@@ -484,7 +485,10 @@ export default function QuestionBankPage() {
                       {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                     </Button>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-slate-900">{question.question_text}</p>
+                      <RichContent
+                        value={question.question_text}
+                        className="text-sm font-medium text-slate-900"
+                      />
                       <p className="mt-1 text-xs text-muted-foreground">{question.course_title}</p>
                       <div className="mt-2 flex flex-wrap gap-2 md:hidden">
                         <Badge variant="outline" className={difficultyBadgeClasses[question.difficulty]}>
@@ -526,7 +530,7 @@ export default function QuestionBankPage() {
                               .map((option, index) => (
                                 <div key={option.id} className="flex items-start gap-2 rounded-md border bg-white px-3 py-2 text-sm">
                                   <span className="font-medium">{String.fromCharCode(65 + index)}.</span>
-                                  <span className="flex-1">{option.option_text}</span>
+                                  <RichContent value={option.option_text} className="flex-1" />
                                   {option.is_correct && <Badge>Đúng</Badge>}
                                 </div>
                               ))}

@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { useChatbotStore } from "@/components/chat/store";
 import { QuestionNavigator, QuestionPageSize } from "@/components/assignments/QuestionNavigator";
+import { RichContent } from "@/components/content/RichContent";
 
 interface AssignmentLessonContext {
   id: string;
@@ -369,9 +370,10 @@ export default function LessonAssignmentPage() {
                         id={`assignment-question-${question.id}`}
                         className="rounded-lg border border-slate-200 p-4 space-y-3 scroll-mt-6"
                       >
-                        <p className="text-sm font-semibold text-foreground">
-                          Câu {questionIndex + 1}. {question.question_text}
-                        </p>
+                        <div className="text-sm font-semibold text-foreground">
+                          <span className="mr-1">Câu {questionIndex + 1}.</span>
+                          <RichContent value={question.question_text} inline />
+                        </div>
 
                         {question.question_type === AssignmentQuestionType.ESSAY ? (
                           <Textarea
@@ -410,7 +412,8 @@ export default function LessonAssignmentPage() {
                                   className={`w-full rounded-md border px-3 py-2 text-left text-sm flex items-center justify-between gap-2 transition-colors ${optionClasses} ${isSubmitted ? "cursor-default" : "cursor-pointer"}`}
                                 >
                                   <span>
-                                    {String.fromCharCode(65 + optionIndex)}. {option.option_text}
+                                    {String.fromCharCode(65 + optionIndex)}.{" "}
+                                    <RichContent value={option.option_text} inline />
                                   </span>
                                   {isSelectedCorrect ? (
                                     <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -429,14 +432,15 @@ export default function LessonAssignmentPage() {
                           <div className="rounded-md border border-slate-200 bg-slate-50 p-3 text-sm">
                             {submittedAnswer.correct_answer_text && (
                               <p className="font-medium text-slate-900">
-                                Đáp án chuẩn: {submittedAnswer.correct_answer_text}
+                                Đáp án chuẩn:{" "}
+                                <RichContent value={submittedAnswer.correct_answer_text} inline />
                               </p>
                             )}
                             {submittedAnswer.explanation && (
-                              <p className="mt-1 text-slate-700">{submittedAnswer.explanation}</p>
+                              <RichContent value={submittedAnswer.explanation} className="mt-1 text-slate-700" />
                             )}
                             {submittedAnswer.feedback && (
-                              <p className="mt-1 text-muted-foreground">{submittedAnswer.feedback}</p>
+                              <RichContent value={submittedAnswer.feedback} className="mt-1 text-muted-foreground" />
                             )}
                           </div>
                         )}
