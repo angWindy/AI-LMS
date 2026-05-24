@@ -39,7 +39,7 @@ class AssignmentGeneratorService:
     """Build prompt context and normalize generated assignment questions."""
 
     MAX_QUESTION_COUNT = 100
-    RETRY_MAX_OUTPUT_TOKENS = 8192
+    RETRY_MAX_OUTPUT_TOKENS = 65536
 
     def __init__(self, workflow: AssignmentGeneratorWorkflow | None = None) -> None:
         config = LLMConfig(

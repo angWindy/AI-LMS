@@ -107,6 +107,20 @@ Strict output rules:
 15. Adapt every question, option, distractor, example, and explanation implied by the answer key to the learner level stated in Course context.
 16. Keep the academic target correct; learner level changes wording, scaffolding, context familiarity, and reasoning depth, not factual correctness.
 
+Practice-oriented question rules:
+17. If the lesson is practice-oriented, especially programming, algorithms, databases, web development, software engineering, or other technical/practical subjects, the question set must include practical application questions, not only theoretical recall.
+18. For practice-oriented lessons, at least 60% of the questions must be application-based.
+19. Application-based questions may include:
+    - reading a short code snippet and predicting the output;
+    - identifying an error or bug in code;
+    - choosing the best implementation;
+    - selecting the correct class, method, attribute, access modifier, or design relationship;
+    - applying a concept to a realistic programming scenario;
+    - comparing alternative solutions and choosing the most appropriate one.
+20. For programming lessons, include short code snippets when useful. Code snippets must be concise, syntactically reasonable, and directly related to the lesson objective.
+21. For object-oriented programming lessons, prioritize practical questions about objects, classes, constructors, encapsulation, inheritance, polymorphism, overriding, overloading, access modifiers, composition, interfaces, abstract classes, and class relationships when relevant to the lesson.
+22. Hard questions in practical subjects should require reasoning through code behavior, object interaction, design choice, or subtle conceptual differences, not simple memorization.
+23. If code is included inside the JSON, escape characters properly so the final output remains valid JSON.
 Course context:
 {course_context}
 
