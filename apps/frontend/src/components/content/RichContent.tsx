@@ -4,6 +4,7 @@ type JsonValue = string | number | boolean | null | JsonObject | JsonValue[];
 type JsonObject = { [key: string]: JsonValue };
 
 export function tryParseJson(value: string): JsonValue | null {
+  // Thử parse chuỗi JSON; trả về null nếu không hợp lệ.
   const trimmed = value.trim();
   if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return null;
 
@@ -20,6 +21,7 @@ export function tryParseJson(value: string): JsonValue | null {
 }
 
 function renderPrimitive(value: string | number | boolean | null): ReactNode {
+  // Render primitive trong JSON với màu sắc dễ đọc.
   if (value === null) return <span className="text-slate-500">null</span>;
   if (typeof value === "string") {
     return <span className="text-slate-900">{`"${value}"`}</span>;
@@ -29,6 +31,7 @@ function renderPrimitive(value: string | number | boolean | null): ReactNode {
 }
 
 function renderQuotedCode(value: string, inline: boolean, className: string) {
+  // Chỉ render code nằm trong dấu '...'; dài/đa dòng sẽ xuống khối.
   const parts: ReactNode[] = [];
   const pattern = /'([^']+)'/g;
   let lastIndex = 0;
@@ -80,6 +83,7 @@ function renderQuotedCode(value: string, inline: boolean, className: string) {
 }
 
 function JsonViewer({ value, level = 0 }: { value: JsonValue; level?: number }) {
+  // Render JSON dạng cây để dễ đọc trên giao diện.
   if (Array.isArray(value)) {
     if (value.length === 0) {
       return <span className="text-slate-500">[]</span>;
@@ -127,6 +131,7 @@ export function RichContent({
   className?: string;
   inline?: boolean;
 }) {
+  // Ưu tiên JSON, sau đó render text/cụm code trong dấu nháy đơn.
   const parsed = tryParseJson(value);
 
   if (parsed) {

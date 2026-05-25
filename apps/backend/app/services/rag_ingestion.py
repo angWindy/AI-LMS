@@ -38,6 +38,7 @@ INDEXABLE_EXTENSIONS = {".pdf", ".docx"}
 
 
 def _resolve_storage_path(file_url: str) -> Optional[Path]:
+    # Chuyển URL /storage thành đường dẫn thật trên đĩa.
     """Resolve the on-disk path for a `/storage/...` URL produced by FileHandler."""
     if not file_url:
         return None
@@ -51,6 +52,7 @@ def _resolve_storage_path(file_url: str) -> Optional[Path]:
 
 
 def is_indexable(material: Material) -> bool:
+    # Kiểm tra material có thể đưa vào pipeline RAG hay không.
     """Return True if the Material should be sent to the RAG pipeline."""
     if not material.file_url:
         return False  # external link / no file
@@ -79,6 +81,7 @@ def _doc_id_for_material(material: Material) -> str:
 
 
 def index_material(db: Session, material: Material) -> Optional[RAGDocument]:
+    # Đưa tài liệu vào RAG và đồng bộ metadata vào bảng rag_documents.
     """Ingest ``material`` into the RAG pipeline if its type is supported.
 
     Returns the ``RAGDocument`` ORM row that mirrors the indexed document, or
@@ -172,6 +175,7 @@ def index_material(db: Session, material: Material) -> Optional[RAGDocument]:
 
 
 def remove_material_index(db: Session, material_id: uuid_lib.UUID) -> int:
+    # Xóa dữ liệu RAG theo material (cả vector store và ORM row).
     """Remove the RAG document and chunks linked to a Material row."""
     material_id_str = str(material_id)
 
@@ -197,6 +201,7 @@ def remove_material_index(db: Session, material_id: uuid_lib.UUID) -> int:
 
 
 def _remove_index_by_scope(db: Session, scope: str, value: uuid_lib.UUID) -> int:
+    # Xóa RAG theo phạm vi (lesson/course) và trả về số lượng đã xóa.
     """Remove RAG documents/chunks for a lesson or course scope."""
     value_str = str(value)
     deleted = 0
@@ -232,10 +237,12 @@ def _remove_index_by_scope(db: Session, scope: str, value: uuid_lib.UUID) -> int
 
 
 def remove_lesson_index(db: Session, lesson_id: uuid_lib.UUID) -> int:
+    # Xóa toàn bộ RAG của một buổi học.
     """Remove all RAG documents and chunks linked to a Lesson."""
     return _remove_index_by_scope(db, "lesson", lesson_id)
 
 
 def remove_course_index(db: Session, course_id: uuid_lib.UUID) -> int:
+    # Xóa toàn bộ RAG của một khóa học.
     """Remove all RAG documents and chunks linked to a Course."""
     return _remove_index_by_scope(db, "course", course_id)

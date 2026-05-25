@@ -49,6 +49,7 @@ class ChatbotWorkflow:
         max_output_tokens: int | None = None,
         thinking_level: str | None = None,
     ) -> ChatbotResult:
+        # Ghép lịch sử, context và gọi LLM để sinh câu trả lời.
         """Generate an assistant response with context trace."""
         incoming_history = list(history or [])
         history_system_prompt = _merge_system_messages(incoming_history)
@@ -108,6 +109,7 @@ def _merge_system_prompts(
     system_prompt: str | None,
     context: str | None,
 ) -> str | None:
+    # Gộp nhiều đoạn system prompt thành một chuỗi.
     parts = [part.strip() for part in [system_prompt, context] if part]
     if not parts:
         return None
@@ -115,6 +117,7 @@ def _merge_system_prompts(
 
 
 def _merge_system_messages(messages: Sequence[ChatMessage]) -> str | None:
+    # Gộp các message role=system trong lịch sử chat.
     system_parts = [
         message.content.strip()
         for message in messages

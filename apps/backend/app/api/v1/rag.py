@@ -39,6 +39,7 @@ async def upload_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> RAGIngestionResponse:
+    # Upload tài liệu và đẩy vào RAG (dùng cho admin/giảng viên).
     """Upload a document directly to the RAG store (admin / instructor side-channel).
 
     For Teacher uploads via the regular Material endpoints, ingestion happens
@@ -110,6 +111,7 @@ async def search(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> RAGSearchResponse:
+    # Tìm kiếm RAG theo query và lưu session thống kê.
     """Search the indexed RAG content (optionally scoped to a course/lesson)."""
     try:
         start_time = time.time()
@@ -187,6 +189,7 @@ async def list_documents(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> List[RAGDocumentResponse]:
+    # Danh sách tài liệu RAG (lọc theo course/lesson nếu có).
     """List all RAG documents (optionally filter by course / lesson)."""
     try:
         query = db.query(RAGDocument).filter(RAGDocument.is_active == 1)
@@ -222,6 +225,7 @@ async def delete_document(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # Xóa tài liệu RAG theo doc_id.
     """Delete a RAG document.
     
     Args:
@@ -262,6 +266,7 @@ async def get_stats(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> RAGStatsResponse:
+    # Lấy thống kê tổng quan của hệ thống RAG.
     """Get RAG system statistics.
     
     Args:

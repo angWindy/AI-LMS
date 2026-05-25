@@ -12,6 +12,7 @@ from app.db.base import Base
 
 
 def _default_expiry():
+    # Tính thời điểm hết hạn mặc định cho refresh token.
     """Default expiry time for refresh tokens (7 days)."""
     from app.core.config import settings
     return datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)

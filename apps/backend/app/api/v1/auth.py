@@ -33,6 +33,7 @@ async def register(
     user_data: UserCreate,
     db: DBSession,
 ):
+    # Đăng ký tài khoản mới.
     """Register a new user."""
     # Check if email already exists
     existing_user = db.query(User).filter(User.email == user_data.email).first()
@@ -68,6 +69,7 @@ async def login(
     credentials: UserLogin,
     db: DBSession,
 ):
+    # Đăng nhập và phát hành access/refresh token.
     """Login and get access and refresh tokens."""
     # Find user by email
     user = db.query(User).filter(User.email == credentials.email).first()
@@ -115,6 +117,7 @@ async def refresh_access_token(
     request: RefreshTokenRequest,
     db: DBSession,
 ):
+    # Cấp mới access token bằng refresh token.
     """Refresh access token using refresh token."""
     payload = decode_token(request.refresh_token)
 
@@ -176,6 +179,7 @@ async def logout(
     current_user: CurrentUser,
     db: DBSession,
 ):
+    # Đăng xuất và thu hồi refresh token.
     """Logout and revoke all refresh tokens."""
     # Revoke all user's refresh tokens
     db.query(RefreshToken).filter(
@@ -196,6 +200,7 @@ async def logout(
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user_profile(current_user: CurrentUser):
+    # Lấy thông tin hồ sơ người dùng hiện tại.
     """Get current user profile."""
     return current_user
 
@@ -206,6 +211,7 @@ async def update_current_user_profile(
     current_user: CurrentUser,
     db: DBSession,
 ):
+    # Cập nhật hồ sơ cá nhân.
     """Update current user profile."""
     if user_update.full_name is not None:
         current_user.full_name = user_update.full_name
@@ -234,6 +240,7 @@ async def change_password(
     current_user: CurrentUser,
     db: DBSession,
 ):
+    # Đổi mật khẩu cho tài khoản hiện tại.
     """Change current user password."""
     if not verify_password(password_data.current_password, current_user.password_hash):
         raise HTTPException(

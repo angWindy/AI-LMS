@@ -17,6 +17,7 @@ security_optional = HTTPBearer(auto_error=False)
 
 
 def get_db() -> Generator[Session, None, None]:
+    # Mở/đóng phiên DB cho mỗi request.
     """Get database session."""
     db = SessionLocal()
     try:
@@ -29,6 +30,7 @@ async def get_current_user(
     credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)],
     db: Annotated[Session, Depends(get_db)],
 ) -> User:
+    # Xác thực JWT access token và trả về user hiện tại.
     """Get current authenticated user from JWT token."""
     token = credentials.credentials
     payload = decode_token(token)
@@ -81,6 +83,7 @@ async def get_current_user_optional(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security_optional),
     db: Session = Depends(get_db),
 ) -> Optional[User]:
+    # Trả về user nếu có token hợp lệ, không có thì None.
     """Get current user if authenticated, otherwise return None."""
     if not credentials:
         return None
@@ -103,6 +106,7 @@ async def get_current_user_optional(
 
 
 def require_role(*roles: UserRole):
+    # Tạo dependency kiểm tra role cho endpoint.
     """Dependency to require specific user roles."""
     async def role_checker(
         current_user: Annotated[User, Depends(get_current_user)],

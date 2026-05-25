@@ -43,6 +43,7 @@ def calculate_ratio_counts(
     total: int,
     ratios: dict[QuestionPurposeType, float],
 ) -> dict[QuestionPurposeType, int]:
+    # Chia tổng số câu theo tỉ lệ (ưu tiên phần dư lớn).
     """Allocate an integer total by ratio using largest remainders."""
     raw_counts = {key: total * ratio for key, ratio in ratios.items()}
     counts = {key: int(value) for key, value in raw_counts.items()}
@@ -62,6 +63,7 @@ def calculate_ratio_counts(
 def assign_purposes_by_difficulty(
     questions: list,
 ) -> list[QuestionPurposeType]:
+    # Gán mục đích câu hỏi theo nhóm độ khó.
     """Randomly assign purpose_type by 65/15/20 ratio within each difficulty group."""
     grouped_indexes: dict[QuestionDifficulty, list[int]] = defaultdict(list)
     for index, question in enumerate(questions):
@@ -87,6 +89,7 @@ def assign_purposes_by_difficulty(
 
 
 def ensure_course_access(db: DBSession, course_id: uuid.UUID, user: User) -> Course:
+    # Kiểm tra quyền quản lý ngân hàng câu hỏi của khóa học.
     """Return a course if the current admin/instructor can manage its question bank."""
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
@@ -99,6 +102,7 @@ def ensure_course_access(db: DBSession, course_id: uuid.UUID, user: User) -> Cou
 
 
 def ensure_lesson_in_course(db: DBSession, course_id: uuid.UUID, lesson_id: uuid.UUID | None) -> Lesson | None:
+    # Kiểm tra lesson có thuộc khóa học hay không.
     """Validate optional lesson scope."""
     if lesson_id is None:
         return None
@@ -113,6 +117,7 @@ def ensure_lesson_in_course(db: DBSession, course_id: uuid.UUID, lesson_id: uuid
 
 
 def get_question_for_update(db: DBSession, question_id: uuid.UUID, user: User) -> QuestionBankQuestion:
+    # Lấy câu hỏi để chỉnh sửa và kiểm tra quyền.
     """Load a question and enforce manager access."""
     question = db.query(QuestionBankQuestion).options(
         joinedload(QuestionBankQuestion.course),
@@ -134,6 +139,7 @@ def add_options_to_question(
     question: QuestionBankQuestion,
     options_data: list[QuestionBankOptionCreate],
 ) -> None:
+    # Thêm các đáp án cho câu hỏi ngân hàng.
     """Attach full option set to a question bank question."""
     for option_index, option_data in enumerate(options_data):
         option = QuestionBankOption(
@@ -146,6 +152,7 @@ def add_options_to_question(
 
 
 def serialize_question(question: QuestionBankQuestion) -> QuestionBankQuestionResponse:
+    # Chuẩn hóa dữ liệu câu hỏi để trả cho UI.
     """Build response with denormalized course and lesson titles for the UI."""
     return QuestionBankQuestionResponse(
         id=question.id,
@@ -168,6 +175,7 @@ async def list_question_bank_courses(
     db: DBSession,
     current_user: InstructorUser,
 ):
+    # Danh sách khóa học có ngân hàng câu hỏi.
     """List courses visible in the question bank."""
     query = db.query(Course)
     if current_user.role != UserRole.ADMIN:
@@ -194,6 +202,7 @@ async def list_questions(
     difficulty: QuestionDifficulty | None = Query(None),
     purpose_type: QuestionPurposeType | None = Query(None),
 ):
+    # Danh sách câu hỏi theo bộ lọc.
     """List reusable questions for accessible courses with optional filters."""
     query = db.query(QuestionBankQuestion).options(
         joinedload(QuestionBankQuestion.course),
@@ -238,6 +247,7 @@ async def create_question(
     current_user: InstructorUser,
     payload: QuestionBankQuestionCreate,
 ):
+    # Tạo câu hỏi thủ công trong ngân hàng.
     """Create one reusable question manually."""
     course = ensure_course_access(db, payload.course_id, current_user)
     ensure_lesson_in_course(db, course.id, payload.lesson_id)
@@ -279,6 +289,7 @@ async def generate_questions(
     current_user: InstructorUser,
     payload: QuestionBankGenerateRequest,
 ):
+    # Tạo câu hỏi bằng AI và lưu vào ngân hàng.
     """Generate reusable question bank questions for one lesson using the existing LLM workflow."""
     course = db.query(Course).options(
         joinedload(Course.materials),
@@ -367,6 +378,7 @@ async def update_question(
     question_id: uuid.UUID,
     payload: QuestionBankQuestionUpdate,
 ):
+    # Cập nhật câu hỏi và đáp án.
     """Update a reusable question and optionally replace its options."""
     question = get_question_for_update(db, question_id, current_user)
     ensure_lesson_in_course(db, question.course_id, payload.lesson_id)
@@ -402,6 +414,7 @@ async def delete_question(
     current_user: InstructorUser,
     question_id: uuid.UUID,
 ):
+    # Xóa câu hỏi khỏi ngân hàng.
     """Delete one reusable question from the question bank."""
     question = get_question_for_update(db, question_id, current_user)
     course_id = question.course_id

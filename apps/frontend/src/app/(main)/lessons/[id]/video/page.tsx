@@ -33,6 +33,7 @@ interface VideoRoomLesson {
 }
 
 function getVideoEmbedUrl(url: string) {
+  // Chuyển URL video thành dạng embed nếu cần.
   if (url.includes("youtube.com/watch")) {
     const videoId = new URL(url).searchParams.get("v");
     return videoId ? `https://www.youtube.com/embed/${videoId}` : url;
@@ -73,6 +74,7 @@ function tryParseUrl(url: string): URL | null {
 }
 
 function detectLessonVideoSource(url: string): LessonVideoSourceKind {
+  // Phân loại nguồn video để chọn cách hiển thị phù hợp.
   const normalized = url.trim().toLowerCase();
   const parsed = tryParseUrl(url);
   const host = parsed?.hostname.toLowerCase() || "";
@@ -109,6 +111,7 @@ function detectLessonVideoSource(url: string): LessonVideoSourceKind {
 }
 
 function isMeetingSource(kind: LessonVideoSourceKind) {
+  // Kiểm tra nguồn họp trực tuyến (Zoom/Teams/Meet).
   return kind === "zoom" || kind === "teams" || kind === "google-meet";
 }
 
@@ -133,6 +136,7 @@ function formatPlaybackTime(seconds: number) {
 }
 
 function waitForVideoMetadata(video: HTMLVideoElement): Promise<void> {
+  // Đợi video load metadata để có thể chụp ảnh.
   if (video.readyState >= 1) {
     return Promise.resolve();
   }
@@ -156,6 +160,7 @@ function waitForVideoMetadata(video: HTMLVideoElement): Promise<void> {
 }
 
 function toBase64FromDataUrl(dataUrl: string): string | null {
+  // Trích base64 từ data URL.
   const commaIndex = dataUrl.indexOf(",");
   if (commaIndex < 0) {
     return null;
@@ -188,6 +193,7 @@ export default function LessonVideoRoomPage() {
   const [isChatbotPopupOpen, setIsChatbotPopupOpen] = useState(false);
 
   const stopScreenCaptureSession = useCallback(() => {
+    // Dừng session chụp màn hình và giải phóng resource.
     screenCaptureStreamRef.current?.getTracks().forEach((track) => track.stop());
     screenCaptureStreamRef.current = null;
 
@@ -201,6 +207,7 @@ export default function LessonVideoRoomPage() {
   }, []);
 
   const ensureScreenCaptureSession = useCallback(async (): Promise<HTMLVideoElement | null> => {
+    // Khởi tạo lại session chụp màn hình khi cần gửi ảnh cho chatbot.
     const activeStream = screenCaptureStreamRef.current;
     const activeVideo = screenCaptureVideoRef.current;
     const activeTrack = activeStream?.getVideoTracks()[0];

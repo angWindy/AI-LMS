@@ -59,6 +59,7 @@ class AssignmentGeneratorService:
         lesson: Lesson,
         question_count: int,
     ) -> AssignmentGenerationServiceResult:
+        # Gọi LLM để sinh câu hỏi và chuẩn hóa dữ liệu trước khi lưu/trả về.
         """Generate and validate multiple-choice questions for one lesson."""
         if question_count < 1 or question_count > self.MAX_QUESTION_COUNT:
             raise ValueError(
@@ -142,6 +143,7 @@ class AssignmentGeneratorService:
         lesson_context: str,
         question_count: int,
     ) -> tuple[list[AssignmentQuestionCreate], AssignmentGeneratorResult]:
+        # Parse JSON; nếu lỗi định dạng thì gọi lại LLM với cấu hình an toàn hơn.
         try:
             questions = self._parse_questions(llm_result.text, question_count)
             return questions, llm_result
@@ -165,6 +167,7 @@ class AssignmentGeneratorService:
 
     @staticmethod
     def _should_retry(error: ValueError, finish_reason: str | None) -> bool:
+        # Xác định lỗi nào đáng để retry (thường là JSON hoặc thiếu cấu trúc).
         message = str(error)
         finish = (finish_reason or "").upper()
         message_upper = message.upper()
@@ -177,6 +180,7 @@ class AssignmentGeneratorService:
         )
 
     def _retry_token_budget(self, question_count: int) -> int:
+        # Tính ngân sách token khi retry theo số lượng câu hỏi.
         budget = max(3000, question_count * 650)
         return min(budget, self.RETRY_MAX_OUTPUT_TOKENS)
 
@@ -243,6 +247,7 @@ class AssignmentGeneratorService:
         raw_text: str,
         expected_count: int,
     ) -> list[AssignmentQuestionCreate]:
+        # Chuẩn hóa JSON thành danh sách câu hỏi hợp lệ.
         payload = self._extract_json_payload(raw_text)
 
         if isinstance(payload, dict):
@@ -380,6 +385,7 @@ class AssignmentGeneratorService:
 
     @staticmethod
     def _extract_json_payload(raw_text: str) -> dict | list:
+        # Trích JSON từ phản hồi LLM (có thể nằm trong code fence).
         text = raw_text.strip()
 
         fenced_match = re.search(

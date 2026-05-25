@@ -25,6 +25,7 @@ export default function MyCoursesPage() {
 
   useEffect(() => {
     const fetchCourses = async () => {
+      // Tải danh sách khóa học của giảng viên.
       try {
         const data = await courseApi.getMyCourses();
         setCourses(data);
@@ -39,6 +40,7 @@ export default function MyCoursesPage() {
   }, []);
 
   const handlePublish = async (courseId: string) => {
+    // Xuất bản khóa học.
     try {
       await courseApi.publish(courseId);
       // Refresh list
@@ -50,6 +52,7 @@ export default function MyCoursesPage() {
   };
 
   const handleDelete = async (courseId: string) => {
+    // Xóa khóa học.
     if (!confirm("Bạn có chắc muốn xóa khóa học này?")) return;
 
     try {

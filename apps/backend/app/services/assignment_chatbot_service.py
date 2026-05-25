@@ -35,6 +35,7 @@ class AssignmentChatbotService:
         max_output_tokens: int | None = None,
         thinking_level: str | None = None,
     ) -> ChatbotServiceResult:
+        # Sinh gợi ý cho người học dựa trên ngữ cảnh bài tập.
         """Generate one guided hint for a learner working on an assignment."""
         assignment = self._get_assignment_for_user(
             db=db,
@@ -85,6 +86,7 @@ class AssignmentChatbotService:
         user: User,
         assignment_id: uuid.UUID,
     ) -> dict[str, int | str]:
+        # Làm nóng cache ngữ cảnh bài tập để chat phản hồi nhanh hơn.
         """Validate access and warm the sanitized assignment context cache."""
         assignment = self._get_assignment_for_user(
             db=db,
@@ -104,6 +106,7 @@ class AssignmentChatbotService:
         assignment_id: uuid.UUID,
         user: User,
     ) -> Assignment:
+        # Xác thực quyền truy cập bài tập theo vai trò người dùng.
         assignment = (
             db.query(Assignment)
             .options(
@@ -127,6 +130,7 @@ class AssignmentChatbotService:
         return assignment
 
     def _build_assignment_context(self, assignment: Assignment) -> str:
+        # Tạo ngữ cảnh bài tập dạng text (không chứa đáp án).
         """Format assignment questions and options without answer keys."""
         lines = [
             "ASSIGNMENT_CONTEXT:",
@@ -152,6 +156,7 @@ class AssignmentChatbotService:
         return "\n".join(lines).strip()
 
     def _get_cached_assignment_context(self, assignment: Assignment) -> str:
+        # Lấy ngữ cảnh từ cache, nếu chưa có thì dựng và lưu lại.
         cache_key = (assignment.id, self._assignment_cache_version(assignment))
         cached_context = _ASSIGNMENT_CONTEXT_CACHE.get(cache_key)
         if cached_context is not None:
@@ -166,6 +171,7 @@ class AssignmentChatbotService:
         return context
 
     def _assignment_cache_version(self, assignment: Assignment) -> str:
+        # Tạo phiên bản cache dựa trên thời điểm cập nhật của bài tập/câu hỏi.
         timestamps = [assignment.updated_at]
         for question in assignment.questions:
             timestamps.append(question.updated_at)
@@ -178,6 +184,7 @@ class AssignmentChatbotService:
         return max(valid_timestamps).isoformat()
 
     def _build_conversation_title(self, assignment: Assignment) -> str:
+        # Đặt tiêu đề hội thoại gắn với bài tập để dễ truy vết.
         return f"{_ASSIGNMENT_CONVERSATION_PREFIX} [{assignment.id}]: {assignment.title}"
 
     def _validate_assignment_conversation(
@@ -187,6 +194,7 @@ class AssignmentChatbotService:
         conversation_id: uuid.UUID,
         assignment_id: uuid.UUID,
     ) -> None:
+        # Kiểm tra hội thoại có đúng thuộc bài tập này hay không.
         conversation = (
             db.query(AIConversation)
             .filter(

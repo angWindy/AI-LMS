@@ -20,6 +20,7 @@ export default function CoursesPage() {
 
   useEffect(() => {
     const fetchCourses = async () => {
+      // Tải danh sách khóa học công khai.
       try {
         const response = await courseApi.getAll({ status: "published" });
         setCourses(response.items);
@@ -35,6 +36,7 @@ export default function CoursesPage() {
   }, []);
 
   useEffect(() => {
+    // Lọc khóa học theo từ khóa.
     if (searchQuery) {
       const filtered = courses.filter(
         (course) =>

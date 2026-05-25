@@ -51,6 +51,7 @@ def _material_title_or_default(
 
 
 def check_course_access(db: DBSession, course_id: uuid.UUID, user: User, require_owner: bool = False):
+    # Kiểm tra quyền truy cập khóa học.
     """Check if user has access to the course."""
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
@@ -64,6 +65,7 @@ def check_course_access(db: DBSession, course_id: uuid.UUID, user: User, require
 
 
 def check_lesson_access(db: DBSession, lesson_id: uuid.UUID, user: User, require_owner: bool = False):
+    # Kiểm tra quyền truy cập buổi học.
     """Check if user has access to the lesson's course."""
     lesson = db.query(Lesson).options(joinedload(Lesson.course)).filter(Lesson.id == lesson_id).first()
     if not lesson:
@@ -85,6 +87,7 @@ async def create_lesson(
     course_id: uuid.UUID,
     lesson_data: LessonCreate,
 ):
+    # Tạo buổi học mới trong khóa học.
     """Create a new lesson in a course."""
     # Check course access
     check_course_access(db, course_id, current_user, require_owner=True)
@@ -126,6 +129,7 @@ async def get_lesson(
     lesson_id: uuid.UUID,
     current_user: CurrentUser,
 ):
+    # Lấy chi tiết buổi học (kèm material).
     """Get lesson details with materials."""
     lesson = db.query(Lesson).options(
         joinedload(Lesson.materials),
@@ -150,6 +154,7 @@ async def update_lesson(
     lesson_data: LessonUpdate,
     current_user: InstructorUser,
 ):
+    # Cập nhật nội dung buổi học.
     """Update a lesson."""
     lesson = check_lesson_access(db, lesson_id, current_user, require_owner=True)
     
@@ -179,6 +184,7 @@ async def delete_lesson(
     lesson_id: uuid.UUID,
     current_user: InstructorUser,
 ):
+    # Xóa buổi học và tài liệu kèm theo.
     """Delete a lesson and its materials."""
     lesson = check_lesson_access(db, lesson_id, current_user, require_owner=True)
 
@@ -221,6 +227,7 @@ async def update_lesson_order(
     order_data: LessonOrderUpdate,
     current_user: InstructorUser,
 ):
+    # Cập nhật thứ tự hiển thị buổi học.
     """Update lesson order within a course."""
     lesson = check_lesson_access(db, lesson_id, current_user, require_owner=True)
     
@@ -245,6 +252,7 @@ async def publish_lesson(
     lesson_id: uuid.UUID,
     current_user: InstructorUser,
 ):
+    # Xuất bản buổi học.
     """Publish a lesson."""
     lesson = check_lesson_access(db, lesson_id, current_user, require_owner=True)
     
@@ -276,6 +284,7 @@ async def create_material(
     file: Optional[UploadFile] = File(None),
     external_url: Optional[str] = Form(None),
 ):
+    # Tạo tài liệu cho buổi học (có thể upload).
     """Create a material for a lesson with optional file upload."""
     lesson = check_lesson_access(db, lesson_id, current_user, require_owner=True)
     
@@ -341,6 +350,7 @@ async def list_materials(
     lesson_id: uuid.UUID,
     current_user: CurrentUser,
 ):
+    # Danh sách tài liệu của buổi học.
     """List all materials for a lesson."""
     lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
     if not lesson:
@@ -359,6 +369,7 @@ async def delete_material(
     material_id: uuid.UUID,
     current_user: InstructorUser,
 ):
+    # Xóa tài liệu buổi học.
     """Delete a material."""
     material = db.query(Material).options(
         joinedload(Material.lesson).joinedload(Lesson.course)
@@ -412,6 +423,7 @@ async def update_progress(
     progress_data: LessonProgressUpdate,
     current_user: CurrentUser,
 ):
+    # Lưu tiến độ học của học viên.
     """Update or create lesson progress for current user."""
     # Verify lesson exists
     lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
@@ -474,6 +486,7 @@ async def get_progress(
     lesson_id: uuid.UUID,
     current_user: CurrentUser,
 ):
+    # Lấy tiến độ học của học viên.
     """Get lesson progress for current user."""
     lesson = db.query(Lesson).filter(Lesson.id == lesson_id).first()
     if not lesson:

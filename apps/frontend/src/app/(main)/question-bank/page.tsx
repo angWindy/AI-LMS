@@ -124,6 +124,7 @@ export default function QuestionBankPage() {
   }
 
   const loadCourses = useCallback(async () => {
+    // Tải danh sách khóa học để lọc ngân hàng câu hỏi.
     setIsLoading(true);
     setError(null);
     try {
@@ -138,6 +139,7 @@ export default function QuestionBankPage() {
   }, []);
 
   const loadLessons = useCallback(async (courseId: string) => {
+    // Tải danh sách buổi học theo khóa học đã chọn.
     if (!courseId) {
       setLessons([]);
       return;
@@ -154,6 +156,7 @@ export default function QuestionBankPage() {
   }, []);
 
   const loadQuestions = useCallback(async () => {
+    // Tải danh sách câu hỏi theo bộ lọc hiện tại.
     setIsQuestionsLoading(true);
     try {
       const questionData = await questionBankApi.listQuestions({
@@ -217,6 +220,7 @@ export default function QuestionBankPage() {
   };
 
   const saveQuestion = async () => {
+    // Lưu câu hỏi mới hoặc cập nhật câu hỏi đang chỉnh sửa.
     if (!selectedCourseId || !editor.question_text.trim()) return;
     if (editor.options.some((option) => !option.trim())) {
       alert("Vui lòng nhập đủ 4 đáp án.");
@@ -256,6 +260,7 @@ export default function QuestionBankPage() {
   };
 
   const generateQuestions = async () => {
+    // Gọi API tạo câu hỏi bằng AI cho buổi học đã chọn.
     if (!selectedCourseId || !generateLessonId) {
       alert("Vui lòng chọn khóa học và buổi học để tạo câu hỏi.");
       return;
@@ -294,6 +299,7 @@ export default function QuestionBankPage() {
   };
 
   const deleteFilteredQuestions = async () => {
+    // Xóa toàn bộ câu hỏi đang được lọc.
     if (questions.length === 0) {
       alert("Không có câu hỏi nào để xóa.");
       return;

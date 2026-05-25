@@ -147,6 +147,7 @@ export default function CourseDetailPage() {
   const slug = params.slug as string;
 
   const fetchCourseData = useCallback(async () => {
+    // Tải khóa học, lessons, materials và assignments.
     try {
       const courseData = await courseApi.getBySlug(slug);
       setCourse(courseData);
@@ -201,6 +202,7 @@ export default function CourseDetailPage() {
   }, [slug, fetchCourseData]);
 
   const handleOpenCourseDialog = () => {
+    // Mở form chỉnh sửa thông tin khóa học.
     if (!course) return;
 
     setCourseForm({
@@ -215,6 +217,7 @@ export default function CourseDetailPage() {
   };
 
   const handleSaveCourse = async () => {
+    // Lưu cập nhật thông tin khóa học.
     if (!course || !courseForm.title.trim()) return;
 
     setIsSavingCourse(true);
@@ -251,6 +254,7 @@ export default function CourseDetailPage() {
   };
 
   const handleOpenLessonDialog = (lesson?: Lesson) => {
+    // Mở form tạo/sửa buổi học.
     if (lesson) {
       setEditingLesson(lesson);
       setLessonForm({

@@ -54,6 +54,7 @@ TEST_ESSAY_RATIOS = {
 
 
 def check_course_owner(db: DBSession, course_id: uuid.UUID, user: User) -> Course:
+    # Kiểm tra quyền sở hữu khóa học.
     """Check if user owns the course or is admin."""
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
@@ -66,6 +67,7 @@ def check_course_owner(db: DBSession, course_id: uuid.UUID, user: User) -> Cours
 
 
 def check_assignment_access(db: DBSession, assignment_id: uuid.UUID, user: User, require_owner: bool = False) -> Assignment:
+    # Kiểm tra quyền truy cập bài tập.
     """Check assignment access based on role and ownership."""
     assignment = db.query(Assignment).options(
         joinedload(Assignment.course),
@@ -84,6 +86,7 @@ def check_assignment_access(db: DBSession, assignment_id: uuid.UUID, user: User,
 
 
 def add_questions_to_assignment(db: DBSession, assignment: Assignment, questions_data: list[AssignmentQuestionCreate]):
+    # Thêm cây câu hỏi/đáp án vào assignment.
     """Attach full question tree to assignment."""
     for question_index, question_data in enumerate(questions_data):
         question = AssignmentQuestion(
@@ -117,6 +120,7 @@ def build_assignment_question_from_bank(
     question: QuestionBankQuestion,
     question_type: AssignmentQuestionType = AssignmentQuestionType.MULTIPLE_CHOICE,
 ) -> AssignmentQuestionCreate:
+    # Chuyển câu hỏi từ ngân hàng sang payload assignment.
     """Clone one reusable question bank item into an assignment payload."""
     sorted_options = sorted(question.options, key=lambda option: option.order_index)
     correct_option = next((option for option in sorted_options if option.is_correct), None)
@@ -150,6 +154,7 @@ def build_assignment_question_from_bank(
 def choose_test_question_types(
     questions: list[QuestionBankQuestion],
 ) -> dict[uuid.UUID, AssignmentQuestionType]:
+    # Chọn một phần câu hỏi dạng tự luận cho bài kiểm tra.
     """Choose essay mode for a portion of medium/hard test questions."""
     selected_types = {
         question.id: AssignmentQuestionType.MULTIPLE_CHOICE
@@ -170,6 +175,7 @@ def select_review_questions_from_bank(
     course_id: uuid.UUID,
     question_count: int,
 ) -> list[QuestionBankQuestion]:
+    # Chọn ngẫu nhiên câu hỏi luyện tập từ ngân hàng theo tỉ lệ độ khó.
     """Randomly select practice/shared bank questions with a 40/40/20 difficulty distribution."""
     expected_counts = difficulty_distribution(question_count)
     selected_questions: list[QuestionBankQuestion] = []
@@ -215,6 +221,7 @@ def select_test_questions_from_bank(
     question_count: int,
     lesson_ids: list[uuid.UUID],
 ) -> list[QuestionBankQuestion]:
+    # Chọn câu hỏi kiểm tra theo phạm vi buổi học và tỉ lệ độ khó.
     """Select assessment-ready test questions with balanced lesson coverage and 40/40/20 difficulty."""
     expected_counts = difficulty_distribution(question_count)
     selected_questions: list[QuestionBankQuestion] = []
@@ -296,6 +303,7 @@ def serialize_assignment_for_response(
     assignment: Assignment,
     include_answer_key: bool,
 ) -> dict:
+    # Chuẩn hóa dữ liệu assignment để trả về UI (ẩn đáp án nếu cần).
     """Serialize assignment while optionally hiding answer keys from learners."""
     return {
         "id": assignment.id,
@@ -345,6 +353,7 @@ async def create_assignment(
     course_id: uuid.UUID,
     assignment_data: AssignmentCreate,
 ):
+    # Tạo bài tập mới thủ công.
     """Create a new assignment for a course."""
     check_course_owner(db, course_id, current_user)
 
@@ -398,6 +407,7 @@ async def generate_assignment_draft(
     course_id: uuid.UUID,
     payload: AssignmentGenerateDraftRequest,
 ):
+    # Sinh bài tập nháp bằng LLM cho một buổi học.
     """Generate an unpublished assignment draft for one lesson using LLM."""
     check_course_owner(db, course_id, current_user)
 
@@ -490,6 +500,7 @@ async def generate_assignment_from_question_bank(
     course_id: uuid.UUID,
     payload: AssignmentGenerateFromBankRequest,
 ):
+    # Tạo bài tập ôn tập từ ngân hàng câu hỏi.
     """Generate an unpublished review assignment from random practice/shared question bank items."""
     check_course_owner(db, course_id, current_user)
 
@@ -558,6 +569,7 @@ async def generate_test_from_question_bank(
     course_id: uuid.UUID,
     payload: AssignmentGenerateTestRequest,
 ):
+    # Tạo bài kiểm tra từ ngân hàng câu hỏi theo phạm vi.
     """Generate an unpublished course-level test from scoped question bank items."""
     check_course_owner(db, course_id, current_user)
 
@@ -639,6 +651,7 @@ async def list_assignments(
     current_user: CurrentUser,
     include_unpublished: bool = Query(False),
 ):
+    # Lấy danh sách bài tập theo khóa học.
     """List assignments for a course."""
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
@@ -666,6 +679,7 @@ async def get_assignment(
     assignment_id: uuid.UUID,
     current_user: CurrentUser,
 ):
+    # Lấy chi tiết bài tập (ẩn đáp án với học viên).
     """Get assignment details."""
     assignment = check_assignment_access(db, assignment_id, current_user)
 
@@ -688,6 +702,7 @@ async def get_my_submission(
     assignment_id: uuid.UUID,
     current_user: CurrentUser,
 ):
+    # Lấy bài nộp hiện tại của học viên.
     """Return the current learner's saved submission for an assignment."""
     if current_user.role != UserRole.LEARNER:
         raise ForbiddenException("Only learners can view their submissions")
@@ -721,6 +736,7 @@ async def submit_assignment(
     payload: AssignmentSubmitRequest,
     current_user: CurrentUser,
 ):
+    # Lưu bài nộp và gọi AI để chấm/nhận xét.
     """Save a learner submission and generate per-question feedback."""
     if current_user.role != UserRole.LEARNER:
         raise ForbiddenException("Only learners can submit assignments")
@@ -848,6 +864,7 @@ async def delete_my_submission(
     assignment_id: uuid.UUID,
     current_user: CurrentUser,
 ):
+    # Xóa bài nộp để học viên làm lại.
     """Delete the current learner's saved submission so they can retake."""
     if current_user.role != UserRole.LEARNER:
         raise ForbiddenException("Only learners can delete their submissions")
@@ -884,6 +901,7 @@ async def update_assignment(
     assignment_data: AssignmentUpdate,
     current_user: InstructorUser,
 ):
+    # Cập nhật thông tin bài tập và câu hỏi.
     """Update assignment title, publish flag, and question set."""
     assignment = check_assignment_access(db, assignment_id, current_user, require_owner=True)
 
@@ -927,6 +945,7 @@ async def delete_assignment(
     assignment_id: uuid.UUID,
     current_user: InstructorUser,
 ):
+    # Xóa bài tập.
     """Delete an assignment."""
     assignment = check_assignment_access(db, assignment_id, current_user, require_owner=True)
 
@@ -953,6 +972,7 @@ async def publish_assignment(
     assignment_id: uuid.UUID,
     current_user: InstructorUser,
 ):
+    # Xuất bản bài tập.
     """Publish an assignment."""
     assignment = check_assignment_access(db, assignment_id, current_user, require_owner=True)
 

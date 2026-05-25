@@ -50,6 +50,7 @@ def _material_title_or_default(
 
 
 def generate_unique_slug(db: DBSession, title: str, exclude_id: uuid.UUID | None = None) -> str:
+    # Tạo slug không trùng cho khóa học.
     """Generate a unique slug for a course."""
     base_slug = slugify(title)
     slug = base_slug
@@ -67,6 +68,7 @@ def generate_unique_slug(db: DBSession, title: str, exclude_id: uuid.UUID | None
 
 
 def check_course_owner(db: DBSession, course_id: uuid.UUID, user: User) -> Course:
+    # Kiểm tra quyền sở hữu khóa học.
     """Check if user owns the course or is admin."""
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
@@ -88,6 +90,7 @@ async def list_courses(
     level: Optional[CourseLevel] = None,
     search: Optional[str] = None,
 ):
+    # Danh sách khóa học công khai có lọc/phân trang.
     """List all published courses with filtering and pagination."""
     query = db.query(Course).filter(Course.status == CourseStatus.PUBLISHED)
 
@@ -136,6 +139,7 @@ async def create_course(
     db: DBSession,
     current_user: InstructorUser,
 ):
+    # Tạo khóa học mới (giảng viên/admin).
     """Create a new course (Instructor or Admin only)."""
     slug = generate_unique_slug(db, course_data.title)
 
@@ -171,6 +175,7 @@ async def get_course(
     course_id: uuid.UUID,
     db: DBSession,
 ):
+    # Lấy thông tin khóa học theo id.
     """Get course details by ID."""
     course = db.query(Course).filter(Course.id == course_id).first()
 
@@ -208,6 +213,7 @@ async def get_course_by_slug(
     slug: str,
     db: DBSession,
 ):
+    # Lấy thông tin khóa học theo slug.
     """Get course details by slug."""
     course = db.query(Course).filter(Course.slug == slug).first()
 
@@ -247,6 +253,7 @@ async def update_course(
     db: DBSession,
     current_user: InstructorUser,
 ):
+    # Cập nhật nội dung khóa học.
     """Update a course (owner or admin only)."""
     course = db.query(Course).filter(Course.id == course_id).first()
 
@@ -297,6 +304,7 @@ async def delete_course(
     db: DBSession,
     current_user: InstructorUser,
 ):
+    # Xóa khóa học và dọn RAG nếu có.
     """Delete a course (owner or admin only)."""
     course = db.query(Course).filter(Course.id == course_id).first()
 
@@ -338,6 +346,7 @@ async def publish_course(
     db: DBSession,
     current_user: InstructorUser,
 ):
+    # Xuất bản khóa học.
     """Publish a course (owner or admin only)."""
     course = db.query(Course).filter(Course.id == course_id).first()
 
@@ -370,6 +379,7 @@ async def archive_course(
     db: DBSession,
     current_user: InstructorUser,
 ):
+    # Lưu trữ khóa học.
     """Archive a course (owner or admin only)."""
     course = db.query(Course).filter(Course.id == course_id).first()
 
@@ -401,6 +411,7 @@ async def get_course_lessons(
     db: DBSession,
     current_user: Optional[User] = Depends(get_current_user_optional),
 ):
+    # Lấy danh sách buổi học (ẩn buổi chưa publish nếu không phải chủ khóa học).
     """Get all lessons for a course.
     
     For instructors/admins: returns all lessons
@@ -436,6 +447,7 @@ async def get_course_materials(
     db: DBSession,
     current_user: Optional[User] = Depends(get_current_user_optional),
 ):
+    # Lấy tài liệu cấp khóa học.
     """Get materials attached directly to a course."""
     course = db.query(Course).filter(Course.id == course_id).first()
     if not course:
@@ -466,6 +478,7 @@ async def create_course_material(
     file: Optional[UploadFile] = File(None),
     external_url: Optional[str] = Form(None),
 ):
+    # Tạo tài liệu cho khóa học (có thể upload file).
     """Create a material directly under a course."""
     check_course_owner(db, course_id, current_user)
 
@@ -532,6 +545,7 @@ async def delete_course_material(
     db: DBSession,
     current_user: InstructorUser,
 ):
+    # Xóa tài liệu cấp khóa học.
     """Delete a course-level material."""
     material = db.query(Material).options(joinedload(Material.course)).filter(
         Material.id == material_id,
@@ -577,6 +591,7 @@ async def get_my_teaching_courses(
     db: DBSession,
     current_user: InstructorUser,
 ):
+    # Danh sách khóa học do giảng viên hiện tại tạo.
     """Get courses created by the current instructor."""
     courses = db.query(Course).filter(
         Course.instructor_id == current_user.id

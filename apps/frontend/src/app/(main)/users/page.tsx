@@ -50,6 +50,7 @@ export default function UsersManagementPage() {
   const [isCreating, setIsCreating] = useState(false);
 
   const fetchUsers = async () => {
+    // Tải danh sách người dùng cho admin.
     try {
       const data = await userApi.getAll();
       setUsers(data);
@@ -99,6 +100,7 @@ export default function UsersManagementPage() {
   };
 
   const handleToggleActive = async (user: User) => {
+    // Bật/tắt trạng thái hoạt động của user.
     try {
       await userApi.update(user.id, { is_active: !user.is_active });
       setUsers(
@@ -112,6 +114,7 @@ export default function UsersManagementPage() {
   };
 
   const handleDelete = async (userId: string) => {
+    // Xóa user khỏi hệ thống.
     if (!confirm("Bạn có chắc muốn xóa người dùng này?")) return;
 
     try {
@@ -132,6 +135,7 @@ export default function UsersManagementPage() {
   };
 
   const handleEditSubmit = async () => {
+    // Lưu chỉnh sửa thông tin user.
     if (!editUser) return;
     
     setIsEditing(true);
@@ -157,6 +161,7 @@ export default function UsersManagementPage() {
   };
 
   const handleCreateSubmit = async () => {
+    // Tạo user mới.
     if (!createForm.email || !createForm.full_name || !createForm.password) {
       alert("Vui lòng điền đầy đủ thông tin");
       return;

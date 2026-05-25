@@ -29,6 +29,7 @@ async def list_users(
     is_active: Optional[bool] = None,
     search: Optional[str] = None,
 ):
+    # Lấy danh sách user cho admin (có lọc/phân trang).
     """List all users (Admin only)."""
     query = db.query(User)
 
@@ -62,6 +63,7 @@ async def create_user(
     db: DBSession,
     current_user: AdminUser,
 ):
+    # Tạo user mới từ trang admin.
     """Create a new user (Admin only)."""
     # Check if email already exists
     existing = db.query(User).filter(User.email == user_data.email).first()
@@ -88,6 +90,7 @@ async def get_user(
     db: DBSession,
     current_user: AdminUser,
 ):
+    # Lấy chi tiết một user theo id.
     """Get user by ID (Admin only)."""
     user = db.query(User).filter(User.id == user_id).first()
 
@@ -104,6 +107,7 @@ async def update_user(
     db: DBSession,
     current_user: AdminUser,
 ):
+    # Cập nhật thông tin user từ trang admin.
     """Update a user (Admin only)."""
     user = db.query(User).filter(User.id == user_id).first()
 
@@ -149,6 +153,7 @@ async def delete_user(
     db: DBSession,
     current_user: AdminUser,
 ):
+    # Xóa user (không cho tự xóa chính mình).
     """Delete a user (Admin only)."""
     if user_id == current_user.id:
         raise HTTPException(
@@ -173,6 +178,7 @@ async def activate_user(
     db: DBSession,
     current_user: AdminUser,
 ):
+    # Kích hoạt tài khoản user.
     """Activate a user account (Admin only)."""
     user = db.query(User).filter(User.id == user_id).first()
 
@@ -192,6 +198,7 @@ async def deactivate_user(
     db: DBSession,
     current_user: AdminUser,
 ):
+    # Khóa tài khoản user (không cho tự khóa).
     """Deactivate a user account (Admin only)."""
     if user_id == current_user.id:
         raise HTTPException(
@@ -217,6 +224,7 @@ async def verify_user(
     db: DBSession,
     current_user: AdminUser,
 ):
+    # Đánh dấu user đã xác thực.
     """Mark a user as verified (Admin only)."""
     user = db.query(User).filter(User.id == user_id).first()
 

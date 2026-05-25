@@ -46,6 +46,7 @@ export default function CreateCoursePage() {
   });
 
   const onSubmit = async (data: CourseFormData) => {
+    // Gửi yêu cầu tạo khóa học mới.
     setIsLoading(true);
     setError(null);
 

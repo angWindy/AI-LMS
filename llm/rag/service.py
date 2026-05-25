@@ -86,6 +86,7 @@ class RAGService:
         title: Optional[str] = None,
         extra_metadata: Optional[Dict] = None,
     ) -> Dict:
+        # Tiện ích nhập PDF vào RAG (tự map sang ingest_document).
         """Ingest a PDF file into the RAG system.
 
         Args:
@@ -121,6 +122,7 @@ class RAGService:
         title: Optional[str] = None,
         extra_metadata: Optional[Dict] = None,
     ) -> Dict:
+        # Đọc file, chunk, embed và lưu vào vector store.
         """Ingest a supported document into RAG.
 
         Text is extracted first, then chunked, then embedded. This keeps the
@@ -205,6 +207,7 @@ class RAGService:
             }
 
     def _namespace_chunk_ids(self, document: Document) -> None:
+        # Gắn namespace vào chunk_id để tránh trùng giữa các tài liệu.
         """Make chunk IDs unique per document while preserving hierarchy links."""
         id_map: dict[str, str] = {}
         for chunk in document.chunks:

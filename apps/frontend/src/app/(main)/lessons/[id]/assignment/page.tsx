@@ -53,6 +53,7 @@ export default function LessonAssignmentPage() {
 
   useEffect(() => {
     const fetchData = async () => {
+      // Tải thông tin lesson/assignment theo tham số URL.
       try {
         let lessonData: Lesson | undefined;
 
@@ -194,6 +195,7 @@ export default function LessonAssignmentPage() {
   }, [currentQuestionPage, totalQuestionPages]);
 
   const handleChooseAnswer = (questionId: string, optionId: string) => {
+    // Chọn đáp án cho câu trắc nghiệm.
     if (isSubmitted) return;
     setSelectedAnswers((prev) => ({
       ...prev,
@@ -232,6 +234,7 @@ export default function LessonAssignmentPage() {
   };
 
   const handleSubmit = async () => {
+    // Nộp bài và tính điểm ngay sau khi trả về kết quả.
     if (!assignment || orderedQuestions.length === 0) return;
 
     setIsSubmitting(true);
@@ -262,6 +265,7 @@ export default function LessonAssignmentPage() {
   };
 
   const handleRetake = async () => {
+    // Xóa bài làm để học viên làm lại từ đầu.
     if (!assignment) return;
 
     setIsResetting(true);

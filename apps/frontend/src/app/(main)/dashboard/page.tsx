@@ -31,6 +31,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const fetchData = async () => {
+      // Tải dữ liệu dashboard theo vai trò người dùng.
       try {
         if (user?.role === UserRole.ADMIN) {
           const [usersData, coursesResponse] = await Promise.all([

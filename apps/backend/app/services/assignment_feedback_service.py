@@ -61,6 +61,7 @@ class AssignmentFeedbackService:
         assignment: Assignment,
         answers: list[SubmissionAnswer],
     ) -> AssignmentFeedback:
+        # Sinh nhận xét cho bài làm và chuẩn hóa kết quả phản hồi.
         """Generate feedback for a submitted assignment."""
         if self.workflow.provider.provider_name == "mock":
             return self._mock_feedback(answers)
@@ -102,6 +103,7 @@ class AssignmentFeedbackService:
         return parsed
 
     def _build_course_context(self, assignment: Assignment) -> str:
+        # Tạo ngữ cảnh khóa học để LLM hiểu mức độ và mục tiêu.
         course = assignment.course
         return "\n".join(
             [
@@ -116,6 +118,7 @@ class AssignmentFeedbackService:
         )
 
     def _build_scope_context(self, assignment: Assignment) -> str:
+        # Tạo ngữ cảnh phạm vi bài tập (theo buổi học hoặc toàn khóa).
         if assignment.lesson_id and assignment.lesson:
             return "\n".join(
                 [
@@ -140,6 +143,7 @@ class AssignmentFeedbackService:
         return "\n".join(scope_lines)
 
     def _build_submission_context(self, answers: list[SubmissionAnswer]) -> str:
+        # Tổng hợp bài làm của học viên thành JSON để LLM đánh giá.
         items: list[dict[str, object]] = []
         for answer in answers:
             question = answer.question
@@ -174,6 +178,7 @@ class AssignmentFeedbackService:
         raw_text: str,
         answers: list[SubmissionAnswer],
     ) -> AssignmentFeedback:
+        # Parse JSON phản hồi và gán vào từng câu hỏi.
         payload = self._extract_json_payload(raw_text)
         if not isinstance(payload, dict):
             raise ValueError("Feedback response must be a JSON object.")
@@ -214,6 +219,7 @@ class AssignmentFeedbackService:
 
     @staticmethod
     def _extract_json_payload(raw_text: str) -> dict | list:
+        # Trích JSON từ phản hồi LLM (có thể nằm trong code fence).
         text = raw_text.strip()
         fenced_match = re.search(
             r"```(?:json)?\s*(\{[\s\S]*\}|\[[\s\S]*\])\s*```",
@@ -242,6 +248,7 @@ class AssignmentFeedbackService:
         return payload
 
     def _fallback_feedback(self, answers: list[SubmissionAnswer]) -> AssignmentFeedback:
+        # Trả về phản hồi mặc định khi LLM lỗi hoặc trả rỗng.
         return AssignmentFeedback(
             summary_feedback="Hệ thống đã lưu bài làm. Nhận xét AI tạm thời chưa khả dụng.",
             answers={
@@ -254,6 +261,7 @@ class AssignmentFeedbackService:
         )
 
     def _mock_feedback(self, answers: list[SubmissionAnswer]) -> AssignmentFeedback:
+        # Phản hồi giả lập dùng khi provider mock.
         return AssignmentFeedback(
             summary_feedback="Bài làm đã được chấm bằng mock feedback.",
             answers={

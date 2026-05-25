@@ -24,6 +24,7 @@ interface ChatWindowProps {
 }
 
 function renderInlineMarkdown(text: string): ReactNode[] {
+  // Render inline markdown đơn giản (in đậm/in nghiêng).
   const nodes: ReactNode[] = [];
   const pattern = /(\*\*[^*]+\*\*|\*[^*]+\*)/g;
   let lastIndex = 0;
@@ -62,6 +63,7 @@ function renderInlineMarkdown(text: string): ReactNode[] {
 }
 
 function ChatMarkdown({ content }: { content: string }) {
+  // Render markdown dạng danh sách và đoạn văn cho chat.
   const lines = content.split(/\r?\n/);
   const blocks: ReactNode[] = [];
   let listItems: ReactNode[][] = [];
@@ -122,6 +124,7 @@ type ChatSegment =
   | { type: "code"; value: string; language?: string };
 
 function splitChatSegments(content: string): ChatSegment[] {
+  // Tách nội dung chat theo các khối code fence ```...```.
   const segments: ChatSegment[] = [];
   const pattern = /```(\w+)?\s*([\s\S]*?)\s*```/g;
   let lastIndex = 0;
@@ -149,11 +152,13 @@ function splitChatSegments(content: string): ChatSegment[] {
 }
 
 function isJsonSegment(value: string, language?: string): boolean {
+  // Nhận diện đoạn code JSON để render theo dạng key/value.
   if (language && language.toLowerCase() === "json") return true;
   return Boolean(tryParseJson(value));
 }
 
 function ChatMessageContent({ content }: { content: string }) {
+  // Render nội dung chat: ưu tiên JSON, sau đó là code fence và markdown.
   const parsed = tryParseJson(content);
   if (parsed) {
     return <RichContent value={content} />;
@@ -212,6 +217,7 @@ export function ChatWindow({
     }
   }, [messages]);
 
+  // Gửi câu hỏi lên API và cập nhật luồng chat.
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
     if (!input.trim() || isLoading) return;

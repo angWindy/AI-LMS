@@ -69,11 +69,13 @@ class User(Base, TimestampMixin):
     )
 
     def set_password(self, password: str) -> None:
+        # Băm mật khẩu trước khi lưu.
         """Hash and set the password."""
         from app.core.security import get_password_hash
         self.password_hash = get_password_hash(password)
 
     def verify_password(self, password: str) -> bool:
+        # Kiểm tra mật khẩu người dùng.
         """Verify the password against the stored hash."""
         from app.core.security import verify_password
         return verify_password(password, self.password_hash)

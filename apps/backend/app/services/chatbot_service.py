@@ -108,6 +108,7 @@ class ChatbotService:
         enable_auto_rag: bool = True,
         append_lms_prompt: bool = True,
     ) -> ChatbotServiceResult:
+        # Tạo câu trả lời cho chatbot, đồng thời lưu lại lịch sử hội thoại.
         """Generate one assistant answer and persist the turn into conversation history."""
         if conversation_id and (course_id is None or lesson_id is None):
             existing_conversation = (
@@ -279,6 +280,7 @@ class ChatbotService:
         user_id: uuid.UUID,
         limit: int = 20,
     ) -> list[AIConversation]:
+        # Lấy danh sách hội thoại gần nhất của người dùng.
         """List recent conversations for a learner/instructor."""
         return (
             db.query(AIConversation)
@@ -295,6 +297,7 @@ class ChatbotService:
         conversation_id: uuid.UUID,
         limit: int = 100,
     ) -> list[AIMessage]:
+        # Trả về các tin nhắn thuộc một hội thoại của người dùng.
         """List messages for a conversation that belongs to the user."""
         conversation = (
             db.query(AIConversation)
@@ -336,6 +339,7 @@ class ChatbotService:
         self,
         history: Sequence[ChatMessage],
     ) -> list[str]:
+        # Rút gọn lịch sử chat để đưa vào context cho lượt trả lời.
         """Format recent non-system turns as compact context for continuity."""
         selected_messages = [
             message
@@ -378,6 +382,7 @@ class ChatbotService:
         course_id: uuid.UUID | None,
         lesson_id: uuid.UUID | None,
     ) -> LMSChatScope:
+        # Xác định phạm vi khóa học/buổi học và tình trạng tài liệu RAG.
         """Resolve course/lesson names and RAG document availability."""
         course: Course | None = None
         lesson: Lesson | None = None
@@ -436,6 +441,7 @@ class ChatbotService:
         question: str,
         scope: LMSChatScope,
     ) -> list[str]:
+        # Lấy ngữ cảnh RAG tự động theo ưu tiên buổi học trước, khóa học sau.
         """Retrieve classroom RAG context with lesson-first priority."""
         _ = db
         if not scope.course_id and not scope.lesson_id:
@@ -597,6 +603,7 @@ class ChatbotService:
         self,
         teaching_images: Sequence[dict[str, str | None]],
     ) -> tuple[list[ImageInput], list[str]]:
+        # Giải mã/kiểm tra ảnh từ client và tạo metadata để đưa vào prompt.
         prepared_images: list[ImageInput] = []
         derived_contexts: list[str] = []
 

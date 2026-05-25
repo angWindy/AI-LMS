@@ -56,6 +56,7 @@ export default function ProfilePage() {
   });
 
   const onProfileSubmit = async (data: ProfileFormData) => {
+    // Cập nhật thông tin hồ sơ người dùng.
     setIsProfileLoading(true);
     setProfileError(null);
     setProfileSuccess(false);
@@ -73,6 +74,7 @@ export default function ProfilePage() {
   };
 
   const onPasswordSubmit = async (data: PasswordFormData) => {
+    // Đổi mật khẩu cho tài khoản hiện tại.
     setIsPasswordLoading(true);
     setPasswordError(null);
     setPasswordSuccess(false);

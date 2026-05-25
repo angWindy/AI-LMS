@@ -15,16 +15,19 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    # So sánh mật khẩu plain với hash lưu trong DB.
     """Verify a plain password against its hash."""
     return pwd_context.verify(plain_password, hashed_password)
 
 
 def get_password_hash(password: str) -> str:
+    # Băm mật khẩu để lưu trữ.
     """Hash a password."""
     return pwd_context.hash(password)
 
 
 def create_access_token(subject: str | Any, expires_delta: timedelta | None = None) -> str:
+    # Tạo JWT access token với hạn ngắn.
     """Create JWT access token."""
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
@@ -43,6 +46,7 @@ def create_access_token(subject: str | Any, expires_delta: timedelta | None = No
 
 
 def create_refresh_token(subject: str | Any) -> str:
+    # Tạo JWT refresh token với hạn dài.
     """Create JWT refresh token."""
     expire = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode = {
@@ -55,6 +59,7 @@ def create_refresh_token(subject: str | Any) -> str:
 
 
 def decode_token(token: str) -> dict[str, Any] | None:
+    # Giải mã JWT và trả payload (None nếu không hợp lệ).
     """Decode and validate a JWT token."""
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])

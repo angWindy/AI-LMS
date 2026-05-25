@@ -107,6 +107,7 @@ class Assignment(Base, TimestampMixin):
 
     @property
     def scoped_lesson_ids(self) -> list[uuid.UUID]:
+        # Danh sách lesson_id dùng để giới hạn phạm vi đề kiểm tra.
         """Lesson ids that define the question scope for course-level tests."""
         return [scope.lesson_id for scope in sorted(self.lesson_scopes, key=lambda item: item.order_index)]
 
